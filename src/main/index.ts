@@ -3,6 +3,7 @@ import { join } from "path";
 import icon from "../../resources/icon.png?asset";
 import { disposeAll } from "./agent/session-queue";
 import { startCore, stopCore } from "./core";
+import { peekLease } from "../daemon/lease";
 import {
   registerImbFileHandler,
   registerImbFileScheme,
@@ -76,6 +77,16 @@ app.whenReady().then(() => {
   registerImbFileHandler();
 
   createWindow();
+
+  // The data directory has a single-owner lease. The GUI does not take it (yet),
+  // but it must not silently co-write with a running daemon.
+  const holder = peekLease();
+  if (holder && holder.pid !== process.pid) {
+    console.warn(
+      `[startup] a ${holder.owner} (pid ${holder.pid}) holds the data lease; ` +
+        "running the window alongside it means two writers on the same database.",
+    );
+  }
 
   // Always initialize the updater: the automatic startup check is packaged-only
   // (inside `initUpdater`), but the renderer's manual check also works in dev.
