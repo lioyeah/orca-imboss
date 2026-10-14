@@ -82,7 +82,7 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   cron.stopAll();
   stopAllMiniAppServers();
-  shutdownRemoteAgents();
+  void shutdownRemoteAgents();
   void disposeAll();
   void shutdownIntegrations();
 });
@@ -117,7 +117,8 @@ app.whenReady().then(() => {
   // Start enabled IM integrations (WeChat / QQ / Telegram) in the background.
   void initIntegrations();
 
-  // Warm the remote A2A peer secrets so the first send never waits on disk.
+  // Warm the remote A2A secrets (both directions) and, when it is switched on,
+  // start this company's own A2A endpoint.
   void initRemoteAgents();
 
   createWindow();

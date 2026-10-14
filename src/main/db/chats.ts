@@ -435,7 +435,8 @@ function normalizeSource(value: string | null): Chat["source"] {
   return value === "wechat" ||
     value === "qq" ||
     value === "telegram" ||
-    value === "a2a"
+    value === "a2a" ||
+    value === "a2a-in"
     ? value
     : null;
 }

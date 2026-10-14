@@ -171,6 +171,11 @@ export function registerChatHandlers(): void {
     await Promise.all(chatIds.map((chatId) => disposeForChat(chatId)));
     // Stop in-flight remote-agent streams into chats that are about to vanish.
     for (const chatId of chatIds) remoteAgentManager.disposeForChat(chatId);
+    // An inbound A2A caller's conversation needs no extra cleanup here: it is
+    // torn down like any other chat, and disposing its session makes the
+    // awaiting executor turn fail, which the caller sees as a failed task. The
+    // caller record itself survives — it owns a token and may have other
+    // conversations (one per A2A context), so it is managed in Settings.
     const removed = dbChats.deleteChats(chatIds) > 0;
     if (removed) {
       // Remove the peers whose conversations just went away (their hidden

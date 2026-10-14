@@ -106,3 +106,51 @@
   color: var(--imb-muted);
   background: color-mix(in oklch, var(--imb-muted) 12%, transparent);
 }
+
+.imb-remote-inbound {
+  margin-top: var(--imb-space-7);
+  padding-top: var(--imb-space-6);
+  border-top: 1px solid var(--imb-border);
+}
+
+.imb-remote-inbound-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--imb-space-4);
+}
+
+.imb-remote-section-title {
+  margin: 0 0 var(--imb-space-2);
+  font-size: var(--imb-text-md);
+  font-weight: 600;
+}
+
+.imb-remote-status-line {
+  margin: var(--imb-space-3) 0 var(--imb-space-4);
+  font-size: var(--imb-text-sm);
+  color: var(--imb-muted);
+  word-break: break-all;
+}
+
+.imb-remote-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--imb-space-3);
+  margin-bottom: var(--imb-space-5);
+}
+
+.imb-remote-grid-action {
+  display: flex;
+  align-items: center;
+}
+
+.imb-remote-token {
+  margin: var(--imb-space-3) 0 0;
+  font-family: var(--imb-font-mono);
+  font-size: var(--imb-text-xs);
+  color: var(--imb-muted);
+  word-break: break-all;
+  user-select: all;
+}

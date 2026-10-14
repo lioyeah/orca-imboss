@@ -112,7 +112,7 @@ export interface RemoteSendResult {
 }
 
 /** Split A2A parts into chat-readable Markdown plus the files they carry. */
-function partsToContent(parts: readonly Part[] | undefined): {
+export function partsToContent(parts: readonly Part[] | undefined): {
   text: string;
   files: RemoteFile[];
 } {

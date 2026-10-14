@@ -33,6 +33,9 @@ import type {
   ProviderUpsert,
   RemoteAgent,
   RemoteAgentInput,
+  RemoteCaller,
+  RemoteInboundConfig,
+  RemoteInboundInput,
   SpendRange,
   SpendReport,
   StagedRestore,
@@ -492,6 +495,31 @@ const api = {
       ipcRenderer.invoke("remote:refresh", id) as Promise<RemoteAgent>,
     remove: (id: number) =>
       ipcRenderer.invoke("remote:remove", id) as Promise<boolean>,
+    inbound: {
+      status: () =>
+        ipcRenderer.invoke(
+          "remote:inbound:status",
+        ) as Promise<RemoteInboundConfig>,
+      update: (input: RemoteInboundInput) =>
+        ipcRenderer.invoke(
+          "remote:inbound:update",
+          input,
+        ) as Promise<RemoteInboundConfig>,
+      callers: () =>
+        ipcRenderer.invoke("remote:inbound:callers") as Promise<RemoteCaller[]>,
+      addCaller: (name: string) =>
+        ipcRenderer.invoke(
+          "remote:inbound:caller:add",
+          name,
+        ) as Promise<RemoteCaller>,
+      regenerateToken: (id: number) =>
+        ipcRenderer.invoke(
+          "remote:inbound:caller:token",
+          id,
+        ) as Promise<RemoteCaller>,
+      removeCaller: (id: number) =>
+        ipcRenderer.invoke("remote:inbound:caller:remove", id) as Promise<void>,
+    },
   },
 
   mcp: {

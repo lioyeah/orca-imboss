@@ -46,3 +46,53 @@ export interface RemoteAgentInput {
    */
   token?: string;
 }
+
+/**
+ * State of this company's own A2A endpoint — the inbound half of the bridge.
+ *
+ * It is off by default and binds to loopback, because exposing an agent to the
+ * internet is a decision the boss makes deliberately (and reachability is the
+ * boss's own problem: a tunnel, a VPN, or a port forward).
+ */
+export interface RemoteInboundConfig {
+  /** Whether the listener should be running. */
+  enabled: boolean;
+  /** Interface to bind. */
+  host: string;
+  port: number;
+  /** Name this company advertises in its agent card. */
+  name: string;
+  /** Whether the listener is actually accepting connections right now. */
+  running: boolean;
+  /**
+   * The URL partners should use to reach this agent, derived from the bind
+   * address while the listener runs (`null` when it is off).
+   */
+  url: string | null;
+  /** Why the listener could not start (`null` when there is no problem). */
+  error: string | null;
+}
+
+/** Input accepted by `remote:inbound:update`. */
+export interface RemoteInboundInput {
+  enabled?: boolean;
+  host?: string;
+  port?: number;
+  name?: string;
+}
+
+/** One inbound caller (a partner company allowed to reach this agent). */
+export interface RemoteCaller {
+  id: number;
+  /** The partner's name, as shown in its conversations. */
+  name: string;
+  /**
+   * The bearer token this partner must present. Shown so it can be copied to
+   * the partner and rotated; stored in the main-process secrets file only.
+   */
+  token: string;
+  /** How many conversations this partner has open. */
+  chatCount: number;
+  /** UNIX timestamp in seconds. */
+  createdAt: number;
+}

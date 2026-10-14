@@ -25,7 +25,7 @@ export function listEmployees(): Employee[] {
   return (
     getDB()
       .prepare(
-        "SELECT * FROM employees WHERE disabled = 0 AND remote_agent_id IS NULL ORDER BY id ASC",
+        "SELECT * FROM employees WHERE disabled = 0 AND remote_agent_id IS NULL AND remote_caller_id IS NULL ORDER BY id ASC",
       )
       .all() as EmployeeRow[]
   ).map(toEmployee);
@@ -49,6 +49,7 @@ export function listEmployeesPage(page: PageQuery = {}): PageResult<Employee> {
     "id <> ?",
     "disabled = 0",
     "remote_agent_id IS NULL",
+    "remote_caller_id IS NULL",
   ];
   const params: Array<string | number> = [ASSISTANT_ID];
 
@@ -291,7 +292,7 @@ export function purgeDisabledEmployees(): PurgedEmployee[] {
   const db = getDB();
   const disabled = db
     .prepare(
-      "SELECT id FROM employees WHERE disabled = 1 AND remote_agent_id IS NULL",
+      "SELECT id FROM employees WHERE disabled = 1 AND remote_agent_id IS NULL AND remote_caller_id IS NULL",
     )
     .all() as Array<{ id: number }>;
   const purged: PurgedEmployee[] = [];

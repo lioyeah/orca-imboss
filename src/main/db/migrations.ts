@@ -224,6 +224,26 @@ const MIGRATIONS: Array<(db: Database) => void> = [
       ALTER TABLE remote_agents ADD COLUMN run_started_at INTEGER;
     `);
   },
+  // 5 — inbound A2A: this company's own agent, exposed to other companies.
+  //
+  // A caller is one partner that was handed a bearer token. Like a remote peer
+  // it gets a dedicated employee row (flagged by `employees.remote_caller_id`)
+  // so its messages have an author and the boss can reply in the same
+  // conversation, and one conversation per A2A `contextId` (chats.source =
+  // 'a2a-in', so the inbound direction can never be confused with a peer we
+  // call ourselves).
+  (db) => {
+    db.exec(`
+      ALTER TABLE employees ADD COLUMN remote_caller_id INTEGER;
+
+      CREATE TABLE IF NOT EXISTS remote_callers (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        -- The partner's name, as shown in the conversation and the UI.
+        name       TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER))
+      );
+    `);
+  },
 ];
 
 export function migrate(db: Database): void {

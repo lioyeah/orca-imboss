@@ -1,6 +1,8 @@
+import { remoteInboundServer } from "./inbound";
 import { remoteAgentManager } from "./manager";
 
 export { remoteAgentManager } from "./manager";
+export { remoteInboundServer } from "./inbound";
 export type { RemoteTaskState } from "./client";
 export type {
   RemoteDelegateResult,
@@ -9,13 +11,16 @@ export type {
 } from "./manager";
 
 /**
- * Remote A2A peers are client-only in this phase: there is nothing to start
- * at boot and nothing to stop at quit beyond aborting in-flight sends.
+ * Start both halves of the A2A bridge: the client side loads its peer secrets
+ * and resumes any interrupted run, and the inbound endpoint starts listening
+ * when the boss has switched it on.
  */
-export function initRemoteAgents(): Promise<void> {
-  return remoteAgentManager.init();
+export async function initRemoteAgents(): Promise<void> {
+  await remoteAgentManager.init();
+  await remoteInboundServer.init();
 }
 
-export function shutdownRemoteAgents(): void {
+export async function shutdownRemoteAgents(): Promise<void> {
   remoteAgentManager.disposeAll();
+  await remoteInboundServer.stop();
 }

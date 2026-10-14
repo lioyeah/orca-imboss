@@ -24,6 +24,7 @@ export const INTEGRATION_LABEL_KEYS: Record<IntegrationPlatform, string> = {
 export const CHAT_SOURCE_LABEL_KEYS: Record<ChatSourceKind, string> = {
   ...INTEGRATION_LABEL_KEYS,
   a2a: "A2A",
+  "a2a-in": "A2A inbound",
 };
 
 /**

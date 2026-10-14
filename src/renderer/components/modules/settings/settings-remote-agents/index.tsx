@@ -10,6 +10,7 @@ import { EmptyState } from "../../../empty-state";
 import { Field } from "../../../field";
 import { Input } from "../../../input";
 import { Modal } from "../../../modal";
+import { SettingsRemoteInbound } from "./inbound";
 import "./index.css";
 
 /**
@@ -152,6 +153,8 @@ export function SettingsRemoteAgents(): React.JSX.Element {
             </section>
           ))
         )}
+
+        <SettingsRemoteInbound />
       </DetailBody>
 
       <AddRemoteAgentModal
