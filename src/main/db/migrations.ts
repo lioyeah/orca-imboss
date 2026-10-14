@@ -183,6 +183,29 @@ const MIGRATIONS: Array<(db: Database) => void> = [
       ALTER TABLE messages ADD COLUMN image_model TEXT;
     `);
   },
+  // 6 — remote A2A peers. A peer is a user-added agent reachable over the A2A
+  // protocol; it gets its own conversation (chats.source = 'a2a') and a
+  // dedicated employee row for message authorship, flagged by
+  // `employees.remote_agent_id` so it never shows up as local staff.
+  (db) => {
+    db.exec(`
+      ALTER TABLE employees ADD COLUMN remote_agent_id INTEGER;
+
+      CREATE TABLE IF NOT EXISTS remote_agents (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        -- Agent-card base URL; the card itself is resolved at
+        -- /.well-known/agent-card.json.
+        url           TEXT NOT NULL,
+        -- Cached agent card (normalized JSON), re-used for every request so a
+        -- send never has to re-resolve the card.
+        card          TEXT,
+        -- 'ok' | 'error' after the last resolve/refresh.
+        status        TEXT NOT NULL DEFAULT 'unknown',
+        status_detail TEXT,
+        created_at    INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER))
+      );
+    `);
+  },
 ];
 
 export function migrate(db: Database): void {
