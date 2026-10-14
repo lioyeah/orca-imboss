@@ -400,7 +400,7 @@ class RemoteInboundServer {
 
     await new Promise<void>((resolve) => {
       const onStartError = (err: Error): void => {
-        this.error = err.message;
+        this.error = describeListenFailure(config.host, config.port, err);
         this.running = false;
         this.server = null;
         this.transport = null;
@@ -413,7 +413,7 @@ class RemoteInboundServer {
         server.off("error", onStartError);
         // A listener that dies later must not keep reporting itself as running.
         server.on("error", (err) => {
-          this.error = err.message;
+          this.error = describeListenFailure(config.host, config.port, err);
           this.running = false;
           console.error("[remote] A2A endpoint error:", err.message);
         });
@@ -850,6 +850,28 @@ function weakETag(body: string): string {
 
 function newToken(): string {
   return randomBytes(24).toString("base64url");
+}
+
+/**
+ * Turn a bind failure into something the boss can act on. The two common cases
+ * (the port is taken, the port is privileged) get a plain sentence; anything
+ * else keeps the OS text, which is the only useful part.
+ */
+function describeListenFailure(host: string, port: number, err: Error): string {
+  const code = (err as NodeJS.ErrnoException).code;
+  if (code === "EADDRINUSE") {
+    return t("Port ${port} is already in use on ${host}.", {
+      port: String(port),
+      host,
+    });
+  }
+  if (code === "EACCES") {
+    return t("Not allowed to listen on ${host}:${port}.", {
+      host,
+      port: String(port),
+    });
+  }
+  return t("Could not start the endpoint: ${error}", { error: err.message });
 }
 
 function normalizeHost(value: string): string {

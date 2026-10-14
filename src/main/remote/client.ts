@@ -8,6 +8,7 @@ import {
   type StreamResponse,
   type Task,
   type TaskArtifactUpdateEvent,
+  type TaskStatus,
   type TaskStatusUpdateEvent,
 } from "@a2a-js/sdk";
 import {
@@ -79,6 +80,16 @@ export function isTerminalState(state: RemoteTaskState): boolean {
   return state !== "submitted" && state !== "working" && state !== "unknown";
 }
 
+/**
+ * Whether a status message should be treated as the peer's answer.
+ *
+ * Failed, canceled and rejected tasks put an error report in that message;
+ * everything else (a completed task, or one waiting on us) is content.
+ */
+function isAnswerState(state: RemoteTaskState): boolean {
+  return state !== "failed" && state !== "canceled" && state !== "rejected";
+}
+
 /** A binary part of an A2A message, in either direction. */
 export interface RemoteFile {
   name: string;
@@ -93,8 +104,13 @@ export interface RemoteStreamHandlers {
    * At least one of the two is non-empty.
    */
   onContent(text: string, files: RemoteFile[]): void;
-  /** The peer's task changed state. */
-  onState(state: RemoteTaskState): void;
+  /**
+   * The peer's task changed state, with the status message that came with it
+   * (`null` when there was none). A status message on a failed, canceled or
+   * rejected task is an error report rather than the peer's answer, so it is
+   * handed over here instead of being posted as content.
+   */
+  onState(state: RemoteTaskState, detail: string | null): void;
   /** The peer's A2A conversation id (echo it back on the next turn). */
   onContext(contextId: string): void;
   /** The peer's task id (the handle for recovering a dropped stream). */
@@ -221,22 +237,18 @@ export class RemoteAnswerCollector {
   /** A complete task snapshot (the initial one, or a `getTask` read). */
   task(task: Task): void {
     this.noteIds(task.id, task.contextId);
-    if (task.status) this.state(mapState(task.status.state));
     for (const artifact of task.artifacts) {
       if (this.emittedArtifacts.has(artifact.artifactId)) continue;
       this.flushArtifact(artifact.artifactId);
       this.emittedArtifacts.add(artifact.artifactId);
       this.emitParts(artifact.parts);
     }
-    // A completed task may carry its answer in the status message instead of
-    // an artifact (a plain message answer is not wrapped in a task at all).
-    this.emitMessage(task.status?.message);
+    this.applyStatus(task.status);
   }
 
   statusUpdate(event: TaskStatusUpdateEvent): void {
     this.noteIds(event.taskId, event.contextId);
-    if (event.status) this.state(mapState(event.status.state));
-    this.emitMessage(event.status?.message);
+    this.applyStatus(event.status);
   }
 
   artifactUpdate(event: TaskArtifactUpdateEvent): void {
@@ -284,9 +296,19 @@ export class RemoteAnswerCollector {
     }
   }
 
-  private state(state: RemoteTaskState): void {
+  /**
+   * Report a task status, and treat its message as content only when the state
+   * means "here is my answer". A failed, canceled or rejected task carries an
+   * error report in that message, which belongs with the state (so the caller
+   * can surface it once) rather than as a message of its own.
+   */
+  private applyStatus(status: TaskStatus | undefined): void {
+    if (!status) return;
+    const state = mapState(status.state);
+    const detail = agentMessageText(status.message);
     this.lastState = state;
-    this.handlers.onState(state);
+    this.handlers.onState(state, detail.length > 0 ? detail : null);
+    if (isAnswerState(state)) this.content(detail);
   }
 
   private flushArtifact(artifactId: string): void {
@@ -306,6 +328,12 @@ export class RemoteAnswerCollector {
     if (!message || message.role !== Role.ROLE_AGENT) return;
     this.emitParts(message.parts);
   }
+}
+
+/** Text of an agent-role message (user-role echoes are ignored). */
+function agentMessageText(message: Message | undefined): string {
+  if (!message || message.role !== Role.ROLE_AGENT) return "";
+  return partsToContent(message.parts).text;
 }
 
 /** Build a client for a cached agent card. */

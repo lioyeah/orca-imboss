@@ -213,8 +213,8 @@ class RemoteAgentManager {
           attachments: stored,
         });
       },
-      onState: (state) => {
-        const note = stateNote(state);
+      onState: (state, detail) => {
+        const note = stateNote(state, detail);
         if (note !== null) {
           this.note(chatId, record.employeeId, note, STATUS_KIND, false);
         }
@@ -418,8 +418,8 @@ class RemoteAgentManager {
           attachments: stored,
         });
       },
-      onState: (state) => {
-        const note = stateNote(state);
+      onState: (state, detail) => {
+        const note = stateNote(state, detail);
         if (note !== null) {
           this.note(chatId, employeeId, note, STATUS_KIND, false);
         }
@@ -619,14 +619,20 @@ function runStatus(
 }
 
 /** A short, localized note for the states a chat should surface. */
-function stateNote(state: RemoteTaskState): string | null {
+function stateNote(
+  state: RemoteTaskState,
+  detail: string | null,
+): string | null {
   switch (state) {
     case "input-required":
       return t("The remote agent is waiting for your reply.");
     case "auth-required":
       return t("The remote agent requires authentication.");
     case "failed":
-      return t("The remote agent reported a failure.");
+      // Prefer the peer's own explanation: it is the only actionable part.
+      return detail !== null
+        ? t("The remote agent reported a failure: ${error}", { error: detail })
+        : t("The remote agent reported a failure.");
     case "rejected":
       return t("The remote agent declined the request.");
     case "canceled":

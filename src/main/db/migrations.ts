@@ -224,7 +224,7 @@ const MIGRATIONS: Array<(db: Database) => void> = [
       ALTER TABLE remote_agents ADD COLUMN run_started_at INTEGER;
     `);
   },
-  // 5 — inbound A2A: this company's own agent, exposed to other companies.
+  // 8 — inbound A2A: this company's own agent, exposed to other companies.
   //
   // A caller is one partner that was handed a bearer token. Like a remote peer
   // it gets a dedicated employee row (flagged by `employees.remote_caller_id`)
