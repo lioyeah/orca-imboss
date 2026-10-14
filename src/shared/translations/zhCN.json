@@ -215,6 +215,7 @@
   "The remote agent canceled the task.": "远程 agent 取消了该任务。",
   "The remote agent declined the request.": "远程 agent 拒绝了该请求。",
   "The remote agent finished without a reply.": "远程 agent 结束了任务，但没有回复。",
+  "The remote agent is still working. Its answer will appear here when it finishes.": "远程 agent 仍在处理中。完成后它的回复会出现在这里。",
   "The remote agent is waiting for your reply.": "远程 agent 正在等待你的回复。",
   "The remote agent reported a failure.": "远程 agent 报告了失败。",
   "The remote agent request failed: ${error}": "请求远程 agent 失败：${error}",

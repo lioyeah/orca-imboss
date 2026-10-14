@@ -27,9 +27,15 @@ interface RemoteAgentRow {
   status: string;
   status_detail: string | null;
   created_at: number;
+  context_id: string | null;
+  last_task_id: string | null;
+  run_state: string;
   employee_id: number | null;
   chat_id: number | null;
 }
+
+/** Whether the peer's last task is still running (from our side). */
+export type RemoteRunState = "idle" | "working";
 
 /** A peer joined with its hidden employee row and its conversation. */
 export interface RemoteAgentRecord {
@@ -40,6 +46,12 @@ export interface RemoteAgentRecord {
   status: RemoteAgentStatus;
   statusDetail: string | null;
   createdAt: number;
+  /** A2A conversation id, echoed back on the next turn for multi-turn context. */
+  contextId: string | null;
+  /** Id of the peer's most recent task, used to re-attach after a drop. */
+  lastTaskId: string | null;
+  /** 'working' means a task is running (or was orphaned by a restart). */
+  runState: RemoteRunState;
   /** Hidden employee row used as the message author. */
   employeeId: number;
   /** The conversation bridged to this peer. */
@@ -70,6 +82,9 @@ function toRecord(row: RemoteAgentRow): RemoteAgentRecord | null {
     status: row.status === "ok" ? "ok" : "error",
     statusDetail: row.status_detail,
     createdAt: row.created_at,
+    contextId: row.context_id,
+    lastTaskId: row.last_task_id,
+    runState: row.run_state === "working" ? "working" : "idle",
     employeeId: row.employee_id,
     chatId: row.chat_id,
   };
@@ -190,6 +205,46 @@ export function updateRemoteAgentCard(
       "UPDATE remote_agents SET card = ?, status = ?, status_detail = ? WHERE id = ?",
     )
     .run(card === null ? null : JSON.stringify(card), status, statusDetail, id);
+}
+
+/** Remember the peer's A2A conversation id for the next turn. */
+export function setRemoteAgentContextId(
+  id: number,
+  contextId: string | null,
+): void {
+  getDB()
+    .prepare("UPDATE remote_agents SET context_id = ? WHERE id = ?")
+    .run(contextId, id);
+}
+
+/**
+ * Record whether a task is running, and which task it is.
+ *
+ * `run_started_at` is only meaningful while a task runs; it is cleared when the
+ * run settles so a resumed run can report how long it has been going.
+ */
+export function setRemoteAgentRun(
+  id: number,
+  state: RemoteRunState,
+  taskId: string | null,
+): void {
+  getDB()
+    .prepare(
+      "UPDATE remote_agents SET run_state = ?, last_task_id = ?, run_started_at = ? WHERE id = ?",
+    )
+    .run(
+      state,
+      taskId,
+      state === "working" ? Math.floor(Date.now() / 1000) : null,
+      id,
+    );
+}
+
+/** Peers whose last run never settled (a dropped stream or an app restart). */
+export function listOrphanedRemoteAgentRuns(): RemoteAgentRecord[] {
+  return listRemoteAgents().filter(
+    (record) => record.runState === "working" && record.lastTaskId !== null,
+  );
 }
 
 /** Rename the hidden employee row (keeps the chat title in step). */

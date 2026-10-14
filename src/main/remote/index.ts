@@ -2,6 +2,11 @@ import { remoteAgentManager } from "./manager";
 
 export { remoteAgentManager } from "./manager";
 export type { RemoteTaskState } from "./client";
+export type {
+  RemoteDelegateResult,
+  RemoteRunStatus,
+  RemoteSendOutcome,
+} from "./manager";
 
 /**
  * Remote A2A peers are client-only in this phase: there is nothing to start

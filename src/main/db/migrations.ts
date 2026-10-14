@@ -206,6 +206,24 @@ const MIGRATIONS: Array<(db: Database) => void> = [
       );
     `);
   },
+  // 7 — multi-turn remote A2A conversations and recoverable runs.
+  //
+  // `context_id` is the A2A conversation id the peer hands back; sending it on
+  // the next turn is what lets a peer keep its own context across turns.
+  //
+  // `run_state` / `last_task_id` make a run survive a dropped stream or a
+  // restart: the peer's task id is the handle used to re-attach (A2A
+  // `resubscribe`) or to read the finished task, and a row still marked
+  // 'working' at startup is by definition orphaned (the process that owned the
+  // stream is gone), so it is resumed rather than left hanging.
+  (db) => {
+    db.exec(`
+      ALTER TABLE remote_agents ADD COLUMN context_id TEXT;
+      ALTER TABLE remote_agents ADD COLUMN last_task_id TEXT;
+      ALTER TABLE remote_agents ADD COLUMN run_state TEXT NOT NULL DEFAULT 'idle';
+      ALTER TABLE remote_agents ADD COLUMN run_started_at INTEGER;
+    `);
+  },
 ];
 
 export function migrate(db: Database): void {
