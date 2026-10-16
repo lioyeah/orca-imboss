@@ -1,59 +1,137 @@
 /*
- * Private UI/UX layer — the one place to change how the app looks.
+ * Private theme — "quiet" pass.
  *
- * This file loads after `src/renderer/styles/tokens.css`, and every component
- * in the app is driven by the custom properties defined there, so redefining a
- * token here restyles the whole app at once and cannot fight an upstream CSS
- * rule. Keep global look-and-feel here: colour, spacing, radius, typography,
- * motion.
+ * Loaded after `src/renderer/styles/tokens.css`, and ~95% of the app's CSS is
+ * driven by the custom properties defined there (1224 `var(--imb-*)` reads vs
+ * ~85 hardcoded colours), so this file restyles every surface at once.
  *
- * Anything that is not a token (layout, interaction, information hierarchy)
- * belongs in its own private module next to this file, mounted from `index.ts`
- * — not in an upstream file. `scripts/private/README.md` has the full rules.
+ * Direction: modern, quiet, soft, unified.
+ *   - surfaces are layered neutrals a few percent apart, separated by hairlines
+ *     instead of contrast jumps
+ *   - one deep, calm green as the only accent, used for the primary action and
+ *     small highlights only
+ *   - the sent bubble is a pale sage tint, not a saturated green block
+ *   - softer corners (6/10/14), a diffuse shadow, and shorter, eased motion
  *
- * Nothing is overridden yet, so the scaffold changes no pixels. Uncomment and
- * adjust the tokens you want; delete a line when upstream adopts it.
+ * Rules of the layer (see scripts/private/README.md): prefer a token over a
+ * selector, prefer this directory over an upstream file. Anything a token
+ * cannot express goes in `overrides.css`, which loads after this file.
+ *
+ * Light theme: the default, and what "light" forced in Settings › Appearance uses.
  */
-
-/* Light theme: the default, and what "light" forced in Settings › Appearance uses. */
 :root,
 :root[data-theme-mode="light"] {
   /* Self-check: this reads back as 1 when the private layer is loaded. */
   --imb-private-layer: 1;
 
-  /* e.g.
-  --imb-bg: #ededed;
-  --imb-surface: #f7f7f7;
-  --imb-fg: #1a1a1a;
-  --imb-muted: #888888;
-  --imb-border: #e0e0e0;
-  --imb-accent: #07c160;
-  --imb-bubble-self: #95ec69;
-  */
+  /* Surfaces — a light stone canvas, near-white panes, hairline seams. */
+  --imb-bg: #f2f2f0;
+  --imb-surface: #fbfbfa;
+  --imb-fg: #1b1d1c;
+  --imb-muted: #6e7573;
+  --imb-border: #e5e6e4;
+
+  /* One accent: a calm pine green, balanced for both themes (~4.3:1 against
+     white and against the dark canvas), so it can carry white text on the
+     primary button and still read as text on a dark background.
+
+     NOTE the live accent is NOT taken from here: `applyThemeAccent()`
+     (src/renderer/theme.ts) writes --imb-accent and its derived hover/active/
+     success/soft/focus-ring INLINE on <html>, from the stored theme.color, and
+     an inline value beats every stylesheet. The value below is only a fallback
+     for the moment before the theme state arrives. To change the accent for
+     real, change the default/preset hex in src/renderer/theme.ts (THEME_COLORS)
+     and src/main/theme.ts (DEFAULT_COLOR). */
+  --imb-accent: #31895f;
+  --imb-accent-on: #ffffff;
+  --imb-accent-hover: #3d9a6d;
+  --imb-accent-active: #246b48;
+  --imb-success: #31895f;
+  --imb-warn: #c98a1f;
+  --imb-danger: #c9554f;
+
+  /* The sent bubble is a tint, not a block of colour. */
+  --imb-bubble-self: #e4efe8;
+  --imb-bubble-text: #17281f;
+
+  /* The received bubble needs its own fill: the thread pane is --imb-surface,
+     so a bubble on --imb-surface has no boundary of its own. */
+  --imb-private-bubble-other: #ffffff;
+
+  /* Accent as TEXT (labels, chips, links, the active nav row) is a different
+     job from accent as FILL (primary button, unread badge). Upstream derives
+     one value for both themes — `--imb-accent-active`, accent lightness -10% —
+     which reads well on the light canvas but turns muddy on the dark one. So
+     the private layer keeps its own mode-aware pair, mixed from the live
+     accent so it still follows the picker in Settings › Theme. */
+  --imb-private-accent-text: color-mix(
+    in oklab,
+    var(--imb-accent) 74%,
+    #000000
+  );
+
+  --imb-radius-sm: 6px;
+  --imb-radius-md: 10px;
+  --imb-radius-lg: 14px;
+  --imb-elev-ring: 0 0 0 1px var(--imb-border);
+  --imb-elev-raised:
+    0 1px 2px rgba(20, 28, 24, 0.05), 0 6px 16px rgba(20, 28, 24, 0.05);
+
+  --imb-motion-fast: 120ms;
+  --imb-motion-base: 180ms;
+  --imb-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Dark theme: the OS prefers dark and the user has not forced light. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme-mode="light"]) {
-    /* e.g.
-    --imb-bg: #1a1a1a;
-    --imb-surface: #2c2c2c;
-    --imb-fg: #f7f7f7;
-    --imb-muted: #999999;
-    --imb-border: #3a3a3a;
-    --imb-bubble-self: #4caf50;
-    */
+    --imb-bg: #141615;
+    --imb-surface: #1c1e1d;
+    --imb-fg: #e9ebe9;
+    --imb-muted: #9aa29e;
+    --imb-border: #2b2f2d;
+
+    --imb-accent: #45a37b;
+    --imb-accent-on: #10201a;
+    --imb-accent-hover: #52b088;
+    --imb-accent-active: #5cbd93;
+    --imb-success: #45a37b;
+    --imb-warn: #d9a13f;
+    --imb-danger: #d9706a;
+
+    --imb-bubble-self: #22302a;
+    --imb-bubble-text: #dde7e1;
+    --imb-private-bubble-other: #262a28;
+    --imb-private-accent-text: color-mix(
+      in oklab,
+      var(--imb-accent) 55%,
+      #ffffff
+    );
   }
 }
 
 /* Dark theme: forced in Settings › Appearance. */
 :root[data-theme-mode="dark"] {
-  /* e.g.
-  --imb-bg: #1a1a1a;
-  --imb-surface: #2c2c2c;
-  --imb-fg: #f7f7f7;
-  --imb-muted: #999999;
-  --imb-border: #3a3a3a;
-  --imb-bubble-self: #4caf50;
-  */
+  --imb-bg: #141615;
+  --imb-surface: #1c1e1d;
+  --imb-fg: #e9ebe9;
+  --imb-muted: #9aa29e;
+  --imb-border: #2b2f2d;
+
+  --imb-accent: #45a37b;
+  --imb-accent-on: #10201a;
+  --imb-accent-hover: #52b088;
+  --imb-accent-active: #5cbd93;
+  --imb-success: #45a37b;
+  --imb-warn: #d9a13f;
+  --imb-danger: #d9706a;
+
+  --imb-bubble-self: #22302a;
+  --imb-bubble-text: #dde7e1;
+  --imb-private-bubble-other: #262a28;
+  --imb-private-accent-text: color-mix(
+    in oklab,
+    var(--imb-accent) 55%,
+    #ffffff
+  );
 }
