@@ -62,6 +62,15 @@ function describeUpdaterError(error: unknown): string {
 }
 
 /**
+ * Private-build switch. This fork's builds carry local changes that upstream's
+ * release does not have, so adopting the upstream release would silently
+ * replace the running app with a build that lacks them. Every updater entry
+ * point is therefore inert and the check reports why. Set to `true` to restore
+ * upstream behaviour — this is the only line that needs to change.
+ */
+const UPDATER_ENABLED = false;
+
+/**
  * Wire automatic updates against the GitHub provider configured in
  * `electron-builder.yml`. Always runs so the renderer's manual "check for
  * updates" works in dev too (via `dev-app-update.yml`); only the automatic
@@ -70,6 +79,7 @@ function describeUpdaterError(error: unknown): string {
 export function initUpdater(): void {
   if (initialized) return;
   initialized = true;
+  if (!UPDATER_ENABLED) return;
 
   autoUpdater.autoDownload = false;
   // The user decides when to install: downloading alone must never install on
@@ -151,6 +161,15 @@ export function initUpdater(): void {
  * is found (startup only).
  */
 export async function checkForUpdates(notify = false): Promise<UpdaterState> {
+  if (!UPDATER_ENABLED) {
+    setState({
+      status: "error",
+      progress: null,
+      error: t("Automatic updates are unavailable in this build."),
+      checkedAt: Date.now(),
+    });
+    return state;
+  }
   if (activeCheck !== null) return activeCheck;
   if (downloading) return state;
   notifyNextResult = notify;
