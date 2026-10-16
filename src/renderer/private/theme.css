@@ -1,0 +1,59 @@
+/*
+ * Private UI/UX layer — the one place to change how the app looks.
+ *
+ * This file loads after `src/renderer/styles/tokens.css`, and every component
+ * in the app is driven by the custom properties defined there, so redefining a
+ * token here restyles the whole app at once and cannot fight an upstream CSS
+ * rule. Keep global look-and-feel here: colour, spacing, radius, typography,
+ * motion.
+ *
+ * Anything that is not a token (layout, interaction, information hierarchy)
+ * belongs in its own private module next to this file, mounted from `index.ts`
+ * — not in an upstream file. `scripts/private/README.md` has the full rules.
+ *
+ * Nothing is overridden yet, so the scaffold changes no pixels. Uncomment and
+ * adjust the tokens you want; delete a line when upstream adopts it.
+ */
+
+/* Light theme: the default, and what "light" forced in Settings › Appearance uses. */
+:root,
+:root[data-theme-mode="light"] {
+  /* Self-check: this reads back as 1 when the private layer is loaded. */
+  --imb-private-layer: 1;
+
+  /* e.g.
+  --imb-bg: #ededed;
+  --imb-surface: #f7f7f7;
+  --imb-fg: #1a1a1a;
+  --imb-muted: #888888;
+  --imb-border: #e0e0e0;
+  --imb-accent: #07c160;
+  --imb-bubble-self: #95ec69;
+  */
+}
+
+/* Dark theme: the OS prefers dark and the user has not forced light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme-mode="light"]) {
+    /* e.g.
+    --imb-bg: #1a1a1a;
+    --imb-surface: #2c2c2c;
+    --imb-fg: #f7f7f7;
+    --imb-muted: #999999;
+    --imb-border: #3a3a3a;
+    --imb-bubble-self: #4caf50;
+    */
+  }
+}
+
+/* Dark theme: forced in Settings › Appearance. */
+:root[data-theme-mode="dark"] {
+  /* e.g.
+  --imb-bg: #1a1a1a;
+  --imb-surface: #2c2c2c;
+  --imb-fg: #f7f7f7;
+  --imb-muted: #999999;
+  --imb-border: #3a3a3a;
+  --imb-bubble-self: #4caf50;
+  */
+}

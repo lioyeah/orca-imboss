@@ -3,11 +3,11 @@
 This fork (`lioyeah/orca-imboss`) follows upstream (`sethyuan/orca-imboss`) while
 keeping its own changes. Three branches, three rules:
 
-| branch | what it is | rule |
-| --- | --- | --- |
-| `main` | mirror of `upstream/main` | never commit here; `git merge --ff-only upstream/main` only |
-| `mine` | this fork's own changes | rebase onto `main` whenever upstream moves |
-| `feat/*`, `fix/*` | one topic per branch | cut from `main`, PR only — never carry private changes |
+| branch            | what it is                | rule                                                        |
+| ----------------- | ------------------------- | ----------------------------------------------------------- |
+| `main`            | mirror of `upstream/main` | never commit here; `git merge --ff-only upstream/main` only |
+| `mine`            | this fork's own changes   | rebase onto `main` whenever upstream moves                  |
+| `feat/*`, `fix/*` | one topic per branch      | cut from `main`, PR only — never carry private changes      |
 
 Keeping the private layer out of PR branches is the whole point: PRs stay small
 and self-contained, and only `mine` needs conflict resolution when upstream
@@ -61,6 +61,33 @@ would offer the upstream release, and installing it would silently replace the
 running app with a build that lacks the private changes. The check now reports
 "此版本不支持自动更新。"; set the constant to `true` to restore upstream
 behaviour.
+
+## The private UI/UX layer
+
+Aesthetic changes live in `src/renderer/private/`, imported once from
+`src/renderer/main.tsx`. Upstream never touches that directory, so restyling
+never creates a rebase conflict.
+
+- `src/renderer/private/theme.css` — token overrides. Every component is driven
+  by the custom properties in `src/renderer/styles/tokens.css`, so one line here
+  restyles the whole app and cannot fight an upstream CSS rule. It loads after
+  `tokens.css`, and the file says which block to edit for light, dark, and
+  forced-dark.
+- `src/renderer/private/*` — private components and their own `index.css`,
+  mounted from `index.ts`.
+
+Rules that keep it cheap:
+
+1. Prefer a token over a selector, and this directory over an upstream file.
+2. New behaviour gets its own file plus a one-line mount, never a rewrite of an
+   upstream component.
+3. Keep the layer as a handful of small, named commits, so a change upstream
+   later adopts on its own can be dropped with `git rebase -i`.
+4. Never reformat an upstream file — a whole-file prettier pass turns a
+   one-line conflict into a full-file one.
+
+To check the layer is loaded, read `--imb-private-layer` off `:root`: it is `1`
+in this build.
 
 ## Keeping the private layer cheap
 

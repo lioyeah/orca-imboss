@@ -1,5 +1,6 @@
 import "./styles/base.css";
 import "./styles/tokens.css";
+import "./private";
 
 import { setupL10N } from "@shared/l10n";
 import { StrictMode } from "react";
