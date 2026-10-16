@@ -1,0 +1,67 @@
+/*
+ * Private overrides — the few places a token cannot reach.
+ *
+ * Loaded after `theme.css` and after every upstream stylesheet, so equal
+ * specificity resolves to these rules. Keep this file short: if a change can be
+ * expressed as a token in `theme.css`, put it there instead.
+ */
+
+/* The thread pane and the received bubble both read --imb-surface, so the
+   bubble had no boundary of its own — invisible in dark mode, where the
+   elevation shadow does not show. Give it its own fill, and a hairline ring so
+   it still reads as a bubble on the near-white pane in light mode. */
+.imb-msg.imb-other .imb-bubble {
+  background: var(--imb-private-bubble-other);
+  box-shadow:
+    0 0 0 1px var(--imb-border),
+    var(--imb-elev-raised);
+}
+
+/* File chips inside a bubble were tuned for a saturated green sent bubble
+   (translucent white). With a pale tint they need ink instead. One rule set
+   covers both themes because it mixes the theme's own foreground. */
+.imb-bubble-chip {
+  background: color-mix(in oklab, var(--imb-fg) 6%, transparent);
+}
+
+.imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
+  background: color-mix(in oklab, var(--imb-fg) 11%, transparent);
+}
+
+.imb-msg.imb-self .imb-bubble-chip {
+  background: color-mix(in oklab, var(--imb-bubble-text) 8%, transparent);
+}
+
+.imb-msg.imb-self .imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
+  background: color-mix(in oklab, var(--imb-bubble-text) 14%, transparent);
+}
+
+/* Accent as TEXT. Every one of these upstream rules paints text (or a glyph)
+   with --imb-accent-active, a single value derived for both themes; the
+   private layer swaps in its mode-aware --imb-private-accent-text instead
+   (see theme.css). Fills (button backgrounds, the unread badge, the theme
+   swatch border) are deliberately left alone. */
+.imb-nav-item.imb-is-active,
+.imb-detail-head-eyebrow,
+.imb-ms-chip,
+.imb-ms-option.imb-is-checked,
+.imb-ms-create,
+.imb-select-option.imb-is-selected,
+.imb-key-readonly .imb-reveal,
+.imb-ask-submitted,
+.imb-progress-tag.imb-done {
+  color: var(--imb-private-accent-text);
+}
+
+/* The active nav row was marked by colour and weight alone; a soft tint of the
+   same accent gives it the same shape language as an active list row. */
+.imb-nav-item.imb-is-active {
+  background: color-mix(in oklab, var(--imb-accent) 10%, transparent);
+}
+
+/* Window controls kept the browser's default focus ring (an orange `outline:
+   auto`), while every other control in the app uses the app's own ring. */
+.imb-winbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--imb-focus-ring);
+}

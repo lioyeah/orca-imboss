@@ -15,7 +15,10 @@ export interface ThemeColor {
 }
 
 export const THEME_COLORS: ThemeColor[] = [
-  { id: "Emerald", hex: "#07C160" },
+  // Private layer: the first preset is also the app default (see
+  // src/main/theme.ts DEFAULT_COLOR). A calm pine green reads well on both the
+  // light and the dark surface, where the stock #07C160 is very loud.
+  { id: "Emerald", hex: "#31895F" },
   { id: "Ocean", hex: "#3370FF" },
   { id: "Amber", hex: "#F58220" },
   { id: "Rose", hex: "#FA5151" },

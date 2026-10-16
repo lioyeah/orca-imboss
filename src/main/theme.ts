@@ -11,7 +11,9 @@ import { getSetting, setSetting } from "./db/settings";
  */
 
 const VALID_MODES: ThemeMode[] = ["light", "dark", "system"];
-const DEFAULT_COLOR = "#07C160";
+// Private layer: keep in sync with the first entry of THEME_COLORS
+// (src/renderer/theme.ts) so the default accent matches the picker.
+const DEFAULT_COLOR = "#31895F";
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 export function sanitizeMode(value: string | null | undefined): ThemeMode {

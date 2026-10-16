@@ -73,8 +73,26 @@ never creates a rebase conflict.
   restyles the whole app and cannot fight an upstream CSS rule. It loads after
   `tokens.css`, and the file says which block to edit for light, dark, and
   forced-dark.
+- `src/renderer/private/overrides.css` — the few things a token cannot reach
+  (a rule that paints with a hardcoded value, a missing hairline, a focus ring).
 - `src/renderer/private/*` — private components and their own `index.css`,
   mounted from `index.ts`.
+
+Two things to know before editing it:
+
+1. **The import must stay last in `src/renderer/main.tsx`.** Vite injects
+   stylesheets in module-execution order, and a rule with equal specificity that
+   is injected later wins — so `import "./private";` goes after every other
+   import, or upstream rules silently override the private ones. (There are no
+   dynamic imports in the renderer, so the static order is reliable.)
+2. **The accent is not a stylesheet token.** `src/renderer/theme.ts` writes
+   `--imb-accent` and its derived siblings INLINE on `documentElement` from the
+   theme colour the user picks in Settings › Theme, and an inline style beats
+   every stylesheet. The app's default lives in two upstream files that must be
+   kept in sync with each other and with the fallbacks in `theme.css`:
+   `src/renderer/theme.ts` (`THEME_COLORS[0]`, the first swatch, also the
+   default) and `src/main/theme.ts` (`DEFAULT_COLOR`). Do not reach for
+   `!important` here — that would freeze the accent picker.
 
 Rules that keep it cheap:
 
