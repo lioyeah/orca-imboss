@@ -1,0 +1,127 @@
+/*
+ * Private state surfaces — empty, error, loading, disabled.
+ *
+ * Loaded after `overrides.css`. These are the four states every pane, list,
+ * menu and form can be in, and upstream styled each one wherever it happened to
+ * be needed: an empty list padded `32px 16px` here and `9px 10px` there, nine
+ * error classes carrying four different font sizes (two of them carrying none
+ * at all), and "disabled" expressed as 0.5, 0.55 or 0.6 depending on the file.
+ *
+ * A state should look the same wherever it appears, so each one is stated once
+ * here and the surfaces only choose their padding.
+ */
+
+/* --- Empty ----------------------------------------------------------- */
+
+/* One sentence, muted, centred, on a measure so it wraps like prose. */
+.imb-list-empty,
+.imb-list-empty.imb-detail,
+.imb-chat-empty-detail,
+.imb-chat-picker-empty,
+.imb-ms-empty,
+.imb-select-empty,
+.imb-mention-empty {
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+  line-height: var(--imb-leading-body);
+  max-width: 46ch;
+  margin-inline: auto;
+  text-align: center;
+}
+
+/* A pane keeps room to breathe; a dropdown is a small box and stays compact. */
+.imb-list-empty {
+  padding: var(--imb-space-8) var(--imb-space-4);
+}
+
+.imb-list-empty.imb-detail,
+.imb-chat-empty-detail {
+  padding: var(--imb-space-12) var(--imb-space-6);
+}
+
+.imb-chat-picker-empty {
+  padding: var(--imb-space-6) var(--imb-space-2);
+}
+
+.imb-ms-empty,
+.imb-select-empty {
+  padding: var(--imb-space-2) var(--imb-space-3);
+}
+
+.imb-mention-empty {
+  padding: var(--imb-space-3);
+}
+
+/* An empty note that sits inline in a settings pane is a label, not a state:
+   it keeps the pane's own alignment and only borrows the type. */
+.imb-projects-empty,
+.imb-settings-env-empty,
+.imb-owner-empty {
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+  line-height: var(--imb-leading-body);
+}
+
+/* --- Error ----------------------------------------------------------- */
+
+/* An error is read, not skimmed: one size, one ink, one line height. */
+.imb-error-text,
+.imb-field-error,
+.imb-bubble-attachment-error,
+.imb-ask-error,
+.imb-backup-error,
+.imb-modal-error,
+.imb-miniapp-error,
+.imb-image-gen-error,
+.imb-project-row-error,
+.imb-cron-action-error {
+  color: var(--imb-danger);
+  font-size: var(--imb-text-sm);
+  line-height: var(--imb-leading-body);
+}
+
+/* The two floating error toasts were the same rule written twice, both on
+   `bottom: 12px` and `padding: 6px 14px`. */
+.imb-chat-error,
+.imb-module-error {
+  bottom: var(--imb-space-3);
+  padding: var(--imb-space-2) var(--imb-space-4);
+  border-radius: var(--imb-radius-md);
+  font-size: var(--imb-text-sm);
+  box-shadow: var(--imb-elev-raised);
+}
+
+/* --- Loading --------------------------------------------------------- */
+
+/* The spinner was a fixed 14px in every button; sized in `em` it matches the
+   control it sits in, so the small button no longer carries an oversized
+   one. Its cadence comes from the motion scale (see `overrides.css`). */
+.imb-btn-spinner {
+  width: 1em;
+  height: 1em;
+}
+
+/* --- Disabled -------------------------------------------------------- */
+
+/* One dim and one cursor for every control that can be unavailable. */
+.imb-btn:disabled,
+.imb-icon-btn:disabled,
+.imb-segmented-btn:disabled,
+.imb-send-btn-circle:disabled,
+.imb-ask-submit:disabled,
+.imb-about-new:disabled,
+.imb-input:disabled,
+.imb-textarea:disabled,
+.imb-select:disabled,
+.imb-ms-trigger:disabled,
+.imb-toggle:disabled,
+.imb-chat-card.imb-is-disabled {
+  opacity: var(--imb-private-state-dim);
+  cursor: not-allowed;
+}
+
+/* A dimmed button must not also keep its hover lift or its press settle. */
+.imb-btn:disabled {
+  box-shadow: none;
+  transform: none;
+}

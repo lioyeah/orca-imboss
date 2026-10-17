@@ -80,6 +80,54 @@
   --imb-motion-fast: 120ms;
   --imb-motion-base: 180ms;
   --imb-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* ---------------------------------------------------------------------
+   * Round 3 — rhythm, motion, states.
+   *
+   * Upstream's scale mixes tokens with raw 2/3/5/6/9/10/11/14px values, so
+   * two rows that should have matched slowly drifted apart. These are the
+   * roles the spacing scale does not name yet: a row height, a control
+   * height, a looping cadence, a disabled dim, the top of the elevation
+   * ladder, and the reading measure.
+   * ------------------------------------------------------------------- */
+
+  /* Two row heights and two control heights — a ladder, not a menu. */
+  --imb-private-h-row: 36px;
+  --imb-private-h-control: 36px;
+  --imb-private-h-control-sm: 28px;
+
+  /* Every looping indicator runs at one cadence, so a busy screen has one
+     heartbeat instead of five (0.8 / 1 / 1.2 / 1.5 / 1.6s upstream). */
+  --imb-private-motion-pulse: 1.4s;
+  --imb-private-motion-spin: 800ms;
+  --imb-private-motion-enter: 320ms;
+
+  /* One dim for "not available" (upstream used three: 0.5, 0.55, 0.6), one
+     cursor, one ink for "went wrong". */
+  --imb-private-state-dim: 0.5;
+
+  /* One tint for "this is the current item", shared by the nav row and the
+     list row: the same idea was three different colours a few pixels apart
+     (10% in the nav, 15% for a list row, 18% for the selected one), and the
+     weakest of them had to shout `!important` to be seen at all. */
+  --imb-private-tint-current: color-mix(
+    in oklab,
+    var(--imb-accent) 12%,
+    transparent
+  );
+
+  /* The top of the elevation ladder: a panel that floats above the page. */
+  --imb-private-elev-overlay:
+    0 2px 6px rgba(20, 28, 24, 0.08), 0 14px 40px rgba(20, 28, 24, 0.16);
+
+  /* The widest a line of conversation is allowed to get. A 2,500px window
+     otherwise turns a 15px sentence into a 1,400px line, and the eye loses
+     the start of the next one. */
+  --imb-private-measure: 760px;
+
+  /* Upstream's smallest step (11px) is below comfortable reading on both
+     canvases; small print moves up one pixel, everything else stays put. */
+  --imb-text-xs: 12px;
 }
 
 /* Dark theme: the OS prefers dark and the user has not forced light. */
