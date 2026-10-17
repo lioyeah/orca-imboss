@@ -75,6 +75,9 @@ never creates a rebase conflict.
   forced-dark.
 - `src/renderer/private/overrides.css` — the few things a token cannot reach
   (a rule that paints with a hardcoded value, a missing hairline, a focus ring).
+- `src/renderer/private/states.css` — the shared state surfaces (empty, error,
+  loading, disabled), stated once each so a state looks the same wherever it
+  appears.
 - `src/renderer/private/*` — private components and their own `index.css`,
   mounted from `index.ts`.
 
