@@ -4,16 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cls } from "reactutils";
 
 /**
- * The graph canvas: a small, dependency-free force layout drawn as SVG.
+ * The enhanced graph canvas inspired by Neurite (organic non-linear spatial graph)
+ * and Collect UI (refined modern surfaces, micro-interactions, smooth feedback).
  *
- * The whole simulation lives in a ref (positions mutate every frame) and a
- * frame counter drives React re-renders while the layout is cooling. Once it
- * settles the loop stops, so an idle graph costs nothing. Dragging a node
- * reheats it.
+ * Dependency-free force simulation rendered via SVG with dynamic bezier connectors,
+ * breathing halos for AI agents, spatial dot grid, and contextual hover cards.
  */
 
 /** One body in the simulation; `x`/`y` are in graph space. */
-interface SimNode {
+export interface SimNode {
   id: string;
   node: GraphNode;
   x: number;
@@ -34,26 +33,32 @@ interface Sim {
   fitted: boolean;
 }
 
-const REPULSION = 12000;
-const SPRING = 0.03;
-const LINK_DISTANCE = 120;
-const CENTER_PULL = 0.002;
+interface ViewTransform {
+  k: number;
+  x: number;
+  y: number;
+}
+
+const REPULSION = 14000;
+const SPRING = 0.035;
+const LINK_DISTANCE = 130;
+const CENTER_PULL = 0.0025;
 const DAMPING = 0.85;
 const ALPHA_DECAY = 0.96;
-const ALPHA_MIN = 0.006;
-const MAX_SPEED = 14;
-const MIN_ZOOM = 0.15;
-const MAX_ZOOM = 3;
+const ALPHA_MIN = 0.005;
+const MAX_SPEED = 15;
+const MIN_ZOOM = 0.12;
+const MAX_ZOOM = 3.5;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-/** Node size: employees read as anchors, tags as small markers. */
+/** Node size: employees read as primary cognitive anchors, tags as fine markers. */
 function radiusFor(node: GraphNode): number {
-  const base = node.kind === "employee" ? 9 : node.kind === "tag" ? 6 : 5.5;
-  const gain = node.kind === "employee" ? 1.7 : 1.1;
-  const cap = node.kind === "employee" ? 24 : 19;
+  const base = node.kind === "employee" ? 11 : node.kind === "tag" ? 7 : 6.5;
+  const gain = node.kind === "employee" ? 1.8 : 1.15;
+  const cap = node.kind === "employee" ? 26 : 21;
   return Math.min(base + Math.sqrt(Math.max(node.weight, 0)) * gain, cap);
 }
 
@@ -61,11 +66,45 @@ function truncate(label: string, max = 26): string {
   return label.length > max ? `${label.slice(0, max - 1)}…` : label;
 }
 
+/** Compute an organic curved bezier path between two nodes. */
+function getOrganicPath(
+  a: SimNode,
+  b: SimNode,
+  edgeId: string,
+  curvatureFactor = 0.12,
+): string {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) {
+    return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+  }
+
+  // Generate a deterministic slight lateral curve based on the edge id hash
+  let hash = 0;
+  for (let i = 0; i < edgeId.length; i++) {
+    hash = (hash * 31 + edgeId.charCodeAt(i)) | 0;
+  }
+  const sign = hash % 2 === 0 ? 1 : -1;
+  const offset = Math.min(dist * curvatureFactor, 36) * sign;
+
+  // Normal vector perpendicular to the line
+  const nx = -dy / dist;
+  const ny = dx / dist;
+
+  // Midpoint with curve offset
+  const cx = (a.x + b.x) / 2 + nx * offset;
+  const cy = (a.y + b.y) / 2 + ny * offset;
+
+  return `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
+}
+
 /** Advance the simulation one frame. */
 function tick(sim: Sim, edges: readonly GraphEdge[]): void {
   const nodes = sim.nodes;
   const alpha = sim.alpha;
 
+  // Pairwise node repulsion
   for (let i = 0; i < nodes.length; i++) {
     const a = nodes[i];
     for (let j = i + 1; j < nodes.length; j++) {
@@ -78,52 +117,63 @@ function tick(sim: Sim, edges: readonly GraphEdge[]): void {
         dy = j % 2 === 0 ? 0.5 : -0.5;
         d2 = 0.5;
       }
-      const d = Math.sqrt(d2);
-      const force = (REPULSION / d2) * alpha;
-      const fx = (dx / d) * force;
-      const fy = (dy / d) * force;
-      a.vx -= fx;
-      a.vy -= fy;
-      b.vx += fx;
-      b.vy += fy;
+      const dist = Math.sqrt(d2);
+      const force = (REPULSION * alpha) / (d2 + 400);
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      if (!a.held) {
+        a.vx -= fx;
+        a.vy -= fy;
+      }
+      if (!b.held) {
+        b.vx += fx;
+        b.vy += fy;
+      }
     }
   }
 
+  // Spring attraction along edges
   for (const edge of edges) {
     const a = sim.byId.get(edge.source);
     const b = sim.byId.get(edge.target);
     if (!a || !b) continue;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
-    const d = Math.max(Math.sqrt(dx * dx + dy * dy), 0.01);
-    const force = (d - LINK_DISTANCE) * SPRING * alpha;
-    const fx = (dx / d) * force;
-    const fy = (dy / d) * force;
-    a.vx += fx;
-    a.vy += fy;
-    b.vx -= fx;
-    b.vy -= fy;
+    const dist = Math.hypot(dx, dy) || 0.1;
+    const delta = dist - LINK_DISTANCE;
+    const force = delta * SPRING * alpha;
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+    if (!a.held) {
+      a.vx += fx;
+      a.vy += fy;
+    }
+    if (!b.held) {
+      b.vx -= fx;
+      b.vy -= fy;
+    }
   }
 
-  for (const n of nodes) {
-    n.vx += -n.x * CENTER_PULL * alpha;
-    n.vy += -n.y * CENTER_PULL * alpha;
-    if (n.held) {
-      n.vx = 0;
-      n.vy = 0;
-      continue;
+  // Gentle central gravity pull
+  for (const node of nodes) {
+    if (node.held) continue;
+    node.vx -= node.x * CENTER_PULL * alpha;
+    node.vy -= node.y * CENTER_PULL * alpha;
+    node.vx *= DAMPING;
+    node.vy *= DAMPING;
+    const speed = Math.hypot(node.vx, node.vy);
+    if (speed > MAX_SPEED) {
+      node.vx = (node.vx / speed) * MAX_SPEED;
+      node.vy = (node.vy / speed) * MAX_SPEED;
     }
-    n.vx = clamp(n.vx, -MAX_SPEED, MAX_SPEED) * DAMPING;
-    n.vy = clamp(n.vy, -MAX_SPEED, MAX_SPEED) * DAMPING;
-    n.x += n.vx;
-    n.y += n.vy;
+    node.x += node.vx;
+    node.y += node.vy;
   }
 
   sim.alpha *= ALPHA_DECAY;
 }
 
 export interface GraphCanvasProps {
-  /** Already filtered by the module; only these are laid out and drawn. */
   nodes: readonly GraphNode[];
   edges: readonly GraphEdge[];
   selectedId: string | null;
@@ -138,24 +188,25 @@ export function GraphCanvas({
   onSelect,
   onOpen,
 }: GraphCanvasProps): React.JSX.Element {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const simRef = useRef<Sim>({
-    nodes: [],
-    byId: new Map(),
-    alpha: 0,
-    fitted: false,
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const sizeRef = useRef<{ width: number; height: number }>({
+    width: 800,
+    height: 600,
   });
-  const [, setFrame] = useState(0);
-  const forceRender = useCallback(() => setFrame((n) => n + 1), []);
 
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  const sizeRef = useRef(size);
-  const [view, setView] = useState({ k: 1, x: 0, y: 0 });
+  const [, setFrame] = useState(0);
+  const forceRender = useCallback(() => setFrame((n) => (n + 1) | 0), []);
+
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(true);
+
+  // View transform: pan & zoom
+  const [view, setView] = useState<ViewTransform>({ k: 1, x: 0, y: 0 });
   const viewRef = useRef(view);
   viewRef.current = view;
-  const centeredRef = useRef(false);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // Active drag state
   const dragRef = useRef<{
     mode: "pan" | "node";
     pointerId: number;
@@ -166,110 +217,120 @@ export function GraphCanvas({
     node: SimNode | null;
     moved: boolean;
   } | null>(null);
+
+  // Simulation state
+  const simRef = useRef<Sim>({
+    nodes: [],
+    byId: new Map(),
+    alpha: 0,
+    fitted: false,
+  });
   const kickRef = useRef<() => void>(() => {});
 
-  // --- Container size --------------------------------------------------------
+  // Observe stage dimensions
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      sizeRef.current = { width: rect.width, height: rect.height };
-      setSize({ width: rect.width, height: rect.height });
-    });
+    const updateSize = (): void => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        sizeRef.current = { width: rect.width, height: rect.height };
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Center the origin the first time we know how big the stage is.
-  useEffect(() => {
-    if (size.width === 0 || centeredRef.current) return;
-    centeredRef.current = true;
-    setView({ k: 1, x: size.width / 2, y: size.height / 2 });
-  }, [size]);
-
-  // --- Simulation ------------------------------------------------------------
-  // Rebuild the bodies, keeping the positions of nodes that were already
-  // present so toggling a filter does not reshuffle the whole layout.
-  useEffect(() => {
-    const previous = simRef.current.byId;
-    const bodies: SimNode[] = nodes.map((node, index) => {
-      const existing = previous.get(node.id);
-      if (existing) {
-        existing.node = node;
-        existing.r = radiusFor(node);
-        return existing;
-      }
-      const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
-      const distance = 90 + (index % 5) * 30;
-      return {
-        id: node.id,
-        node,
-        x: Math.cos(angle) * distance,
-        y: Math.sin(angle) * distance,
-        vx: 0,
-        vy: 0,
-        r: radiusFor(node),
-        held: false,
-      };
-    });
-    simRef.current = {
-      nodes: bodies,
-      byId: new Map(bodies.map((body) => [body.id, body])),
-      alpha: previous.size > 0 ? 0.7 : 1,
-      fitted: false,
-    };
-    forceRender();
-  }, [nodes, forceRender]);
-
-  const fitView = useCallback(() => {
-    const sim = simRef.current;
-    const stage = sizeRef.current;
-    if (sim.nodes.length === 0 || stage.width === 0) return;
+  // Center & fit the graph nodes in view
+  const fitView = useCallback((): void => {
+    const nodes = simRef.current.nodes;
+    if (nodes.length === 0) return;
     let minX = Infinity;
-    let minY = Infinity;
     let maxX = -Infinity;
+    let minY = Infinity;
     let maxY = -Infinity;
-    for (const body of sim.nodes) {
-      minX = Math.min(minX, body.x - body.r);
-      maxX = Math.max(maxX, body.x + body.r);
-      minY = Math.min(minY, body.y - body.r);
-      maxY = Math.max(maxY, body.y + body.r);
+    for (const node of nodes) {
+      if (node.x - node.r < minX) minX = node.x - node.r;
+      if (node.x + node.r > maxX) maxX = node.x + node.r;
+      if (node.y - node.r < minY) minY = node.y - node.r;
+      if (node.y + node.r > maxY) maxY = node.y + node.r;
     }
-    const pad = 64;
     const width = Math.max(maxX - minX, 1);
     const height = Math.max(maxY - minY, 1);
-    const k = clamp(
-      Math.min(
-        (stage.width - pad * 2) / width,
-        (stage.height - pad * 2) / height,
-      ),
-      MIN_ZOOM,
-      1.3,
+    const stage = sizeRef.current;
+    const padding = 70;
+    const kFit = Math.min(
+      (stage.width - padding * 2) / width,
+      (stage.height - padding * 2) / height,
     );
+    const k = clamp(Number.isFinite(kFit) ? kFit : 1, MIN_ZOOM, 1.25);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
     setView({
       k,
-      x: stage.width / 2 - ((minX + maxX) / 2) * k,
-      y: stage.height / 2 - ((minY + maxY) / 2) * k,
+      x: stage.width / 2 - cx * k,
+      y: stage.height / 2 - cy * k,
     });
   }, []);
 
+  // Re-heat simulation
+  const reheat = useCallback((): void => {
+    simRef.current.alpha = Math.max(simRef.current.alpha, 0.45);
+    kickRef.current();
+  }, []);
+
+  // Sync simulation nodes with props
   useEffect(() => {
-    const sim = simRef.current;
+    const previous = simRef.current.byId;
+    const nextNodes: SimNode[] = [];
+    const nextById = new Map<string, SimNode>();
+    const count = nodes.length;
+
+    for (let i = 0; i < count; i++) {
+      const node = nodes[i];
+      const prev = previous.get(node.id);
+      let x = prev?.x;
+      let y = prev?.y;
+      if (x === undefined || y === undefined) {
+        const theta = (2 * Math.PI * i) / Math.max(count, 1);
+        const radius = 60 + Math.sqrt(i) * 35;
+        x = Math.cos(theta) * radius + (Math.random() - 0.5) * 20;
+        y = Math.sin(theta) * radius + (Math.random() - 0.5) * 20;
+      }
+      const simNode: SimNode = {
+        id: node.id,
+        node,
+        x,
+        y,
+        vx: prev?.vx ?? 0,
+        vy: prev?.vy ?? 0,
+        r: radiusFor(node),
+        held: false,
+      };
+      nextNodes.push(simNode);
+      nextById.set(node.id, simNode);
+    }
+
+    simRef.current.nodes = nextNodes;
+    simRef.current.byId = nextById;
+    simRef.current.alpha = 1;
+
     let raf = 0;
     const step = (): void => {
-      raf = 0;
-      if (sim.alpha <= ALPHA_MIN) {
-        if (!sim.fitted && sim.nodes.length > 0) {
-          sim.fitted = true;
-          fitView();
-        }
-        return;
-      }
+      const sim = simRef.current;
       tick(sim, edges);
       forceRender();
-      raf = requestAnimationFrame(step);
+      if (!sim.fitted && sim.alpha < 0.6) {
+        sim.fitted = true;
+        fitView();
+      }
+      if (sim.alpha >= ALPHA_MIN) {
+        raf = requestAnimationFrame(step);
+      } else {
+        raf = 0;
+      }
     };
     kickRef.current = () => {
       if (raf === 0) raf = requestAnimationFrame(step);
@@ -281,7 +342,7 @@ export function GraphCanvas({
     };
   }, [nodes, edges, fitView, forceRender]);
 
-  // --- Wheel zoom (native listener so preventDefault works) -------------------
+  // Wheel zoom
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -290,7 +351,7 @@ export function GraphCanvas({
       const rect = el.getBoundingClientRect();
       const current = viewRef.current;
       const k = clamp(
-        current.k * Math.exp(-event.deltaY * 0.0015),
+        current.k * Math.exp(-event.deltaY * 0.0016),
         MIN_ZOOM,
         MAX_ZOOM,
       );
@@ -319,7 +380,7 @@ export function GraphCanvas({
     });
   };
 
-  // --- Pointer: pan the view / drag a node ------------------------------------
+  // Pointer interactions
   const onBackgroundPointerDown = (
     event: React.PointerEvent<SVGSVGElement>,
   ): void => {
@@ -379,7 +440,7 @@ export function GraphCanvas({
     body.y = (event.clientY - rect.top - current.y) / current.k;
     body.vx = 0;
     body.vy = 0;
-    simRef.current.alpha = Math.max(simRef.current.alpha, 0.25);
+    simRef.current.alpha = Math.max(simRef.current.alpha, 0.28);
     kickRef.current();
     forceRender();
   };
@@ -393,9 +454,18 @@ export function GraphCanvas({
     onSelect(drag.mode === "node" && drag.node ? drag.node.id : null);
   };
 
-  // --- Focus (selection wins over hover) --------------------------------------
+  // Keyboard escape cancels selection
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") onSelect(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onSelect]);
+
+  // Focus network graph
   const focusId = selectedId ?? hoveredId;
-  const { neighbours, focusEdges } = useMemo(() => {
+  const { neighbours, focusEdges, activeDegree } = useMemo(() => {
     const set = new Set<string>();
     const ids = new Set<string>();
     if (focusId !== null) {
@@ -410,10 +480,17 @@ export function GraphCanvas({
         }
       }
     }
-    return { neighbours: set, focusEdges: ids };
+    return { neighbours: set, focusEdges: ids, activeDegree: ids.size };
   }, [focusId, edges]);
 
+  // Hovered node details for the Collect UI mini-preview tooltip
+  const hoveredNode = useMemo((): SimNode | null => {
+    if (!hoveredId) return null;
+    return simRef.current.byId.get(hoveredId) ?? null;
+  }, [hoveredId]);
+
   const labelScale = 1 / view.k;
+  const gridStep = 32 * view.k;
 
   return (
     <div className="imb-graph-canvas" ref={containerRef}>
@@ -425,43 +502,88 @@ export function GraphCanvas({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
+        <defs>
+          {/* Spatial dot grid pattern (Neurite infinite coordinate plane) */}
+          <pattern
+            id="imb-graph-grid"
+            x={view.x % gridStep}
+            y={view.y % gridStep}
+            width={gridStep}
+            height={gridStep}
+            patternUnits="userSpaceOnUse"
+          >
+            <circle
+              cx={gridStep / 2}
+              cy={gridStep / 2}
+              r={Math.max(1, 1.3 * Math.min(view.k, 1.2))}
+              className="imb-graph-grid-dot"
+            />
+          </pattern>
+          {/* Glow filter for active neural connection pathways */}
+          <filter id="imb-graph-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        {/* Spatial background plane */}
+        {showGrid && (
+          <rect
+            className="imb-graph-grid-plane"
+            width="100%"
+            height="100%"
+            fill="url(#imb-graph-grid)"
+          />
+        )}
+
+        {/* Transformed scene */}
         <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
+          {/* Edges layer */}
           <g className="imb-graph-edges">
             {edges.map((edge) => {
               const a = simRef.current.byId.get(edge.source);
               const b = simRef.current.byId.get(edge.target);
               if (!a || !b) return null;
-              const dim = focusId !== null && !focusEdges.has(edge.id);
+              const isFocused = focusEdges.has(edge.id);
+              const isDim = focusId !== null && !isFocused;
+              const pathD = getOrganicPath(a, b, edge.id);
               return (
-                <line
+                <path
                   key={edge.id}
+                  d={pathD}
                   className={cls(
                     "imb-graph-edge",
                     `imb-graph-edge--${edge.kind}`,
-                    dim && "imb-is-dim",
+                    isFocused && "imb-is-focused",
+                    isDim && "imb-is-dim",
                   )}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
+                  filter={isFocused ? "url(#imb-graph-glow)" : undefined}
                 />
               );
             })}
           </g>
+
+          {/* Nodes layer */}
           <g className="imb-graph-nodes">
             {simRef.current.nodes.map((body) => {
-              const dim = focusId !== null && !neighbours.has(body.id);
+              const isFocused = body.id === focusId;
+              const isSelected = body.id === selectedId;
+              const isNeighbor = neighbours.has(body.id);
+              const isDim = focusId !== null && !isNeighbor;
+              const isEmployee = body.node.kind === "employee";
+              const isChat = body.node.kind === "chat";
+              const isRoot = body.node.isRoot === true;
+
               return (
                 <g
                   key={body.id}
                   className={cls(
                     "imb-graph-node",
                     `imb-graph-node--${body.node.kind}`,
-                    body.node.kind === "chat" &&
-                      body.node.isRoot === true &&
-                      "imb-is-root",
-                    body.id === selectedId && "imb-is-selected",
-                    dim && "imb-is-dim",
+                    isRoot && "imb-is-root",
+                    isSelected && "imb-is-selected",
+                    isFocused && "imb-is-focused",
+                    isDim && "imb-is-dim",
                   )}
                   transform={`translate(${body.x},${body.y})`}
                   onPointerDown={(event) => onNodePointerDown(event, body)}
@@ -473,10 +595,32 @@ export function GraphCanvas({
                   }
                   onDoubleClick={() => onOpen(body.node)}
                 >
-                  <circle r={body.r} />
+                  {/* Subtle breathing halo / ripple for active or agent nodes */}
+                  {(isSelected || isEmployee) && (
+                    <circle
+                      className={cls(
+                        "imb-graph-node-halo",
+                        isEmployee && "imb-is-agent-aura",
+                      )}
+                      r={body.r + (isSelected ? 7 : 5)}
+                    />
+                  )}
+
+                  {/* Main node surface */}
+                  <circle className="imb-graph-node-core" r={body.r} />
+
+                  {/* Concentric orbital ring for root chats */}
+                  {isChat && isRoot && (
+                    <circle
+                      className="imb-graph-node-ring"
+                      r={body.r + 3.5}
+                    />
+                  )}
+
+                  {/* Node label */}
                   <g
                     className="imb-graph-label-box"
-                    transform={`translate(0,${body.r + 10}) scale(${labelScale})`}
+                    transform={`translate(0,${body.r + 11}) scale(${labelScale})`}
                   >
                     <text className="imb-graph-label" textAnchor="middle">
                       {truncate(body.node.label)}
@@ -489,13 +633,60 @@ export function GraphCanvas({
         </g>
       </svg>
 
-      <p className="imb-graph-hint">
-        {t("Drag to pan · scroll to zoom · double-click a node to open")}
-      </p>
+      {/* Floating Collect UI Hover Card for quick node context */}
+      {hoveredNode && !selectedId && (
+        <div
+          className="imb-graph-hover-card"
+          style={{
+            transform: `translate(${view.x + hoveredNode.x * view.k}px, ${
+              view.y + hoveredNode.y * view.k - hoveredNode.r * view.k - 14
+            }px)`,
+          }}
+        >
+          <div className="imb-graph-hover-card-inner">
+            <div className="imb-graph-hover-head">
+              <span
+                className={cls(
+                  "imb-graph-badge",
+                  `imb-graph-badge--${hoveredNode.node.kind}`,
+                )}
+              >
+                {t(
+                  hoveredNode.node.kind === "employee"
+                    ? "Employee"
+                    : hoveredNode.node.kind === "tag"
+                      ? "Tag"
+                      : hoveredNode.node.isRoot
+                        ? "Root Chat"
+                        : "Conversation",
+                )}
+              </span>
+              {activeDegree > 0 && (
+                <span className="imb-graph-hover-degree">
+                  {t("${count} links", { count: String(activeDegree) })}
+                </span>
+              )}
+            </div>
+            <strong className="imb-graph-hover-title">
+              {hoveredNode.node.label}
+            </strong>
+            <span className="imb-graph-hover-tip">
+              {t("Double-click to open · Click to inspect")}
+            </span>
+          </div>
+        </div>
+      )}
 
-      <div className="imb-graph-controls">
+      {/* Modern status hint */}
+      <div className="imb-graph-hint-pill">
+        <span>{t("Drag to pan · Scroll to zoom · Double-click to open")}</span>
+      </div>
+
+      {/* Floating Controls Toolbar (Collect UI Glass Panel) */}
+      <div className="imb-graph-floating-toolbar" role="toolbar" aria-label={t("Graph Controls")}>
         <button
           type="button"
+          className="imb-graph-tool-btn"
           onClick={() => zoomBy(1.3)}
           aria-label={t("Zoom in")}
           title={t("Zoom in")}
@@ -504,19 +695,40 @@ export function GraphCanvas({
         </button>
         <button
           type="button"
+          className="imb-graph-tool-btn"
           onClick={() => zoomBy(1 / 1.3)}
           aria-label={t("Zoom out")}
           title={t("Zoom out")}
         >
           −
         </button>
+        <div className="imb-graph-tool-sep" />
         <button
           type="button"
+          className="imb-graph-tool-btn"
           onClick={fitView}
           aria-label={t("Reset view")}
           title={t("Reset view")}
         >
           ⤢
+        </button>
+        <button
+          type="button"
+          className={cls("imb-graph-tool-btn", showGrid && "imb-is-active")}
+          onClick={() => setShowGrid((v) => !v)}
+          aria-label={t("Toggle grid")}
+          title={t("Toggle spatial grid")}
+        >
+          ▦
+        </button>
+        <button
+          type="button"
+          className="imb-graph-tool-btn"
+          onClick={reheat}
+          aria-label={t("Re-layout")}
+          title={t("Reheat physics simulation")}
+        >
+          ⚡
         </button>
       </div>
     </div>
