@@ -40,7 +40,7 @@ export function EmployeesModule(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
 
-  const { data } = useApp();
+  const { data, focusEmployeeId } = useApp();
   const loading = data.employees.loading;
   const listError = data.employees.error;
 
@@ -87,6 +87,17 @@ export function EmployeesModule(): React.JSX.Element {
     void appStore.reloadMcp();
     void appStore.reloadSkills();
   }, []);
+
+  // Jump to a focused employee (a click on an employee node in the Graph
+  // module) once the roster has loaded.
+  useEffect(() => {
+    if (focusEmployeeId === null) return;
+    if (!data.employees.items.some((item) => item.id === focusEmployeeId)) {
+      return;
+    }
+    setSelectedId(focusEmployeeId);
+    appStore.focusEmployeeId = null;
+  }, [focusEmployeeId, data.employees.items]);
 
   // Linked-MCP options = built-in opt-in tools (cron + image generation) +
   // configured MCP servers.

@@ -35,6 +35,7 @@ export type AppModule =
   | "miniapp"
   | "group-chat"
   | "agent-session"
+  | "graph"
   | "spend";
 
 /** A group chat opened from a `chat`-kind card and shown in the Nav. */
@@ -119,6 +120,7 @@ const VALID_MODULES: AppModule[] = [
   "chat",
   "employees",
   "cron",
+  "graph",
   "spend",
   "settings",
   "miniapp",
@@ -162,6 +164,10 @@ export const appStore = proxy({
   // Pending chat to select when the chat module is mounted (set by an OS
   // notification click). Cleared once consumed.
   focusChatId: null as number | null,
+
+  // Pending employee to select when the employees module is mounted (set by a
+  // click on an employee node in the Graph module). Cleared once consumed.
+  focusEmployeeId: null as number | null,
 
   // Spend module selection: the grouping dimension (conversation list is the
   // default), the time window (only shown for the employee grouping), and the
@@ -762,6 +768,13 @@ export const appStore = proxy({
     appStore.focusChatId = chatId;
     appStore.module = "chat";
     await imb.settings.set(SettingKeys.Module, "chat");
+  },
+
+  /** Open the Employees module with one employee selected (Graph node click). */
+  async focusEmployee(employeeId: number): Promise<void> {
+    appStore.focusEmployeeId = employeeId;
+    appStore.module = "employees";
+    await imb.settings.set(SettingKeys.Module, "employees");
   },
 
   /** Open the Settings module on a section (persists the active module). */
