@@ -1,0 +1,402 @@
+/* The graph module: a read-only lens over the workspace's latent graph.
+ *
+ * Colours come from the shared tokens where a role exists (accent, warn,
+ * muted, surface); the per-kind hues below are local, because an employee or a
+ * tag is not a themed role and a fixed hue reads the same in light and dark.
+ */
+
+.imb-graph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* --- Header + legend ------------------------------------------------------- */
+
+.imb-graph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--imb-space-4);
+  padding: var(--imb-space-3) var(--imb-space-5);
+  border-bottom: 1px solid var(--imb-border);
+}
+
+.imb-graph-headline {
+  display: flex;
+  align-items: center;
+  gap: var(--imb-space-2);
+  min-width: 0;
+}
+
+.imb-graph-headicon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--imb-accent);
+}
+
+.imb-graph-title {
+  margin: 0;
+  font-size: var(--imb-text-lg);
+  font-weight: 600;
+}
+
+.imb-graph-stats {
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+  white-space: nowrap;
+}
+
+.imb-graph-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.imb-graph-legend-title {
+  margin-right: 2px;
+  color: var(--imb-muted);
+  font-size: var(--imb-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.imb-graph-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--imb-border);
+  border-radius: 999px;
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+  font-size: var(--imb-text-xs);
+  cursor: pointer;
+  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-graph-chip:hover {
+  border-color: var(--imb-accent);
+}
+
+.imb-graph-chip.imb-is-off {
+  opacity: 0.4;
+}
+
+.imb-graph-chip-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--g-edge, var(--imb-muted));
+}
+
+/* One hue per link kind, shared by the legend dot and the drawn edge. */
+.imb-graph-chip--spawned,
+.imb-graph-edge--spawned {
+  --g-edge: var(--imb-accent);
+}
+
+.imb-graph-chip--attached,
+.imb-graph-edge--attached {
+  --g-edge: #4c8dff;
+}
+
+.imb-graph-chip--progress,
+.imb-graph-edge--progress {
+  --g-edge: var(--imb-warn);
+}
+
+.imb-graph-chip--participant,
+.imb-graph-edge--participant {
+  --g-edge: var(--imb-muted);
+}
+
+.imb-graph-chip--session,
+.imb-graph-edge--session {
+  --g-edge: #b07cff;
+}
+
+.imb-graph-chip--tag,
+.imb-graph-edge--tag {
+  --g-edge: #22b3a3;
+}
+
+/* --- Stage ----------------------------------------------------------------- */
+
+.imb-graph-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--imb-bg);
+}
+
+.imb-graph-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.imb-graph-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.imb-graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.imb-graph-svg:active {
+  cursor: grabbing;
+}
+
+/* --- Edges ----------------------------------------------------------------- */
+
+.imb-graph-edge {
+  stroke: var(--g-edge, var(--imb-muted));
+  stroke-width: 1.4;
+  opacity: 0.5;
+  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-graph-edge.imb-is-dim {
+  opacity: 0.08;
+}
+
+/* --- Nodes ----------------------------------------------------------------- */
+
+.imb-graph-node {
+  cursor: pointer;
+}
+
+.imb-graph-node circle {
+  stroke: var(--imb-surface);
+  stroke-width: 1.5;
+  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-graph-node--chat circle {
+  fill: var(--imb-accent);
+}
+
+/* A root conversation is the origin of a branch: hollow, so a spawned task
+ * group reads as a filled node hanging off it. */
+.imb-graph-node--chat.imb-is-root circle {
+  fill: var(--imb-surface);
+  stroke: var(--imb-accent);
+  stroke-width: 2;
+}
+
+.imb-graph-node--employee circle {
+  fill: #4c8dff;
+}
+
+.imb-graph-node--tag circle {
+  fill: #b07cff;
+}
+
+.imb-graph-node.imb-is-dim {
+  opacity: 0.15;
+}
+
+.imb-graph-node.imb-is-selected circle {
+  stroke: var(--imb-fg);
+  stroke-width: 2.5;
+}
+
+.imb-graph-label {
+  fill: var(--imb-fg);
+  font-size: 11px;
+  opacity: 0.85;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--imb-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* --- Overlays -------------------------------------------------------------- */
+
+.imb-graph-hint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--imb-space-3);
+  transform: translateX(-50%);
+  margin: 0;
+  color: var(--imb-muted);
+  font-size: var(--imb-text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.imb-graph-controls {
+  position: absolute;
+  right: var(--imb-space-3);
+  bottom: var(--imb-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.imb-graph-controls button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--imb-border);
+  border-radius: var(--imb-radius-md);
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+  font-size: var(--imb-text-base);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.imb-graph-controls button:hover {
+  border-color: var(--imb-accent);
+  color: var(--imb-accent);
+}
+
+/* --- Inspector ------------------------------------------------------------- */
+
+.imb-graph-inspector {
+  position: absolute;
+  left: var(--imb-space-3);
+  bottom: var(--imb-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--imb-space-2);
+  width: 280px;
+  max-height: 60%;
+  overflow: auto;
+  padding: var(--imb-space-3);
+  border: 1px solid var(--imb-border);
+  border-radius: var(--imb-radius-lg);
+  background: color-mix(in oklch, var(--imb-surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--imb-elev-raised);
+}
+
+.imb-graph-inspector-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.imb-graph-kind {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--imb-muted);
+  color: var(--imb-surface);
+  font-size: var(--imb-text-xs);
+}
+
+.imb-graph-kind--chat {
+  background: var(--imb-accent);
+  color: var(--imb-accent-on);
+}
+
+.imb-graph-kind--employee {
+  background: #4c8dff;
+}
+
+.imb-graph-kind--tag {
+  background: #b07cff;
+}
+
+.imb-graph-inspector-name {
+  font-size: var(--imb-text-base);
+  word-break: break-word;
+}
+
+.imb-graph-inspector-sub {
+  color: var(--imb-muted);
+  font-size: var(--imb-text-xs);
+}
+
+.imb-graph-inspector-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.imb-graph-inspector-links li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--imb-space-2);
+}
+
+.imb-graph-link-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--imb-fg);
+  font-size: var(--imb-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.imb-graph-link-node:hover {
+  color: var(--imb-accent);
+}
+
+.imb-graph-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--imb-muted);
+}
+
+.imb-graph-dot--chat {
+  background: var(--imb-accent);
+}
+
+.imb-graph-dot--employee {
+  background: #4c8dff;
+}
+
+.imb-graph-dot--tag {
+  background: #b07cff;
+}
+
+.imb-graph-link-kind {
+  color: var(--imb-muted);
+  font-size: var(--imb-text-xs);
+  white-space: nowrap;
+}
+
+.imb-graph-open {
+  align-self: flex-start;
+  padding: 4px 14px;
+  border: 1px solid var(--imb-accent);
+  border-radius: 999px;
+  background: var(--imb-accent);
+  color: var(--imb-accent-on);
+  font-size: var(--imb-text-sm);
+  cursor: pointer;
+}
+
+.imb-graph-open:hover {
+  background: var(--imb-accent-hover);
+  border-color: var(--imb-accent-hover);
+}

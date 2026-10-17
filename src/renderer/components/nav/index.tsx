@@ -15,6 +15,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { SettingKeys } from "@shared/constants/settings";
 import { SPEND_STATS_ENABLED } from "@shared/constants/spend";
+import { GRAPH_VIEW_ENABLED } from "@shared/constants/graph";
 import { t } from "@shared/l10n";
 import { useState, type CSSProperties } from "react";
 import { cls } from "reactutils";
@@ -36,6 +37,7 @@ import {
   IconCollapse,
   IconEmployees,
   IconGear,
+  IconGraph,
   IconStats,
 } from "../icons";
 import { Tooltip } from "../tooltip";
@@ -80,6 +82,17 @@ const NAV_ITEMS: NavItem[] = [
           module: "spend" as const,
           labelKey: "Statistics",
           icon: IconStats,
+          section: "main" as const,
+        },
+      ]
+    : []),
+  // Pluggable feature: its own master switch (see `GRAPH_VIEW_ENABLED`).
+  ...(GRAPH_VIEW_ENABLED
+    ? [
+        {
+          module: "graph" as const,
+          labelKey: "Graph",
+          icon: IconGraph,
           section: "main" as const,
         },
       ]

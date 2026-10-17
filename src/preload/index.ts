@@ -13,6 +13,7 @@ import type {
   EmployeeDeleteResult,
   EmployeeInput,
   EmployeeSession,
+  GraphPayload,
   InstalledSkill,
   IntegrationConfigPatch,
   IntegrationPlatform,
@@ -522,6 +523,11 @@ const api = {
     /** Aggregated token/cost report, per employee and as a grand total. */
     report: (range: SpendRange) =>
       ipcRenderer.invoke("spend:report", range) as Promise<SpendReport>,
+  },
+
+  graph: {
+    /** The whole workspace graph (chats, employees, tags and their links). */
+    get: () => ipcRenderer.invoke("graph:get") as Promise<GraphPayload>,
   },
 
   backup: {
