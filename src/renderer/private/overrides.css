@@ -56,7 +56,7 @@
 /* The active nav row was marked by colour and weight alone; a soft tint of the
    same accent gives it the same shape language as an active list row. */
 .imb-nav-item.imb-is-active {
-  background: color-mix(in oklab, var(--imb-accent) 10%, transparent);
+  background: var(--imb-private-tint-current);
 }
 
 /* Window controls kept the browser's default focus ring (an orange `outline:
@@ -107,9 +107,7 @@
 }
 
 .imb-modal {
-  box-shadow:
-    0 2px 6px rgba(20, 28, 24, 0.08),
-    0 14px 40px rgba(20, 28, 24, 0.16);
+  box-shadow: var(--imb-private-elev-overlay);
 }
 
 /* A picture avatar is the one place a light asset lands straight on the
@@ -125,4 +123,193 @@
 .imb-btn-secondary:hover:not(:disabled) {
   border-color: color-mix(in oklab, var(--imb-fg) 45%, transparent);
   background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
+}
+
+/* =====================================================================
+ * Round 3 — one rhythm, one cadence, one selection recipe.
+ *
+ * The same story on different surfaces: upstream mixes tokenised values with
+ * raw ones (2/3/5/6/9/10/11/14px, five animation cadences, three disabled
+ * treatments), so surfaces that should have matched drifted apart. Each block
+ * below pulls one family back onto the scale in `theme.css`.
+ * =================================================================== */
+
+/* --- Controls: one height ladder, one type step --------------------- */
+
+/* A button carried 16px text (larger than the 15px body) in a 34px box, while
+   its "small" variant was 36px — so the small button was the tall one. Now a
+   control is 36px, a small control is 28px, and both sit ON the text scale
+   instead of above it. */
+.imb-btn {
+  font-size: var(--imb-text-base);
+  min-height: var(--imb-private-h-control);
+  padding: 8px 16px;
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+/* A press should be felt, not seen. */
+.imb-btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.imb-btn-sm {
+  min-height: var(--imb-private-h-control-sm);
+  padding: 4px 10px;
+  font-size: var(--imb-text-sm);
+}
+
+/* A field label sat 6px above its control; the grid says 8. */
+.imb-field {
+  gap: var(--imb-space-2);
+}
+
+/* --- Navigation and lists: rows that match -------------------------- */
+
+/* Rows were 34px tall and 2px apart, so the hover and active tints read as one
+   continuous stripe rather than as separate rows. 36px with a 4px seam gives
+   each row a shape, and the active row keeps its tint and its accent but drops
+   the weight bump — a weight change reflows the label and reads as a jitter. */
+.imb-nav-items {
+  gap: var(--imb-space-1);
+}
+
+.imb-nav-item {
+  height: var(--imb-private-h-row);
+  gap: var(--imb-space-2);
+}
+
+.imb-nav-item.imb-is-active {
+  font-weight: 500;
+}
+
+.imb-nav-bottom {
+  margin-top: var(--imb-space-3);
+  padding-top: var(--imb-space-3);
+}
+
+/* The chat list row and the gap under its second line. */
+.imb-list-row {
+  min-height: var(--imb-private-h-row);
+  padding: 10px 12px;
+}
+
+.imb-list-row-sub {
+  margin-top: var(--imb-space-1);
+}
+
+/* The unread badge and the muted pill were the last two 11px holdouts. */
+.imb-unread,
+.imb-badge {
+  font-size: var(--imb-text-xs);
+}
+
+/* --- Selection: one recipe ------------------------------------------- */
+
+/* Upstream mixed two different colour spaces against two different backdrops
+   (oklch 15% for the active row, oklch 12% for the selected one), so the
+   WEAKER tint needed `!important` to beat the stronger — the selected row read
+   as less selected than the row the cursor merely rested on. Both states now
+   mean the same thing and say it once (see `--imb-private-tint-current`). */
+.imb-list-row-wrap.imb-is-active,
+.imb-list-row-wrap.imb-is-selected {
+  background: var(--imb-private-tint-current) !important;
+}
+
+/* --- The conversation: air, and a line you can follow ---------------- */
+
+/* A bubble was 10px 14px with 6px between its parts. */
+.imb-bubble {
+  padding: 12px 16px;
+}
+
+.imb-msg {
+  gap: var(--imb-space-3);
+}
+
+.imb-bubble-attachments {
+  gap: var(--imb-space-2);
+  margin-bottom: var(--imb-space-2);
+}
+
+.imb-bubble-chip {
+  padding: var(--imb-space-1) var(--imb-space-2);
+}
+
+.imb-chat-header {
+  gap: var(--imb-space-3);
+}
+
+/* The reserved run-status line was a 22px slot on odd padding. */
+.imb-run-status {
+  height: var(--imb-space-6);
+  padding: 0 var(--imb-space-3);
+}
+
+/* A wide window turns a 15px sentence into a 1,400px line and the eye loses the
+   start of the next one. The header, the messages and the composer are one
+   column — they share a left edge and a right edge at every width — so all
+   three grow the same side padding once the pane is wider than the measure,
+   and the column stays centred at a readable width. The hairlines above and
+   below stay full-bleed: they separate panes, not content. */
+.imb-chat-header,
+.imb-thread,
+.imb-chat-input-wrap {
+  padding-inline: max(
+    var(--imb-space-6),
+    calc((100% - var(--imb-private-measure)) / 2)
+  );
+}
+
+/* --- Reading measure: every detail pane, not only the conversation --- */
+
+/* The shared detail head and body carry thirteen panes (employees, cron,
+   spend, MCP, providers, and the ten settings sections). Their content sits
+   24px from the pane edge at any width, so on a wide window a textarea or a
+   line of prose stretches to ~1,350px and the eye loses the line it is on.
+   The conversation's measure applies here too: one readable column, centred
+   once the pane is wider than the measure — below that the rule changes
+   nothing. The head's action cluster is absolutely positioned, so it needs
+   the same offset or it would drift to the window's edge while the title
+   moved inward. */
+.imb-detail-head,
+.imb-detail-body {
+  padding-inline: max(
+    var(--imb-space-6),
+    calc((100% - var(--imb-private-measure)) / 2)
+  );
+}
+
+.imb-detail-head-actions {
+  right: max(var(--imb-space-6), calc((100% - var(--imb-private-measure)) / 2));
+}
+
+/* --- Motion: one cadence -------------------------------------------- */
+
+/* Five loops ran at five speeds (0.8 / 1 / 1.2 / 1.5 / 1.6s), so a busy screen
+   pulsed out of phase with itself. */
+.imb-btn-spinner {
+  animation-duration: var(--imb-private-motion-spin);
+}
+
+.imb-session-tool.imb-is-running .imb-session-tool-dot,
+.imb-progress-tag.imb-busy .imb-status-dot,
+.imb-image-gen-shimmer,
+.imb-ack-fill {
+  animation-duration: var(--imb-private-motion-pulse);
+}
+
+/* The picture swap was the one transition off the motion scale. */
+.imb-image-gen-arrived .imb-image-card-front {
+  animation-duration: var(--imb-private-motion-enter);
+  animation-timing-function: var(--imb-ease-standard);
+}
+
+/* The toggle knob stepped in 150ms on the browser's default ease while every
+   other control eased over the token duration. */
+.imb-toggle-knob {
+  transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
