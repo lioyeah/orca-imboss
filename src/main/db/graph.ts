@@ -17,6 +17,7 @@ import type {
   GraphEdgeKind,
   GraphNode,
   GraphPayload,
+  NodeLifecycle,
 } from "@shared/types";
 import { getDB } from "./index";
 import { parseJsonObject, parseNumberArray } from "./json";
@@ -67,6 +68,15 @@ export function buildGraph(): GraphPayload {
     .prepare("SELECT chat_id, COUNT(*) AS n FROM messages GROUP BY chat_id")
     .all() as Array<{ chat_id: number; n: number }>;
 
+  // Check last message kind per chat for lifecycle status
+  const lastMsgRows = db
+    .prepare(
+      "SELECT chat_id, kind FROM messages WHERE id IN (SELECT MAX(id) FROM messages GROUP BY chat_id)",
+    )
+    .all() as Array<{ chat_id: number; kind: string }>;
+  const lastMsgKindMap = new Map<number, string>();
+  for (const row of lastMsgRows) lastMsgKindMap.set(row.chat_id, row.kind);
+
   const messageCounts = new Map<number, number>();
   for (const row of countRows) messageCounts.set(row.chat_id, row.n);
 
@@ -79,36 +89,48 @@ export function buildGraph(): GraphPayload {
   const employeeIds = new Set<number>();
   for (const row of employeeRows) employeeIds.add(row.id);
 
-  // Compute clusterId for each chat (recursively resolve to its root ancestor)
-  const resolveRootId = (id: number): number => {
+  // Compute clusterId and hierarchical level for each chat
+  const resolveCausalMeta = (id: number): { rootId: number; level: number } => {
     let curr = id;
+    let level = 0;
     const visited = new Set<number>();
     while (curr !== null) {
       if (visited.has(curr)) break;
       visited.add(curr);
       const parent = chatParentMap.get(curr);
       if (parent === null || parent === undefined || !chatIds.has(parent)) {
-        return curr;
+        return { rootId: curr, level };
       }
+      level++;
       curr = parent;
     }
-    return curr;
+    return { rootId: curr, level };
   };
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
-  const seenEdges = new Set<string>();
+  const edgeWeights = new Map<string, number>();
+  const edgeObjMap = new Map<string, GraphEdge>();
 
   const addEdge = (
     source: string,
     target: string,
     kind: GraphEdgeKind,
+    weight = 1,
   ): void => {
     if (source === target) return;
     const id = `${kind}|${source}|${target}`;
-    if (seenEdges.has(id)) return;
-    seenEdges.add(id);
-    edges.push({ id, source, target, kind });
+    const currWeight = edgeWeights.get(id) ?? 0;
+    edgeWeights.set(id, currWeight + weight);
+
+    if (!edgeObjMap.has(id)) {
+      const edge: GraphEdge = { id, source, target, kind, weight };
+      edgeObjMap.set(id, edge);
+      edges.push(edge);
+    } else {
+      const edge = edgeObjMap.get(id)!;
+      edge.weight = edgeWeights.get(id);
+    }
   };
 
   let minTime = Infinity;
@@ -118,7 +140,6 @@ export function buildGraph(): GraphPayload {
   for (const row of chatRows) {
     const participants = parseNumberArray(row.participants);
     const title = row.title.trim();
-    // Normalize timestamps to milliseconds
     const createdAtMs = row.created_at > 1e11 ? row.created_at : row.created_at * 1000;
     const lastActiveMs =
       row.last_message_at > 0
@@ -130,7 +151,20 @@ export function buildGraph(): GraphPayload {
     if (createdAtMs < minTime) minTime = createdAtMs;
     if (lastActiveMs > maxTime) maxTime = lastActiveMs;
 
-    const rootId = resolveRootId(row.id);
+    const { rootId, level } = resolveCausalMeta(row.id);
+
+    // Lifecycle state derivation
+    let lifecycle: NodeLifecycle = "idle";
+    const lastKind = lastMsgKindMap.get(row.id);
+    if (row.from_chat_id === null) {
+      lifecycle = "root";
+    } else if (lastKind === "interrupted") {
+      lifecycle = "interrupted";
+    } else if (lastKind === "progress") {
+      lifecycle = "running";
+    } else if (messageCounts.get(row.id) ?? 0 > 0) {
+      lifecycle = "completed";
+    }
 
     nodes.push({
       id: `chat:${row.id}`,
@@ -144,14 +178,16 @@ export function buildGraph(): GraphPayload {
       createdAt: createdAtMs,
       updatedAt: lastActiveMs,
       clusterId: `cluster:${rootId}`,
+      level,
+      lifecycle,
     });
 
     for (const employeeId of participants) {
       if (!employeeIds.has(employeeId)) continue;
-      addEdge(`chat:${row.id}`, `employee:${employeeId}`, "participant");
+      addEdge(`chat:${row.id}`, `employee:${employeeId}`, "participant", 1);
     }
     if (row.from_chat_id !== null && chatIds.has(row.from_chat_id)) {
-      addEdge(`chat:${row.from_chat_id}`, `chat:${row.id}`, "spawned");
+      addEdge(`chat:${row.from_chat_id}`, `chat:${row.id}`, "spawned", 2);
     }
   }
 
@@ -167,6 +203,8 @@ export function buildGraph(): GraphPayload {
       employeeId: row.id,
       avatar: row.avatar,
       disabled: row.disabled === 1,
+      level: 0,
+      lifecycle: row.disabled === 1 ? "idle" : "running",
     });
   }
 
@@ -174,7 +212,7 @@ export function buildGraph(): GraphPayload {
   for (const row of sessionRows) {
     if (!chatIds.has(row.chat_id) || !employeeIds.has(row.employee_id))
       continue;
-    addEdge(`chat:${row.chat_id}`, `employee:${row.employee_id}`, "session");
+    addEdge(`chat:${row.chat_id}`, `employee:${row.employee_id}`, "session", 2);
   }
 
   // --- Message-derived chat → chat links ---
@@ -190,11 +228,11 @@ export function buildGraph(): GraphPayload {
     if (row.kind === "progress" || row.kind === "interrupted") {
       const target = parseLinkedChatId(row.steps);
       if (target !== null && chatIds.has(target)) {
-        addEdge(source, `chat:${target}`, "progress");
+        addEdge(source, `chat:${target}`, "progress", 3);
       }
     }
     for (const target of parseAttachedChatIds(row.attachments)) {
-      if (chatIds.has(target)) addEdge(source, `chat:${target}`, "attached");
+      if (chatIds.has(target)) addEdge(source, `chat:${target}`, "attached", 1);
     }
   }
 
@@ -207,11 +245,13 @@ export function buildGraph(): GraphPayload {
       sub: null,
       weight: 0,
       tag,
+      level: 0,
+      lifecycle: "idle",
     });
   }
   for (const row of tagRows) {
     if (!chatIds.has(row.chat_id)) continue;
-    addEdge(`chat:${row.chat_id}`, `tag:${row.tag}`, "tag");
+    addEdge(`chat:${row.chat_id}`, `tag:${row.tag}`, "tag", 1);
   }
 
   // Calculate degrees (inDegree, outDegree, total degree)
