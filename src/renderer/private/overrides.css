@@ -313,3 +313,11 @@
 .imb-toggle-knob {
   transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
+
+/* The composer's two icon buttons name a duration token but no timing
+   function, so they were the only controls still easing on the browser
+   default. A single value covers every property in their transition list. */
+.imb-attach-btn,
+.imb-send-btn-circle {
+  transition-timing-function: var(--imb-ease-standard);
+}
