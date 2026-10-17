@@ -17,6 +17,9 @@ export const GRAPH_EDGE_KINDS: readonly GraphEdgeKind[] = [
   "participant",
   "session",
   "tag",
+  "produces",
+  "references",
+  "invokes",
 ];
 
 /** Human labels for the legend (English keys; l10n overrides them). */
@@ -27,6 +30,9 @@ export const GRAPH_EDGE_LABELS: Record<GraphEdgeKind, string> = {
   participant: "Participant",
   session: "Agent session",
   tag: "Tag",
+  produces: "Produces",
+  references: "References",
+  invokes: "Invokes",
 };
 
 /** True when `value` is one of the known edge kinds. */
