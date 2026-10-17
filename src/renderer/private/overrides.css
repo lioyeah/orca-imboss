@@ -2,7 +2,7 @@
  * Private overrides — the few places a token cannot reach.
  *
  * Loaded after `theme.css` and after every upstream stylesheet, so equal
- * specificity resolves to these rules. Keep this file short: if a change can be
+ * specificity resolves to these rules. Keep this file focused: if a change can be
  * expressed as a token in `theme.css`, put it there instead.
  */
 
@@ -17,15 +17,30 @@
     var(--imb-elev-raised);
 }
 
+/* The sent bubble receives a refined hairline boundary to match the tactile
+   depth of received bubbles on the light stone canvas. */
+.imb-msg.imb-self .imb-bubble {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--imb-accent) 18%, transparent),
+    0 1px 2px rgba(20, 28, 24, 0.04);
+}
+
 /* File chips inside a bubble were tuned for a saturated green sent bubble
    (translucent white). With a pale tint they need ink instead. One rule set
    covers both themes because it mixes the theme's own foreground. */
 .imb-bubble-chip {
   background: color-mix(in oklab, var(--imb-fg) 6%, transparent);
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
 .imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
   background: color-mix(in oklab, var(--imb-fg) 11%, transparent);
+}
+
+.imb-bubble-chip:active:not(.imb-bubble-chip-static) {
+  transform: scale(0.97);
 }
 
 .imb-msg.imb-self .imb-bubble-chip {
@@ -63,7 +78,7 @@
    auto`), while every other control in the app uses the app's own ring. */
 .imb-winbtn:focus-visible {
   outline: none;
-  box-shadow: var(--imb-focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--imb-accent) 26%, transparent);
 }
 
 /* Scrollbars: upstream makes them thin but leaves the colours to the platform,
@@ -92,22 +107,80 @@
    drops the hard 18% black for the same two-layer shadow the raised elevation
    uses elsewhere. */
 .imb-modal-overlay {
-  background: rgba(24, 32, 28, 0.3);
-  backdrop-filter: blur(3px);
+  background: rgba(24, 32, 28, 0.35);
+  backdrop-filter: blur(6px);
+  animation: imb-overlay-enter var(--imb-motion-base) var(--imb-ease-standard);
 }
 
 :root[data-theme-mode="dark"] .imb-modal-overlay {
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.65);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme-mode="light"]) .imb-modal-overlay {
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.65);
   }
 }
 
 .imb-modal {
   box-shadow: var(--imb-private-elev-overlay);
+  border: 1px solid var(--imb-border);
+  animation: imb-modal-enter var(--imb-motion-base) var(--imb-ease-standard);
+}
+
+@keyframes imb-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes imb-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dropdown menus & anchored popovers: silky spring drop-in and frosted glass */
+@keyframes imb-dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.imb-select-panel,
+.imb-ms-panel,
+.imb-mention-popup {
+  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
+  box-shadow: var(--imb-private-elev-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.imb-ctx-menu.imb-open {
+  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
+  box-shadow: var(--imb-private-elev-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.imb-popover {
+  box-shadow: var(--imb-private-elev-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.imb-tooltip {
+  backdrop-filter: blur(8px);
 }
 
 /* A picture avatar is the one place a light asset lands straight on the
@@ -117,29 +190,8 @@
     color-mix(in oklab, var(--imb-fg) 10%, transparent);
 }
 
-/* Secondary buttons darkened their border to full-strength ink on hover, which
-   is louder than the rest of the palette. A half-strength border with a faint
-   wash keeps the same affordance. */
-.imb-btn-secondary:hover:not(:disabled) {
-  border-color: color-mix(in oklab, var(--imb-fg) 45%, transparent);
-  background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
-}
+/* --- Buttons: tactile response, subtle depth & micro-press ------------ */
 
-/* =====================================================================
- * Round 3 — one rhythm, one cadence, one selection recipe.
- *
- * The same story on different surfaces: upstream mixes tokenised values with
- * raw ones (2/3/5/6/9/10/11/14px, five animation cadences, three disabled
- * treatments), so surfaces that should have matched drifted apart. Each block
- * below pulls one family back onto the scale in `theme.css`.
- * =================================================================== */
-
-/* --- Controls: one height ladder, one type step --------------------- */
-
-/* A button carried 16px text (larger than the 15px body) in a 34px box, while
-   its "small" variant was 36px — so the small button was the tall one. Now a
-   control is 36px, a small control is 28px, and both sit ON the text scale
-   instead of above it. */
 .imb-btn {
   font-size: var(--imb-text-base);
   min-height: var(--imb-private-h-control);
@@ -148,12 +200,38 @@
     background var(--imb-motion-fast) var(--imb-ease-standard),
     border-color var(--imb-motion-fast) var(--imb-ease-standard),
     color var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard);
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
-/* A press should be felt, not seen. */
-.imb-btn:active:not(:disabled) {
-  transform: translateY(0.5px);
+/* Primary button: subtle top specular rim & tactile lift */
+.imb-btn-primary {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.imb-btn-primary:hover:not(:disabled) {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transform: translateY(-0.5px);
+}
+
+.imb-btn-primary:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.985);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Secondary button: half-strength border and soft wash */
+.imb-btn-secondary:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-fg) 40%, transparent);
+  background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
+  transform: translateY(-0.5px);
+}
+
+.imb-btn-secondary:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.985);
 }
 
 .imb-btn-sm {
@@ -162,17 +240,52 @@
   font-size: var(--imb-text-sm);
 }
 
-/* A field label sat 6px above its control; the grid says 8. */
+/* Icon buttons: micro-press feedback */
+.imb-icon-btn,
+.imb-attach-btn,
+.imb-progress-open {
+  transition:
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-icon-btn:active:not(:disabled),
+.imb-attach-btn:active:not(:disabled),
+.imb-progress-open:active:not(:disabled) {
+  transform: scale(0.94);
+  background: color-mix(in oklab, var(--imb-fg) 8%, transparent);
+}
+
+/* Send button circle: tactile hover scale and pulse */
+.imb-send-btn-circle {
+  transition:
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-send-btn-circle:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--imb-accent) 35%, transparent);
+}
+
+.imb-send-btn-circle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Segmented controls: micro-press tactile feedback */
+.imb-segmented-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* A field label sits 8px above its control */
 .imb-field {
   gap: var(--imb-space-2);
 }
 
 /* --- Navigation and lists: rows that match -------------------------- */
 
-/* Rows were 34px tall and 2px apart, so the hover and active tints read as one
-   continuous stripe rather than as separate rows. 36px with a 4px seam gives
-   each row a shape, and the active row keeps its tint and its accent but drops
-   the weight bump — a weight change reflows the label and reads as a jitter. */
 .imb-nav-items {
   gap: var(--imb-space-1);
 }
@@ -180,6 +293,9 @@
 .imb-nav-item {
   height: var(--imb-private-h-row);
   gap: var(--imb-space-2);
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
 .imb-nav-item.imb-is-active {
@@ -201,19 +317,18 @@
   margin-top: var(--imb-space-1);
 }
 
-/* The unread badge and the muted pill were the last two 11px holdouts. */
+/* Badges: crisp, aligned typography */
 .imb-unread,
 .imb-badge {
   font-size: var(--imb-text-xs);
 }
 
+.imb-badge {
+  border: 1px solid color-mix(in oklab, var(--imb-accent) 22%, transparent);
+}
+
 /* --- Selection: one recipe ------------------------------------------- */
 
-/* Upstream mixed two different colour spaces against two different backdrops
-   (oklch 15% for the active row, oklch 12% for the selected one), so the
-   WEAKER tint needed `!important` to beat the stronger — the selected row read
-   as less selected than the row the cursor merely rested on. Both states now
-   mean the same thing and say it once (see `--imb-private-tint-current`). */
 .imb-list-row-wrap.imb-is-active,
 .imb-list-row-wrap.imb-is-selected {
   background: var(--imb-private-tint-current) !important;
@@ -221,7 +336,6 @@
 
 /* --- The conversation: air, and a line you can follow ---------------- */
 
-/* A bubble was 10px 14px with 6px between its parts. */
 .imb-bubble {
   padding: 12px 16px;
 }
@@ -243,18 +357,12 @@
   gap: var(--imb-space-3);
 }
 
-/* The reserved run-status line was a 22px slot on odd padding. */
 .imb-run-status {
   height: var(--imb-space-6);
   padding: 0 var(--imb-space-3);
 }
 
-/* A wide window turns a 15px sentence into a 1,400px line and the eye loses the
-   start of the next one. The header, the messages and the composer are one
-   column — they share a left edge and a right edge at every width — so all
-   three grow the same side padding once the pane is wider than the measure,
-   and the column stays centred at a readable width. The hairlines above and
-   below stay full-bleed: they separate panes, not content. */
+/* Centred reading measure */
 .imb-chat-header,
 .imb-thread,
 .imb-chat-input-wrap {
@@ -264,17 +372,6 @@
   );
 }
 
-/* --- Reading measure: every detail pane, not only the conversation --- */
-
-/* The shared detail head and body carry thirteen panes (employees, cron,
-   spend, MCP, providers, and the ten settings sections). Their content sits
-   24px from the pane edge at any width, so on a wide window a textarea or a
-   line of prose stretches to ~1,350px and the eye loses the line it is on.
-   The conversation's measure applies here too: one readable column, centred
-   once the pane is wider than the measure — below that the rule changes
-   nothing. The head's action cluster is absolutely positioned, so it needs
-   the same offset or it would drift to the window's edge while the title
-   moved inward. */
 .imb-detail-head,
 .imb-detail-body {
   padding-inline: max(
@@ -289,8 +386,6 @@
 
 /* --- Motion: one cadence -------------------------------------------- */
 
-/* Five loops ran at five speeds (0.8 / 1 / 1.2 / 1.5 / 1.6s), so a busy screen
-   pulsed out of phase with itself. */
 .imb-btn-spinner {
   animation-duration: var(--imb-private-motion-spin);
 }
@@ -302,24 +397,36 @@
   animation-duration: var(--imb-private-motion-pulse);
 }
 
-/* The picture swap was the one transition off the motion scale. */
 .imb-image-gen-arrived .imb-image-card-front {
   animation-duration: var(--imb-private-motion-enter);
   animation-timing-function: var(--imb-ease-standard);
 }
 
-/* The toggle knob stepped in 150ms on the browser's default ease while every
-   other control eased over the token duration. */
-.imb-toggle-knob {
-  transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
+/* Toggle switch: spring motion and tactile stretch on press */
+.imb-toggle {
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
-/* The composer's two icon buttons name a duration token but no timing
-   function, so they were the only controls still easing on the browser
-   default. A single value covers every property in their transition list. */
-.imb-attach-btn,
-.imb-send-btn-circle {
-  transition-timing-function: var(--imb-ease-standard);
+.imb-toggle:hover:not(:disabled):not(.imb-is-on) {
+  border-color: color-mix(in oklab, var(--imb-fg) 35%, transparent);
+}
+
+.imb-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 24%, transparent);
+}
+
+.imb-toggle-knob {
+  transition:
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    width var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-toggle:active:not(:disabled) .imb-toggle-knob {
+  width: 20px;
 }
 
 /* --- Round 4 (Collect UI): tactile surfaces & ambient focus rings --- */
@@ -329,7 +436,13 @@
 .imb-chat-card,
 .imb-employee-card,
 .imb-model-card,
-.imb-mcp-server-card {
+.imb-mcp-server-card,
+.imb-ask-card,
+.imb-answer-card,
+.imb-progress-card,
+.imb-backup-card,
+.imb-integration-card,
+.imb-image-card {
   transition:
     transform var(--imb-motion-fast) var(--imb-ease-standard),
     box-shadow var(--imb-motion-fast) var(--imb-ease-standard),
@@ -339,19 +452,75 @@
 .imb-chat-card:hover:not(.imb-is-disabled),
 .imb-employee-card:hover,
 .imb-model-card:hover,
-.imb-mcp-server-card:hover {
+.imb-mcp-server-card:hover,
+.imb-ask-card:hover,
+.imb-answer-card:hover,
+.imb-progress-card:hover,
+.imb-backup-card:hover:not(.imb-is-pending),
+.imb-integration-card:hover,
+.imb-image-card:hover {
   transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--imb-fg) 22%, transparent);
   box-shadow:
     0 4px 14px -3px rgba(0, 0, 0, 0.08),
     0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
-/* Input focus glow: form inputs expand with a soft, diffused focus ring
-   rather than an abrupt hard outline. */
+/* Composer Card Focus Glow: typing into composer gives enclosing card ambient aura */
+.imb-chat-input-card {
+  transition:
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-chat-input-card:focus-within {
+  border-color: var(--imb-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--imb-accent) 18%, transparent),
+    0 2px 8px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Form Controls Focus Glow: soft, diffused multi-layer focus ring */
+.imb-input:focus,
 .imb-input:focus-visible,
+.imb-textarea:focus,
 .imb-textarea:focus-visible,
-.imb-search-input:focus-visible {
+.imb-search-input:focus,
+.imb-search-input:focus-visible,
+.imb-ask-other:focus,
+.imb-ask-other:focus-visible,
+.imb-ask-free:focus,
+.imb-ask-free:focus-visible {
   outline: none;
   border-color: var(--imb-accent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 18%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--imb-accent) 20%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Select & multi-select trigger states */
+.imb-select:hover:not(:disabled),
+.imb-ms-trigger:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-fg) 35%, transparent);
+}
+
+.imb-select:focus-visible,
+.imb-select[aria-expanded="true"],
+.imb-ms-trigger:focus-visible,
+.imb-ms-trigger[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--imb-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--imb-accent) 20%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Checkboxes and Radios */
+.imb-ask-option input:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-accent) 60%, var(--imb-border));
+}
+
+.imb-ask-option input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 24%, transparent);
 }
