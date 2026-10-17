@@ -334,6 +334,97 @@
   --g-edge: #8b5cf6;
 }
 
+.imb-graph-chip--depends_on,
+.imb-graph-edge--depends_on {
+  --g-edge: #ec4899;
+}
+
+/* Data Flow & Causal DAG Direction Animation */
+.imb-graph-edge--spawned,
+.imb-graph-edge--produces,
+.imb-graph-edge--progress,
+.imb-graph-edge--depends_on {
+  stroke-dasharray: 6 3;
+  animation: imb-graph-flow-dash 1.4s linear infinite;
+}
+
+@keyframes imb-graph-flow-dash {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+.imb-graph-arrow-head {
+  fill: var(--g-edge, var(--imb-accent));
+}
+
+/* Injected Context badge on node */
+.imb-graph-injected-badge {
+  fill: #10b981;
+  stroke: var(--imb-surface);
+  stroke-width: 1.2px;
+  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.8));
+  animation: imb-injected-pulse 2s ease-in-out infinite;
+}
+
+@keyframes imb-injected-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+.imb-graph-metric-tag.imb-graph-metric--injected {
+  background: color-mix(in oklab, #10b981 18%, transparent);
+  color: #10b981;
+  border-color: color-mix(in oklab, #10b981 35%, transparent);
+  font-weight: 600;
+}
+
+.imb-graph-artifact-path-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: color-mix(in oklab, var(--imb-surface) 60%, transparent);
+  border: 1px solid var(--imb-border);
+  border-radius: var(--imb-radius-sm, 6px);
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.imb-graph-artifact-path-val {
+  font-family: var(--imb-font-mono, monospace);
+  font-size: 11px;
+  color: var(--imb-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imb-graph-copy-btn {
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--imb-border);
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+  font-size: 10.5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.imb-graph-copy-btn:hover {
+  background: var(--imb-accent);
+  color: #fff;
+  border-color: var(--imb-accent);
+}
+
 /* --- Temporal Timeline Bar ------------------------------------------------ */
 
 .imb-graph-timeline-bar {
