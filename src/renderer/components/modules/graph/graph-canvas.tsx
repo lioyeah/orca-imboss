@@ -1,16 +1,16 @@
 import { t } from "@shared/l10n";
-import type { GraphEdge, GraphNode } from "@shared/types";
+import type { GraphEdge, GraphNode, GraphPerspective } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cls } from "reactutils";
 
 /**
  * Production-grade Graph Canvas inspired by Neurite & Obsidian:
  * - Dynamic organic bezier connectors with neural flow pulses
+ * - Cognitive Perspectives (Causality DAG, Collaboration Network, Knowledge Mesh)
+ * - Hierarchical causal level flow physics
+ * - Subgraph isolation mode for focused reasoning
  * - Interactive Minimap with viewport tracker
- * - Configurable force physics (repulsion, spring distance, gravity)
  * - Smooth camera transitions (flyTo lerp easing)
- * - Cluster/Community and Kind coloring modes
- * - Temporal filtering and search spotlight
  */
 
 export interface PhysicsConfig {
@@ -58,7 +58,6 @@ const MAX_SPEED = 16;
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 3.5;
 
-// Distinct palette for cluster/community grouping
 const CLUSTER_COLORS = [
   "#31895f",
   "#3b82f6",
@@ -127,6 +126,7 @@ function tick(
   sim: Sim,
   edges: readonly GraphEdge[],
   physics: PhysicsConfig,
+  perspective: GraphPerspective,
 ): void {
   const nodes = sim.nodes;
   const alpha = sim.alpha;
@@ -145,7 +145,6 @@ function tick(
         d2 = 0.5;
       }
       const dist = Math.sqrt(d2);
-      // Collision padding
       const minDistance = a.r + b.r + 6;
       let force = (physics.repulsion * alpha) / (d2 + 400);
       if (dist < minDistance) {
@@ -165,7 +164,7 @@ function tick(
     }
   }
 
-  // Edge springs
+  // Edge springs with weight support
   for (const edge of edges) {
     const a = sim.byId.get(edge.source);
     const b = sim.byId.get(edge.target);
@@ -173,8 +172,9 @@ function tick(
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const dist = Math.hypot(dx, dy) || 0.1;
-    const delta = dist - physics.linkDistance;
-    const force = delta * 0.035 * alpha;
+    const weightMult = Math.min(Math.max((edge.weight ?? 1) * 0.6, 0.8), 2.2);
+    const delta = dist - physics.linkDistance / weightMult;
+    const force = delta * 0.035 * alpha * weightMult;
     const fx = (dx / dist) * force;
     const fy = (dy / dist) * force;
     if (!a.held) {
@@ -187,13 +187,22 @@ function tick(
     }
   }
 
-  // Center pull and damping
+  // Perspective-based directional flow forces
   for (const node of nodes) {
     if (node.held) continue;
+
+    if (perspective === "causality" && node.node.kind === "chat") {
+      // In Causality DAG view, arrange levels along vertical gradient
+      const targetY = (node.node.level ?? 0) * 160 - 120;
+      node.vy += (targetY - node.y) * 0.018 * alpha;
+    }
+
+    // Gentle central gravity pull
     node.vx -= node.x * physics.centerPull * alpha;
     node.vy -= node.y * physics.centerPull * alpha;
     node.vx *= physics.damping;
     node.vy *= physics.damping;
+
     const speed = Math.hypot(node.vx, node.vy);
     if (speed > MAX_SPEED) {
       node.vx = (node.vx / speed) * MAX_SPEED;
@@ -212,6 +221,7 @@ export interface GraphCanvasProps {
   selectedId: string | null;
   searchQuery?: string;
   colorMode?: "kind" | "cluster";
+  perspective?: GraphPerspective;
   physicsConfig?: PhysicsConfig;
   showMinimap?: boolean;
   onSelect: (id: string | null) => void;
@@ -225,6 +235,7 @@ export function GraphCanvas({
   selectedId,
   searchQuery = "",
   colorMode = "kind",
+  perspective = "all",
   physicsConfig = DEFAULT_PHYSICS,
   showMinimap = true,
   onSelect,
@@ -249,7 +260,6 @@ export function GraphCanvas({
   const viewRef = useRef(view);
   viewRef.current = view;
 
-  // Active camera animation cancel ref
   const cameraAnimRef = useRef<number | null>(null);
 
   const dragRef = useRef<{
@@ -286,7 +296,6 @@ export function GraphCanvas({
     return () => observer.disconnect();
   }, []);
 
-  // Smooth camera flyTo with ease-out cubic
   const flyToCoords = useCallback(
     (targetX: number, targetY: number, targetZoom?: number): void => {
       if (cameraAnimRef.current !== null) {
@@ -304,7 +313,6 @@ export function GraphCanvas({
       const animate = (now: number): void => {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        // easeOutCubic
         const ease = 1 - Math.pow(1 - progress, 3);
 
         const nextK = start.k + (destK - start.k) * ease;
@@ -329,7 +337,7 @@ export function GraphCanvas({
     (nodeId: string): void => {
       const node = simRef.current.byId.get(nodeId);
       if (node) {
-        flyToCoords(node.x, node.y, Math.max(viewRef.current.k, 1.1));
+        flyToCoords(node.x, node.y, Math.max(viewRef.current.k, 1.15));
       }
     },
     [flyToCoords],
@@ -339,7 +347,6 @@ export function GraphCanvas({
     if (onFlyToReady) onFlyToReady(flyToNode);
   }, [flyToNode, onFlyToReady]);
 
-  // Fit all nodes in view
   const fitView = useCallback((): void => {
     const simNodes = simRef.current.nodes;
     if (simNodes.length === 0) return;
@@ -373,7 +380,6 @@ export function GraphCanvas({
     kickRef.current();
   }, []);
 
-  // Update simulation topology
   useEffect(() => {
     const previous = simRef.current.byId;
     const nextNodes: SimNode[] = [];
@@ -416,7 +422,7 @@ export function GraphCanvas({
     let raf = 0;
     const step = (): void => {
       const sim = simRef.current;
-      tick(sim, edges, physicsConfig);
+      tick(sim, edges, physicsConfig, perspective);
       forceRender();
       if (!sim.fitted && sim.alpha < 0.6) {
         sim.fitted = true;
@@ -436,7 +442,7 @@ export function GraphCanvas({
       if (raf !== 0) cancelAnimationFrame(raf);
       kickRef.current = () => {};
     };
-  }, [nodes, edges, colorMode, physicsConfig, fitView, forceRender]);
+  }, [nodes, edges, colorMode, perspective, physicsConfig, fitView, forceRender]);
 
   // Wheel zoom
   useEffect(() => {
@@ -480,7 +486,6 @@ export function GraphCanvas({
     });
   };
 
-  // Pointer interactions
   const onBackgroundPointerDown = (
     event: React.PointerEvent<SVGSVGElement>,
   ): void => {
@@ -570,7 +575,6 @@ export function GraphCanvas({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onSelect]);
 
-  // Focus and search highlights
   const cleanQuery = searchQuery.trim().toLowerCase();
   const focusId = selectedId ?? hoveredId;
 
@@ -611,7 +615,6 @@ export function GraphCanvas({
     return simRef.current.byId.get(hoveredId) ?? null;
   }, [hoveredId]);
 
-  // Bounds for interactive Minimap
   const bounds = useMemo(() => {
     const simNodes = simRef.current.nodes;
     if (simNodes.length === 0) {
@@ -639,14 +642,12 @@ export function GraphCanvas({
   const labelScale = 1 / view.k;
   const gridStep = 32 * view.k;
 
-  // Minimap coordinates calculation
   const mmW = 140;
   const mmH = 95;
   const bW = Math.max(bounds.maxX - bounds.minX, 1);
   const bH = Math.max(bounds.maxY - bounds.minY, 1);
   const mmScale = Math.min(mmW / bW, mmH / bH);
 
-  // Viewport rect on minimap
   const vpX0 = (-view.x / view.k - bounds.minX) * mmScale;
   const vpY0 = (-view.y / view.k - bounds.minY) * mmScale;
   const vpW = (sizeRef.current.width / view.k) * mmScale;
@@ -755,6 +756,7 @@ export function GraphCanvas({
               const isEmployee = body.node.kind === "employee";
               const isChat = body.node.kind === "chat";
               const isRoot = body.node.isRoot === true;
+              const lifecycle = body.node.lifecycle ?? "idle";
 
               const customFill =
                 colorMode === "cluster" ? body.color : undefined;
@@ -765,6 +767,7 @@ export function GraphCanvas({
                   className={cls(
                     "imb-graph-node",
                     `imb-graph-node--${body.node.kind}`,
+                    `imb-graph-node--state-${lifecycle}`,
                     isRoot && "imb-is-root",
                     isSelected && "imb-is-selected",
                     isFocused && "imb-is-focused",
@@ -781,12 +784,13 @@ export function GraphCanvas({
                   }
                   onDoubleClick={() => onOpen(body.node)}
                 >
-                  {(isSelected || isEmployee || isSearchMatch) && (
+                  {(isSelected || isEmployee || isSearchMatch || lifecycle === "running") && (
                     <circle
                       className={cls(
                         "imb-graph-node-halo",
                         isEmployee && "imb-is-agent-aura",
                         isSearchMatch && "imb-is-search-aura",
+                        lifecycle === "running" && "imb-is-running-pulse",
                       )}
                       r={body.r + (isSelected ? 7 : 5)}
                     />
@@ -850,9 +854,14 @@ export function GraphCanvas({
                       ? "Tag"
                       : hoveredNode.node.isRoot
                         ? "Root Chat"
-                        : "Conversation",
+                        : "Task Group",
                 )}
               </span>
+              {hoveredNode.node.level !== undefined && hoveredNode.node.level > 0 && (
+                <span className="imb-graph-badge-level">
+                  L{hoveredNode.node.level}
+                </span>
+              )}
               {activeDegree > 0 && (
                 <span className="imb-graph-hover-degree">
                   {t("${count} links", { count: String(activeDegree) })}
@@ -869,7 +878,7 @@ export function GraphCanvas({
         </div>
       )}
 
-      {/* Interactive Radar Minimap (Obsidian / Neurite style) */}
+      {/* Interactive Radar Minimap */}
       {!minimapCollapsed && (
         <div className="imb-graph-minimap">
           <div className="imb-graph-minimap-head">

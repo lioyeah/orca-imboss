@@ -25,6 +25,12 @@ export type GraphEdgeKind =
   | "session"
   | "tag";
 
+/** Lifecycle state of a conversation or task node. */
+export type NodeLifecycle = "root" | "running" | "completed" | "interrupted" | "idle";
+
+/** Cognitive perspective for architectural projection. */
+export type GraphPerspective = "all" | "causality" | "collaboration" | "knowledge";
+
 export interface GraphNode {
   /** Namespaced stable id, e.g. `chat:12`, `employee:3`, `tag:work`. */
   id: string;
@@ -63,6 +69,10 @@ export interface GraphNode {
   degree?: number;
   /** Topology cluster ID (e.g. root chat id) for community grouping/coloring. */
   clusterId?: string;
+  /** Hierarchical causal level (0 for root chats / primary employees, 1+ for spawned child task branches). */
+  level?: number;
+  /** Lifecycle runtime state. */
+  lifecycle?: NodeLifecycle;
 }
 
 export interface GraphEdge {
@@ -72,6 +82,8 @@ export interface GraphEdge {
   /** Node id of the target. */
   target: string;
   kind: GraphEdgeKind;
+  /** Edge interaction strength or link weight. */
+  weight?: number;
 }
 
 export interface GraphPayload {

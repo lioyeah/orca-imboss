@@ -5,6 +5,7 @@ import type {
   GraphEdgeKind,
   GraphNode,
   GraphPayload,
+  GraphPerspective,
 } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cls } from "reactutils";
@@ -45,11 +46,15 @@ export function GraphModule(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
+  // Cognitive perspective
+  const [perspective, setPerspective] = useState<GraphPerspective>("all");
+
   // Link filters
   const [enabled, setEnabled] = useState<ReadonlySet<GraphEdgeKind>>(
     () => new Set(GRAPH_EDGE_KINDS),
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isolatedId, setIsolatedId] = useState<string | null>(null);
 
   // Advanced feature controls
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,6 +130,39 @@ export function GraphModule(): React.JSX.Element {
     return () => clearInterval(interval);
   }, [isPlayingTimeline, payload]);
 
+  // Perspective presets for links
+  useEffect(() => {
+    if (perspective === "causality") {
+      setEnabled(new Set(["spawned", "attached", "progress"]));
+    } else if (perspective === "collaboration") {
+      setEnabled(new Set(["participant", "session"]));
+    } else if (perspective === "knowledge") {
+      setEnabled(new Set(["tag", "attached"]));
+    } else {
+      setEnabled(new Set(GRAPH_EDGE_KINDS));
+    }
+  }, [perspective]);
+
+  // Compute Subgraph closure if isolatedId is active
+  const isolatedSubtreeIds = useMemo(() => {
+    if (!isolatedId || !payload) return null;
+    const closure = new Set<string>([isolatedId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const edge of payload.edges) {
+        if (closure.has(edge.source) && !closure.has(edge.target)) {
+          closure.add(edge.target);
+          grew = true;
+        } else if (closure.has(edge.target) && !closure.has(edge.source)) {
+          closure.add(edge.source);
+          grew = true;
+        }
+      }
+    }
+    return closure;
+  }, [isolatedId, payload]);
+
   // Filter visible nodes and edges
   const visible = useMemo((): {
     nodes: GraphNode[];
@@ -134,10 +172,28 @@ export function GraphModule(): React.JSX.Element {
 
     let candidateNodes = payload.nodes;
 
+    // Subgraph isolation filter
+    if (isolatedSubtreeIds !== null) {
+      candidateNodes = candidateNodes.filter((n) => isolatedSubtreeIds.has(n.id));
+    }
+
     // Temporal cutoff filter
     if (timeCutoff !== null) {
       candidateNodes = candidateNodes.filter(
         (node) => !node.createdAt || node.createdAt <= timeCutoff,
+      );
+    }
+
+    // Perspective entity filter
+    if (perspective === "causality") {
+      candidateNodes = candidateNodes.filter((n) => n.kind === "chat");
+    } else if (perspective === "collaboration") {
+      candidateNodes = candidateNodes.filter(
+        (n) => n.kind === "employee" || n.kind === "chat",
+      );
+    } else if (perspective === "knowledge") {
+      candidateNodes = candidateNodes.filter(
+        (n) => n.kind === "tag" || n.kind === "chat",
       );
     }
 
@@ -164,7 +220,7 @@ export function GraphModule(): React.JSX.Element {
     });
 
     return { nodes, edges: candidateEdges };
-  }, [payload, enabled, timeCutoff, hideOrphans]);
+  }, [payload, enabled, timeCutoff, hideOrphans, perspective, isolatedSubtreeIds]);
 
   const selected = useMemo(
     (): GraphNode | null =>
@@ -251,7 +307,7 @@ export function GraphModule(): React.JSX.Element {
 
   const content = (
     <div className="imb-graph">
-      {/* Collect UI Modern Header */}
+      {/* Header */}
       <header className="imb-graph-head">
         <div className="imb-graph-headline">
           <div className="imb-graph-headicon-wrap">
@@ -265,14 +321,58 @@ export function GraphModule(): React.JSX.Element {
                   nodes: String(visible.nodes.length),
                   edges: String(visible.edges.length),
                 })}
+                {isolatedId && ` (${t("Isolated Subgraph")})`}
               </span>
             ) : null}
           </div>
         </div>
 
+        {/* Cognitive Perspective Segmented Switcher */}
+        <div className="imb-graph-perspective-segment" role="tablist">
+          <button
+            type="button"
+            className={cls(
+              "imb-graph-seg-btn",
+              perspective === "all" && "imb-is-active",
+            )}
+            onClick={() => setPerspective("all")}
+          >
+            {t("Overview")}
+          </button>
+          <button
+            type="button"
+            className={cls(
+              "imb-graph-seg-btn",
+              perspective === "causality" && "imb-is-active",
+            )}
+            onClick={() => setPerspective("causality")}
+          >
+            {t("Causality Tree")}
+          </button>
+          <button
+            type="button"
+            className={cls(
+              "imb-graph-seg-btn",
+              perspective === "collaboration" && "imb-is-active",
+            )}
+            onClick={() => setPerspective("collaboration")}
+          >
+            {t("Collaboration")}
+          </button>
+          <button
+            type="button"
+            className={cls(
+              "imb-graph-seg-btn",
+              perspective === "knowledge" && "imb-is-active",
+            )}
+            onClick={() => setPerspective("knowledge")}
+          >
+            {t("Knowledge")}
+          </button>
+        </div>
+
         {/* Search & Actions cluster */}
         <div className="imb-graph-actions-cluster">
-          {/* Quick search input */}
           <form className="imb-graph-search-form" onSubmit={handleSearchSubmit}>
             <IconSearch className="imb-graph-search-icon" />
             <input
@@ -293,7 +393,6 @@ export function GraphModule(): React.JSX.Element {
             )}
           </form>
 
-          {/* Action buttons */}
           <div className="imb-graph-toggles">
             <button
               type="button"
@@ -320,6 +419,17 @@ export function GraphModule(): React.JSX.Element {
             >
               {t("Hide Orphans")}
             </button>
+
+            {isolatedId && (
+              <button
+                type="button"
+                className="imb-graph-action-chip imb-is-active"
+                onClick={() => setIsolatedId(null)}
+                title={t("Exit subgraph isolation mode")}
+              >
+                {t("Reset Isolation")} ×
+              </button>
+            )}
 
             <button
               type="button"
@@ -374,7 +484,7 @@ export function GraphModule(): React.JSX.Element {
         </div>
       </header>
 
-      {/* Temporal Timeline Bar */}
+      {/* Timeline Bar */}
       {showTimeline && payload && payload.minTime && payload.maxTime && (
         <div className="imb-graph-timeline-bar">
           <button
@@ -519,6 +629,7 @@ export function GraphModule(): React.JSX.Element {
             selectedId={selectedId}
             searchQuery={searchQuery}
             colorMode={colorMode}
+            perspective={perspective}
             physicsConfig={physics}
             onSelect={setSelectedId}
             onOpen={openNode}
@@ -560,6 +671,21 @@ export function GraphModule(): React.JSX.Element {
 
               {/* Topology metrics badge group */}
               <div className="imb-graph-inspector-metrics">
+                {selected.level !== undefined && (
+                  <span className="imb-graph-metric-tag">
+                    {selected.level === 0 ? t("Root Level") : `Level ${selected.level}`}
+                  </span>
+                )}
+                {selected.lifecycle && (
+                  <span
+                    className={cls(
+                      "imb-graph-metric-tag",
+                      `imb-graph-metric--${selected.lifecycle}`,
+                    )}
+                  >
+                    {t(selected.lifecycle)}
+                  </span>
+                )}
                 <span className="imb-graph-metric-tag">
                   {t("Degree")}: {selected.degree ?? links.length}
                 </span>
@@ -623,19 +749,40 @@ export function GraphModule(): React.JSX.Element {
             </div>
 
             <footer className="imb-graph-inspector-footer">
-              {selected.kind === "chat" || selected.kind === "employee" ? (
+              <div className="imb-graph-inspector-actions">
+                {selected.kind === "chat" || selected.kind === "employee" ? (
+                  <button
+                    type="button"
+                    className="imb-graph-open"
+                    onClick={() => openNode(selected)}
+                  >
+                    {t(
+                      selected.kind === "employee"
+                        ? "View Employee"
+                        : "Open Conversation",
+                    )}
+                  </button>
+                ) : null}
+
+                {/* Subgraph Isolation Action */}
                 <button
                   type="button"
-                  className="imb-graph-open"
-                  onClick={() => openNode(selected)}
-                >
-                  {t(
-                    selected.kind === "employee"
-                      ? "View Employee"
-                      : "Open Conversation",
+                  className={cls(
+                    "imb-graph-isolate-btn",
+                    isolatedId === selected.id && "imb-is-active",
                   )}
+                  onClick={() =>
+                    setIsolatedId((curr) =>
+                      curr === selected.id ? null : selected.id,
+                    )
+                  }
+                  title={t("Isolate this node and its connected closure")}
+                >
+                  {isolatedId === selected.id
+                    ? t("Restore All")
+                    : t("Isolate Subgraph")}
                 </button>
-              ) : null}
+              </div>
             </footer>
           </aside>
         ) : null}
