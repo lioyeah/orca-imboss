@@ -5,13 +5,13 @@
  * driven by the custom properties defined there (1224 `var(--imb-*)` reads vs
  * ~85 hardcoded colours), so this file restyles every surface at once.
  *
- * Direction: modern, quiet, soft, unified.
+ * Direction: modern, quiet, soft, unified (Collect UI craft).
  *   - surfaces are layered neutrals a few percent apart, separated by hairlines
  *     instead of contrast jumps
  *   - one deep, calm green as the only accent, used for the primary action and
  *     small highlights only
  *   - the sent bubble is a pale sage tint, not a saturated green block
- *   - softer corners (6/10/14), a diffuse shadow, and shorter, eased motion
+ *   - softer corners (6/10/14), multi-layer diffuse shadows, and silky spring-eased motion
  *
  * Rules of the layer (see scripts/private/README.md): prefer a token over a
  * selector, prefer this directory over an upstream file. Anything a token
@@ -75,11 +75,13 @@
   --imb-radius-lg: 14px;
   --imb-elev-ring: 0 0 0 1px var(--imb-border);
   --imb-elev-raised:
-    0 1px 2px rgba(20, 28, 24, 0.05), 0 6px 16px rgba(20, 28, 24, 0.05);
+    0 1px 2px rgba(20, 28, 24, 0.04),
+    0 4px 12px -2px rgba(20, 28, 24, 0.06),
+    0 10px 24px -4px rgba(20, 28, 24, 0.04);
 
   --imb-motion-fast: 120ms;
-  --imb-motion-base: 180ms;
-  --imb-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --imb-motion-base: 200ms;
+  --imb-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* ---------------------------------------------------------------------
    * Round 3 — rhythm, motion, states.
@@ -100,7 +102,7 @@
      heartbeat instead of five (0.8 / 1 / 1.2 / 1.5 / 1.6s upstream). */
   --imb-private-motion-pulse: 1.4s;
   --imb-private-motion-spin: 800ms;
-  --imb-private-motion-enter: 320ms;
+  --imb-private-motion-enter: 280ms;
 
   /* One dim for "not available" (upstream used three: 0.5, 0.55, 0.6), one
      cursor, one ink for "went wrong". */
@@ -118,7 +120,8 @@
 
   /* The top of the elevation ladder: a panel that floats above the page. */
   --imb-private-elev-overlay:
-    0 2px 6px rgba(20, 28, 24, 0.08), 0 14px 40px rgba(20, 28, 24, 0.16);
+    0 2px 6px rgba(20, 28, 24, 0.06),
+    0 14px 40px -4px rgba(20, 28, 24, 0.14);
 
   /* The widest a line of conversation is allowed to get. A 2,500px window
      otherwise turns a 15px sentence into a 1,400px line, and the eye loses
@@ -155,6 +158,16 @@
       var(--imb-accent) 55%,
       #ffffff
     );
+
+    /* Collect UI dark elevation: multi-stop ambient depth with specular rim */
+    --imb-elev-raised:
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      0 8px 24px -4px rgba(0, 0, 0, 0.5);
+    --imb-private-elev-overlay:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 8px 24px -4px rgba(0, 0, 0, 0.6),
+      0 20px 48px -6px rgba(0, 0, 0, 0.7);
   }
 }
 
@@ -182,4 +195,14 @@
     var(--imb-accent) 55%,
     #ffffff
   );
+
+  /* Collect UI dark elevation: multi-stop ambient depth with specular rim */
+  --imb-elev-raised:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  --imb-private-elev-overlay:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6),
+    0 20px 48px -6px rgba(0, 0, 0, 0.7);
 }
