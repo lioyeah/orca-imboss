@@ -20,6 +20,7 @@ export const GRAPH_EDGE_KINDS: readonly GraphEdgeKind[] = [
   "produces",
   "references",
   "invokes",
+  "depends_on",
 ];
 
 /** Human labels for the legend (English keys; l10n overrides them). */
@@ -33,6 +34,7 @@ export const GRAPH_EDGE_LABELS: Record<GraphEdgeKind, string> = {
   produces: "Produces",
   references: "References",
   invokes: "Invokes",
+  depends_on: "Depends on",
 };
 
 /** True when `value` is one of the known edge kinds. */

@@ -106,4 +106,8 @@ export interface BuildEmployeeSystemPromptArgs {
    * platform-agnostic.
    */
   toolsGuidelines: readonly string[];
+  /** Current date in `yyyy-MM-dd`. */
+  today: string;
+  /** DAG causal context extracted along in-edges from upstream ancestors & deliverables. */
+  upstreamCausalContext?: string | null;
 }
