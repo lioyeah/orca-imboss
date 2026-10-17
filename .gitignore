@@ -6,5 +6,6 @@ out
 *.log*
 AGENTS.md
 .pi
+.openchamber/
 .npmrc
 tsconfig.node.tsbuildinfo
