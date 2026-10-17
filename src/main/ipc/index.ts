@@ -4,6 +4,7 @@ import { registerChatHandlers } from "./chat";
 import { registerCronHandlers } from "./cron";
 import { registerEmployeeHandlers } from "./employee";
 import { registerFileHandlers } from "./files";
+import { registerGraphHandlers } from "./graph";
 import { registerImageGenHandlers } from "./image-gen";
 import { registerIntegrationHandlers } from "./integrations";
 import { registerMcpHandlers } from "./mcp";
@@ -17,6 +18,7 @@ import { registerSettingsHandlers } from "./settings";
 import { registerSkillHandlers } from "./skill";
 import { SPEND_STATS_ENABLED } from "@shared/constants/spend";
 import { IMAGE_GENERATION_ENABLED } from "@shared/constants/image-gen";
+import { GRAPH_VIEW_ENABLED } from "@shared/constants/graph";
 import { registerSpendHandlers } from "./spend";
 import { registerTagHandlers } from "./tag";
 import { registerThemeHandlers } from "./theme";
@@ -43,6 +45,8 @@ export function registerIpcHandlers(): void {
   if (SPEND_STATS_ENABLED) registerSpendHandlers();
   // Pluggable feature: its own master switch (see `IMAGE_GENERATION_ENABLED`).
   if (IMAGE_GENERATION_ENABLED) registerImageGenHandlers();
+  // Pluggable feature: its own master switch (see `GRAPH_VIEW_ENABLED`).
+  if (GRAPH_VIEW_ENABLED) registerGraphHandlers();
   registerMcpHandlers();
   registerMiniAppHandlers();
   registerAgentSessionHandlers();

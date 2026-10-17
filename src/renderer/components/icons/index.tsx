@@ -354,6 +354,20 @@ export function IconStats(props: IconProps): React.JSX.Element {
   );
 }
 
+/** Node graph — the workspace graph view. */
+export function IconGraph(props: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(props)} strokeWidth={1.8}>
+      <circle cx="6" cy="6.5" r="2.6" />
+      <circle cx="18" cy="9.5" r="2.6" />
+      <circle cx="10" cy="18" r="2.6" />
+      <path d="M8.4 6.9 15.6 9.1" />
+      <path d="M7.2 8.7 9.2 15.5" />
+      <path d="M16.4 11.7 11.4 16.2" />
+    </svg>
+  );
+}
+
 /** Clock face — scheduled tasks / cron jobs. */
 export function IconClock(props: IconProps): React.JSX.Element {
   return (

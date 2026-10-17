@@ -132,6 +132,17 @@ export function EmployeesModule(): React.JSX.Element {
     void appStore.reloadSkills();
   }, []);
 
+  // Jump to a focused employee (a click on an employee node in the Graph
+  // module) once the roster has loaded.
+  useEffect(() => {
+    if (focusEmployeeId === null) return;
+    if (!data.employees.items.some((item) => item.id === focusEmployeeId)) {
+      return;
+    }
+    setSelectedId(focusEmployeeId);
+    appStore.focusEmployeeId = null;
+  }, [focusEmployeeId, data.employees.items]);
+
   // Linked-MCP options = built-in opt-in tools (cron + image generation) +
   // configured MCP servers.
   const mcpOptions = useMemo((): MultiSelectOption[] => {

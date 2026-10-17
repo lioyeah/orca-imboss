@@ -7,6 +7,7 @@ export * from "./chats";
 export * from "./cron";
 export * from "./employees";
 export * from "./employee_transfer";
+export * from "./graph";
 export * from "./integrations";
 export * from "./mcp";
 export * from "./messages";
