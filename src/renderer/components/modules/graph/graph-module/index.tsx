@@ -17,6 +17,7 @@ import {
   IconGraph,
   IconPlay,
   IconSearch,
+  IconStats,
   IconX,
 } from "../../../icons";
 import "../../module-common.css";
@@ -31,6 +32,9 @@ const DIRECTED_KINDS: ReadonlySet<GraphEdgeKind> = new Set([
   "spawned",
   "attached",
   "progress",
+  "produces",
+  "references",
+  "invokes",
 ]);
 
 interface InspectorLink {
@@ -54,12 +58,27 @@ export function GraphModule(): React.JSX.Element {
     () => new Set(GRAPH_EDGE_KINDS),
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Subgraph isolation & depth expansion
   const [isolatedId, setIsolatedId] = useState<string | null>(null);
+  const [expansionDepth, setExpansionDepth] = useState<number>(1);
+  const [expansionDirection, setExpansionDirection] = useState<
+    "both" | "downstream" | "upstream"
+  >("both");
+
+  // Cluster Supernode Aggregation mode
+  const [aggregateClusters, setAggregateClusters] = useState(false);
+  const [expandedClusterIds, setExpandedClusterIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
 
   // Advanced feature controls
   const [searchQuery, setSearchQuery] = useState("");
   const [colorMode, setColorMode] = useState<"kind" | "cluster">("kind");
   const [hideOrphans, setHideOrphans] = useState(false);
+
+  // Topology Analysis Drawer
+  const [showTopologyDrawer, setShowTopologyDrawer] = useState(false);
 
   // Physics tuning state
   const [physics, setPhysics] = useState<PhysicsConfig>(DEFAULT_PHYSICS);
@@ -130,38 +149,60 @@ export function GraphModule(): React.JSX.Element {
     return () => clearInterval(interval);
   }, [isPlayingTimeline, payload]);
 
-  // Perspective presets for links
+  // Perspective presets for links & entities
   useEffect(() => {
     if (perspective === "causality") {
-      setEnabled(new Set(["spawned", "attached", "progress"]));
+      setEnabled(new Set(["spawned", "attached", "progress", "produces"]));
     } else if (perspective === "collaboration") {
-      setEnabled(new Set(["participant", "session"]));
+      setEnabled(new Set(["participant", "session", "invokes"]));
+    } else if (perspective === "artifacts") {
+      setEnabled(new Set(["produces", "references", "invokes"]));
     } else if (perspective === "knowledge") {
-      setEnabled(new Set(["tag", "attached"]));
+      setEnabled(new Set(["tag", "attached", "references"]));
     } else {
       setEnabled(new Set(GRAPH_EDGE_KINDS));
     }
   }, [perspective]);
 
-  // Compute Subgraph closure if isolatedId is active
+  // Compute Subgraph closure based on isolatedId, expansionDepth, and direction
   const isolatedSubtreeIds = useMemo(() => {
     if (!isolatedId || !payload) return null;
-    const closure = new Set<string>([isolatedId]);
-    let grew = true;
-    while (grew) {
-      grew = false;
+
+    // Breadth-first search along DAG edges up to expansionDepth
+    const visited = new Set<string>([isolatedId]);
+    let currentFrontier = new Set<string>([isolatedId]);
+
+    const maxDepth = Math.max(1, Math.min(expansionDepth, 5));
+
+    for (let d = 0; d < maxDepth; d++) {
+      const nextFrontier = new Set<string>();
+
       for (const edge of payload.edges) {
-        if (closure.has(edge.source) && !closure.has(edge.target)) {
-          closure.add(edge.target);
-          grew = true;
-        } else if (closure.has(edge.target) && !closure.has(edge.source)) {
-          closure.add(edge.source);
-          grew = true;
+        if (!enabled.has(edge.kind)) continue;
+
+        // Downstream causality: source is in frontier -> target is added
+        if (expansionDirection === "both" || expansionDirection === "downstream") {
+          if (currentFrontier.has(edge.source) && !visited.has(edge.target)) {
+            visited.add(edge.target);
+            nextFrontier.add(edge.target);
+          }
+        }
+
+        // Upstream provenance: target is in frontier -> source is added
+        if (expansionDirection === "both" || expansionDirection === "upstream") {
+          if (currentFrontier.has(edge.target) && !visited.has(edge.source)) {
+            visited.add(edge.source);
+            nextFrontier.add(edge.source);
+          }
         }
       }
+
+      if (nextFrontier.size === 0) break;
+      currentFrontier = nextFrontier;
     }
-    return closure;
-  }, [isolatedId, payload]);
+
+    return visited;
+  }, [isolatedId, expansionDepth, expansionDirection, payload, enabled]);
 
   // Filter visible nodes and edges
   const visible = useMemo((): {
@@ -174,7 +215,9 @@ export function GraphModule(): React.JSX.Element {
 
     // Subgraph isolation filter
     if (isolatedSubtreeIds !== null) {
-      candidateNodes = candidateNodes.filter((n) => isolatedSubtreeIds.has(n.id));
+      candidateNodes = candidateNodes.filter((n) =>
+        isolatedSubtreeIds.has(n.id),
+      );
     }
 
     // Temporal cutoff filter
@@ -186,15 +229,115 @@ export function GraphModule(): React.JSX.Element {
 
     // Perspective entity filter
     if (perspective === "causality") {
-      candidateNodes = candidateNodes.filter((n) => n.kind === "chat");
+      candidateNodes = candidateNodes.filter(
+        (n) => n.kind === "chat" || n.kind === "artifact",
+      );
     } else if (perspective === "collaboration") {
       candidateNodes = candidateNodes.filter(
-        (n) => n.kind === "employee" || n.kind === "chat",
+        (n) => n.kind === "employee" || n.kind === "chat" || n.kind === "tool",
+      );
+    } else if (perspective === "artifacts") {
+      candidateNodes = candidateNodes.filter(
+        (n) =>
+          n.kind === "artifact" ||
+          n.kind === "tool" ||
+          n.kind === "chat" ||
+          n.kind === "employee",
       );
     } else if (perspective === "knowledge") {
       candidateNodes = candidateNodes.filter(
-        (n) => n.kind === "tag" || n.kind === "chat",
+        (n) => n.kind === "tag" || n.kind === "chat" || n.kind === "artifact",
       );
+    }
+
+    // Cluster Supernode Aggregation
+    if (aggregateClusters) {
+      // Group candidate nodes by clusterId
+      const clusterMap = new Map<string, GraphNode[]>();
+      const nonClusterNodes: GraphNode[] = [];
+
+      for (const node of candidateNodes) {
+        if (node.clusterId && !node.isRoot) {
+          let list = clusterMap.get(node.clusterId);
+          if (!list) {
+            list = [];
+            clusterMap.set(node.clusterId, list);
+          }
+          list.push(node);
+        } else {
+          nonClusterNodes.push(node);
+        }
+      }
+
+      const aggregatedNodes: GraphNode[] = [...nonClusterNodes];
+      const remappedNodeId = new Map<string, string>();
+
+      for (const [clusterId, members] of clusterMap.entries()) {
+        if (members.length > 2 && !expandedClusterIds.has(clusterId)) {
+          const superId = `supernode:${clusterId}`;
+          const rootMember = nonClusterNodes.find(
+            (n) => n.clusterId === clusterId && n.isRoot,
+          );
+          const supernode: GraphNode = {
+            id: superId,
+            kind: "chat",
+            label: rootMember ? `${rootMember.label} [Cluster]` : `Cluster Hub`,
+            sub: `${members.length} sub-tasks & artifacts`,
+            weight: members.reduce((sum, m) => sum + m.weight, 0),
+            isClusterSupernode: true,
+            collapsedCount: members.length,
+            clusterMemberIds: members.map((m) => m.id),
+            clusterId,
+            level: 1,
+            lifecycle: members.some((m) => m.lifecycle === "running")
+              ? "running"
+              : "completed",
+          };
+          aggregatedNodes.push(supernode);
+
+          for (const m of members) {
+            remappedNodeId.set(m.id, superId);
+          }
+        } else {
+          aggregatedNodes.push(...members);
+        }
+      }
+
+      candidateNodes = aggregatedNodes;
+      const candidateNodeIds = new Set(candidateNodes.map((n) => n.id));
+
+      const candidateEdges = payload.edges
+        .filter((edge) => enabled.has(edge.kind))
+        .map((edge) => {
+          const s = remappedNodeId.get(edge.source) ?? edge.source;
+          const t = remappedNodeId.get(edge.target) ?? edge.target;
+          if (s === t) return null;
+          return {
+            ...edge,
+            id: `${edge.kind}|${s}|${t}`,
+            source: s,
+            target: t,
+          };
+        })
+        .filter(
+          (edge): edge is GraphEdge =>
+            edge !== null &&
+            candidateNodeIds.has(edge.source) &&
+            candidateNodeIds.has(edge.target),
+        );
+
+      const linked = new Set<string>();
+      for (const edge of candidateEdges) {
+        linked.add(edge.source);
+        linked.add(edge.target);
+      }
+
+      const nodes = candidateNodes.filter((node) => {
+        if (hideOrphans) return linked.has(node.id);
+        return true;
+      });
+
+      return { nodes, edges: candidateEdges };
     }
 
     const candidateNodeIds = new Set(candidateNodes.map((n) => n.id));
@@ -220,7 +363,16 @@ export function GraphModule(): React.JSX.Element {
     });
 
     return { nodes, edges: candidateEdges };
-  }, [payload, enabled, timeCutoff, hideOrphans, perspective, isolatedSubtreeIds]);
+  }, [
+    payload,
+    enabled,
+    timeCutoff,
+    hideOrphans,
+    perspective,
+    isolatedSubtreeIds,
+    aggregateClusters,
+    expandedClusterIds,
+  ]);
 
   const selected = useMemo(
     (): GraphNode | null =>
@@ -258,6 +410,81 @@ export function GraphModule(): React.JSX.Element {
     return result;
   }, [selected, visible]);
 
+  // Topology Analysis Metrics Computation
+  const topologyMetrics = useMemo(() => {
+    if (!payload) return null;
+    const { nodes, edges } = payload;
+
+    const chatCount = nodes.filter((n) => n.kind === "chat").length;
+    const employeeCount = nodes.filter((n) => n.kind === "employee").length;
+    const artifactCount = nodes.filter((n) => n.kind === "artifact").length;
+    const toolCount = nodes.filter((n) => n.kind === "tool").length;
+
+    // Causal DAG depth calculation
+    let maxDepth = 0;
+    for (const node of nodes) {
+      if (node.level !== undefined && node.level > maxDepth) {
+        maxDepth = node.level;
+      }
+    }
+
+    // Unique clusters
+    const clusters = new Set<string>();
+    for (const node of nodes) {
+      if (node.clusterId) clusters.add(node.clusterId);
+    }
+
+    // Top active employees by connections
+    const empDegreeMap = new Map<string, { label: string; count: number }>();
+    for (const edge of edges) {
+      if (edge.kind === "participant" || edge.kind === "session") {
+        const empNode = nodes.find((n) => n.id === edge.target);
+        if (empNode) {
+          const current = empDegreeMap.get(empNode.id) ?? {
+            label: empNode.label,
+            count: 0,
+          };
+          current.count++;
+          empDegreeMap.set(empNode.id, current);
+        }
+      }
+    }
+    const topEmployees = Array.from(empDegreeMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Top tools invoked
+    const toolDegreeMap = new Map<string, { label: string; count: number }>();
+    for (const edge of edges) {
+      if (edge.kind === "invokes") {
+        const toolNode = nodes.find((n) => n.id === edge.target);
+        if (toolNode) {
+          const current = toolDegreeMap.get(toolNode.id) ?? {
+            label: toolNode.label,
+            count: 0,
+          };
+          current.count++;
+          toolDegreeMap.set(toolNode.id, current);
+        }
+      }
+    }
+    const topTools = Array.from(toolDegreeMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return {
+      chatCount,
+      employeeCount,
+      artifactCount,
+      toolCount,
+      maxDepth,
+      clusterCount: clusters.size,
+      totalLinks: edges.length,
+      topEmployees,
+      topTools,
+    };
+  }, [payload]);
+
   useEffect(() => {
     if (selectedId === null) return;
     if (!visible.nodes.some((node) => node.id === selectedId)) {
@@ -275,6 +502,16 @@ export function GraphModule(): React.JSX.Element {
   };
 
   const openNode = useCallback((node: GraphNode): void => {
+    // If it's a cluster supernode, expand it in place
+    if (node.isClusterSupernode && node.clusterId) {
+      setExpandedClusterIds((prev) => {
+        const next = new Set(prev);
+        next.add(node.clusterId!);
+        return next;
+      });
+      return;
+    }
+
     if (node.kind === "chat" && node.chatId !== undefined) {
       if (node.isRoot) {
         void appStore.focusChat(node.chatId);
@@ -287,6 +524,10 @@ export function GraphModule(): React.JSX.Element {
     }
     if (node.kind === "employee" && node.employeeId !== undefined) {
       void appStore.focusEmployee(node.employeeId);
+      return;
+    }
+    if (node.kind === "artifact" && node.sourceChatId !== undefined) {
+      void appStore.focusChat(node.sourceChatId);
     }
   }, []);
 
@@ -363,6 +604,16 @@ export function GraphModule(): React.JSX.Element {
             type="button"
             className={cls(
               "imb-graph-seg-btn",
+              perspective === "artifacts" && "imb-is-active",
+            )}
+            onClick={() => setPerspective("artifacts")}
+          >
+            {t("Artifacts & Code")}
+          </button>
+          <button
+            type="button"
+            className={cls(
+              "imb-graph-seg-btn",
               perspective === "knowledge" && "imb-is-active",
             )}
             onClick={() => setPerspective("knowledge")}
@@ -412,6 +663,21 @@ export function GraphModule(): React.JSX.Element {
               type="button"
               className={cls(
                 "imb-graph-action-chip",
+                aggregateClusters && "imb-is-active",
+              )}
+              onClick={() => {
+                setAggregateClusters((v) => !v);
+                setExpandedClusterIds(new Set());
+              }}
+              title={t("Aggregate complex clusters into supernodes")}
+            >
+              {aggregateClusters ? t("Aggregated") : t("Clusters")}
+            </button>
+
+            <button
+              type="button"
+              className={cls(
+                "imb-graph-action-chip",
                 hideOrphans && "imb-is-active",
               )}
               onClick={() => setHideOrphans((v) => !v)}
@@ -430,6 +696,18 @@ export function GraphModule(): React.JSX.Element {
                 {t("Reset Isolation")} ×
               </button>
             )}
+
+            <button
+              type="button"
+              className={cls(
+                "imb-graph-icon-chip",
+                showTopologyDrawer && "imb-is-active",
+              )}
+              onClick={() => setShowTopologyDrawer((v) => !v)}
+              title={t("Topology & Synergy Analysis")}
+            >
+              <IconStats className="imb-chip-icon" />
+            </button>
 
             <button
               type="button"
@@ -556,13 +834,18 @@ export function GraphModule(): React.JSX.Element {
                 step="1000"
                 value={physics.repulsion}
                 onChange={(e) =>
-                  setPhysics((p) => ({ ...p, repulsion: Number(e.target.value) }))
+                  setPhysics((p) => ({
+                    ...p,
+                    repulsion: Number(e.target.value),
+                  }))
                 }
               />
               <span className="imb-graph-physics-val">{physics.repulsion}</span>
             </label>
             <label className="imb-graph-physics-row">
-              <span className="imb-graph-physics-label">{t("Link Distance")}</span>
+              <span className="imb-graph-physics-label">
+                {t("Link Distance")}
+              </span>
               <input
                 type="range"
                 min="60"
@@ -576,7 +859,9 @@ export function GraphModule(): React.JSX.Element {
                   }))
                 }
               />
-              <span className="imb-graph-physics-val">{physics.linkDistance}</span>
+              <span className="imb-graph-physics-val">
+                {physics.linkDistance}
+              </span>
             </label>
             <label className="imb-graph-physics-row">
               <span className="imb-graph-physics-label">{t("Gravity Pull")}</span>
@@ -650,7 +935,11 @@ export function GraphModule(): React.JSX.Element {
                     `imb-graph-kind--${selected.kind}`,
                   )}
                 >
-                  {t(kindLabel(selected.kind))}
+                  {t(
+                    selected.isClusterSupernode
+                      ? "Cluster Hub"
+                      : kindLabel(selected.kind),
+                  )}
                 </span>
                 <button
                   type="button"
@@ -673,7 +962,9 @@ export function GraphModule(): React.JSX.Element {
               <div className="imb-graph-inspector-metrics">
                 {selected.level !== undefined && (
                   <span className="imb-graph-metric-tag">
-                    {selected.level === 0 ? t("Root Level") : `Level ${selected.level}`}
+                    {selected.level === 0
+                      ? t("Root Level")
+                      : `Level ${selected.level}`}
                   </span>
                 )}
                 {selected.lifecycle && (
@@ -697,10 +988,77 @@ export function GraphModule(): React.JSX.Element {
                   )}
                 {selected.weight > 0 && (
                   <span className="imb-graph-metric-tag">
-                    {selected.kind === "chat" ? t("Messages") : t("Weight")}:{" "}
-                    {selected.weight}
+                    {selected.kind === "chat"
+                      ? t("Messages")
+                      : selected.kind === "artifact"
+                        ? t("Weight")
+                        : t("Invocations")}
+                    : {selected.weight}
                   </span>
                 )}
+              </div>
+
+              {/* Local Subgraph Depth Expansion Stepper */}
+              <div className="imb-graph-depth-controls">
+                <span className="imb-graph-depth-label">{t("Local Depth")}:</span>
+                <div className="imb-graph-depth-stepper">
+                  <button
+                    type="button"
+                    className="imb-graph-depth-btn"
+                    onClick={() =>
+                      setExpansionDepth((d) => Math.max(1, d - 1))
+                    }
+                    title={t("Decrease expansion depth")}
+                  >
+                    −
+                  </button>
+                  <span className="imb-graph-depth-val">{expansionDepth}</span>
+                  <button
+                    type="button"
+                    className="imb-graph-depth-btn"
+                    onClick={() =>
+                      setExpansionDepth((d) => Math.min(5, d + 1))
+                    }
+                    title={t("Increase expansion depth")}
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="imb-graph-dir-segment">
+                  <button
+                    type="button"
+                    className={cls(
+                      "imb-graph-dir-btn",
+                      expansionDirection === "downstream" && "imb-is-active",
+                    )}
+                    onClick={() => setExpansionDirection("downstream")}
+                    title={t("Follow causal forward links")}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className={cls(
+                      "imb-graph-dir-btn",
+                      expansionDirection === "upstream" && "imb-is-active",
+                    )}
+                    onClick={() => setExpansionDirection("upstream")}
+                    title={t("Follow provenance backward links")}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className={cls(
+                      "imb-graph-dir-btn",
+                      expansionDirection === "both" && "imb-is-active",
+                    )}
+                    onClick={() => setExpansionDirection("both")}
+                    title={t("Bidirectional neighborhood")}
+                  >
+                    ↔
+                  </button>
+                </div>
               </div>
             </header>
 
@@ -750,7 +1108,9 @@ export function GraphModule(): React.JSX.Element {
 
             <footer className="imb-graph-inspector-footer">
               <div className="imb-graph-inspector-actions">
-                {selected.kind === "chat" || selected.kind === "employee" ? (
+                {selected.kind === "chat" ||
+                selected.kind === "employee" ||
+                selected.kind === "artifact" ? (
                   <button
                     type="button"
                     className="imb-graph-open"
@@ -759,7 +1119,11 @@ export function GraphModule(): React.JSX.Element {
                     {t(
                       selected.kind === "employee"
                         ? "View Employee"
-                        : "Open Conversation",
+                        : selected.kind === "artifact"
+                          ? "Open Origin Conversation"
+                          : selected.isClusterSupernode
+                            ? "Expand Cluster"
+                            : "Open Conversation",
                     )}
                   </button>
                 ) : null}
@@ -786,6 +1150,171 @@ export function GraphModule(): React.JSX.Element {
             </footer>
           </aside>
         ) : null}
+
+        {/* Topology & Agent Synergy Analysis Drawer */}
+        {showTopologyDrawer && topologyMetrics && (
+          <aside className="imb-graph-topo-drawer">
+            <header className="imb-graph-topo-head">
+              <h3 className="imb-graph-topo-title">
+                {t("Topology & Network Analysis")}
+              </h3>
+              <button
+                type="button"
+                className="imb-graph-popover-close"
+                onClick={() => setShowTopologyDrawer(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="imb-graph-topo-body">
+              {/* Network Overview Card */}
+              <div className="imb-graph-topo-card">
+                <span className="imb-graph-topo-card-title">
+                  {t("Network Footprint")}
+                </span>
+                <div className="imb-graph-topo-grid">
+                  <div className="imb-graph-topo-stat">
+                    <span className="imb-graph-topo-val">
+                      {topologyMetrics.chatCount}
+                    </span>
+                    <span className="imb-graph-topo-sub">
+                      {t("Conversations / Tasks")}
+                    </span>
+                  </div>
+                  <div className="imb-graph-topo-stat">
+                    <span className="imb-graph-topo-val">
+                      {topologyMetrics.artifactCount}
+                    </span>
+                    <span className="imb-graph-topo-sub">
+                      {t("Code & Deliverables")}
+                    </span>
+                  </div>
+                  <div className="imb-graph-topo-stat">
+                    <span className="imb-graph-topo-val">
+                      {topologyMetrics.toolCount}
+                    </span>
+                    <span className="imb-graph-topo-sub">
+                      {t("Tool Capabilities")}
+                    </span>
+                  </div>
+                  <div className="imb-graph-topo-stat">
+                    <span className="imb-graph-topo-val">
+                      {topologyMetrics.clusterCount}
+                    </span>
+                    <span className="imb-graph-topo-sub">
+                      {t("Causal Clusters")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Causal Flow DAG Card */}
+              <div className="imb-graph-topo-card">
+                <span className="imb-graph-topo-card-title">
+                  {t("Causality Flow Analysis")}
+                </span>
+                <div className="imb-graph-topo-grid">
+                  <div className="imb-graph-topo-stat">
+                    <span className="imb-graph-topo-val">
+                      {topologyMetrics.maxDepth}
+                    </span>
+                    <span className="imb-graph-topo-sub">
+                      {t("Max DAG Hierarchy Level")}
+                    </span>
+                  </div>
+                  <div className="imb-graph-topo-stat">
+                    <span className="imb-graph-topo-val">
+                      {topologyMetrics.totalLinks}
+                    </span>
+                    <span className="imb-graph-topo-sub">
+                      {t("Total Semantic Links")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agent Synergy Ranking Card */}
+              <div className="imb-graph-topo-card">
+                <span className="imb-graph-topo-card-title">
+                  {t("Agent Collaboration Volume")}
+                </span>
+                {topologyMetrics.topEmployees.length > 0 ? (
+                  <ul className="imb-graph-topo-list">
+                    {topologyMetrics.topEmployees.map((emp) => (
+                      <li key={emp.label} className="imb-graph-topo-list-item">
+                        <span>{emp.label}</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <div className="imb-graph-topo-bar-wrap">
+                            <div
+                              className="imb-graph-topo-bar-fill"
+                              style={{
+                                width: `${Math.min((emp.count / Math.max(topologyMetrics.topEmployees[0]?.count || 1, 1)) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span style={{ fontSize: 11, minWidth: 20 }}>
+                            {emp.count}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="imb-module-note" style={{ margin: 0 }}>
+                    {t("No agent collaborations recorded")}
+                  </p>
+                )}
+              </div>
+
+              {/* Tool Invocations Card */}
+              <div className="imb-graph-topo-card">
+                <span className="imb-graph-topo-card-title">
+                  {t("Tool Pipeline Invocations")}
+                </span>
+                {topologyMetrics.topTools.length > 0 ? (
+                  <ul className="imb-graph-topo-list">
+                    {topologyMetrics.topTools.map((tool) => (
+                      <li key={tool.label} className="imb-graph-topo-list-item">
+                        <span>{tool.label}</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <div className="imb-graph-topo-bar-wrap">
+                            <div
+                              className="imb-graph-topo-bar-fill"
+                              style={{
+                                width: `${Math.min((tool.count / Math.max(topologyMetrics.topTools[0]?.count || 1, 1)) * 100, 100)}%`,
+                                background: "#8b5cf6",
+                              }}
+                            />
+                          </div>
+                          <span style={{ fontSize: 11, minWidth: 20 }}>
+                            {tool.count}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="imb-module-note" style={{ margin: 0 }}>
+                    {t("No tool invocations recorded")}
+                  </p>
+                )}
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );
@@ -797,6 +1326,10 @@ function kindLabel(kind: GraphNode["kind"]): string {
   switch (kind) {
     case "employee":
       return "Employee";
+    case "artifact":
+      return "Artifact";
+    case "tool":
+      return "Tool Capability";
     case "tag":
       return "Tag";
     default:
