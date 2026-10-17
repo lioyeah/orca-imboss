@@ -13,6 +13,28 @@ Keeping the private layer out of PR branches is the whole point: PRs stay small
 and self-contained, and only `mine` needs conflict resolution when upstream
 advances.
 
+## Iterating a feature on the private layer
+
+The table is the target state. A feature that has to look like the private build
+is developed where that look lives, so it is cut from `mine` and carries the
+whole private layer (`feat/graph-view` does). That is deliberate, with one rule:
+a branch cut from `mine` is a private branch. Push it to `origin` for backup and
+never open an upstream PR from it — the PR would arrive carrying every private
+commit.
+
+When the feature is done, re-cut it from `main` and PR that instead:
+
+```sh
+git checkout -b feat/<topic> main
+git cherry-pick <the feature's commits>     # squash to one topic commit
+```
+
+The re-cut is mechanical as long as the feature's own files never import from
+`src/renderer/private/` and never rely on a private token. A feature that does
+either cannot be re-cut as-is: the dependency has to be proposed upstream first,
+or the feature has to lose it. `feat/graph-view` passes this check — it uses
+upstream tokens only.
+
 ## Scripts
 
 `scripts/private/sync-upstream.sh` — fetch upstream, fast-forward `main`, push
