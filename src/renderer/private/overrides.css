@@ -65,3 +65,64 @@
   outline: none;
   box-shadow: var(--imb-focus-ring);
 }
+
+/* Scrollbars: upstream makes them thin but leaves the colours to the platform,
+   which paints a light track and a grey thumb against both palettes. A
+   translucent ink thumb on an invisible track keeps long lists quiet — it
+   covers the thread, the chat list, the code blocks and the settings panes. */
+* {
+  scrollbar-color: color-mix(in oklab, var(--imb-fg) 20%, transparent)
+    transparent;
+}
+
+/* Text selection and form controls are the last two places the platform
+   default (a blue wash, a blue checkbox) leaks into an otherwise unified
+   palette. Both follow the live accent, so they follow the theme picker too. */
+::selection {
+  background: color-mix(in oklab, var(--imb-accent) 32%, transparent);
+}
+
+:root {
+  accent-color: var(--imb-accent);
+}
+
+/* Modals: the scrim was one flat grey for both themes, so it looked heavy on
+   the light canvas and barely there on the dark one. A theme-tinted scrim plus
+   a small blur reads as depth instead of a grey sheet, and the panel's shadow
+   drops the hard 18% black for the same two-layer shadow the raised elevation
+   uses elsewhere. */
+.imb-modal-overlay {
+  background: rgba(24, 32, 28, 0.3);
+  backdrop-filter: blur(3px);
+}
+
+:root[data-theme-mode="dark"] .imb-modal-overlay {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme-mode="light"]) .imb-modal-overlay {
+    background: rgba(0, 0, 0, 0.55);
+  }
+}
+
+.imb-modal {
+  box-shadow:
+    0 2px 6px rgba(20, 28, 24, 0.08),
+    0 14px 40px rgba(20, 28, 24, 0.16);
+}
+
+/* A picture avatar is the one place a light asset lands straight on the
+   canvas; a hairline stops it glaring in dark mode. */
+.imb-avatar img {
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--imb-fg) 10%, transparent);
+}
+
+/* Secondary buttons darkened their border to full-strength ink on hover, which
+   is louder than the rest of the palette. A half-strength border with a faint
+   wash keeps the same affordance. */
+.imb-btn-secondary:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-fg) 45%, transparent);
+  background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
+}
