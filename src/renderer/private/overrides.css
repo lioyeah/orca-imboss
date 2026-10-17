@@ -321,3 +321,37 @@
 .imb-send-btn-circle {
   transition-timing-function: var(--imb-ease-standard);
 }
+
+/* --- Round 4 (Collect UI): tactile surfaces & ambient focus rings --- */
+
+/* Card tactile feedback: cards receive gentle ambient elevation and border
+   clarity on hover. */
+.imb-chat-card,
+.imb-employee-card,
+.imb-model-card,
+.imb-mcp-server-card {
+  transition:
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-chat-card:hover:not(.imb-is-disabled),
+.imb-employee-card:hover,
+.imb-model-card:hover,
+.imb-mcp-server-card:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 14px -3px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Input focus glow: form inputs expand with a soft, diffused focus ring
+   rather than an abrupt hard outline. */
+.imb-input:focus-visible,
+.imb-textarea:focus-visible,
+.imb-search-input:focus-visible {
+  outline: none;
+  border-color: var(--imb-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 18%, transparent);
+}

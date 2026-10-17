@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { cls } from "reactutils";
 import { appStore } from "../../../../app-store";
 import { ModuleView } from "../../../app-shell";
-import { IconGraph } from "../../../icons";
+import { IconGraph, IconX } from "../../../icons";
 import "../../module-common.css";
 import { GraphCanvas } from "../graph-canvas";
 import "./index.css";
@@ -61,9 +61,7 @@ export function GraphModule(): React.JSX.Element {
     };
   }, [refreshToken]);
 
-  // The graph is derived from conversations and the roster, so rebuild it when
-  // either changes. Messages are deliberately ignored: they never alter the
-  // shape of the graph, only a node's weight.
+  // Deriving the graph from conversations and roster
   useEffect(() => {
     const unsubscribes = [
       imb.chats.onChanged(() => setRefreshToken((n) => n + 1)),
@@ -75,8 +73,6 @@ export function GraphModule(): React.JSX.Element {
     };
   }, []);
 
-  // A node is kept when one of its links is switched on, or when it has no
-  // links at all (an isolated conversation is still worth showing).
   const visible = useMemo((): {
     nodes: GraphNode[];
     edges: GraphEdge[];
@@ -135,7 +131,7 @@ export function GraphModule(): React.JSX.Element {
     return result;
   }, [selected, visible]);
 
-  // Drop a selection whose node is no longer on screen (a kind was hidden).
+  // Drop selection if filtered out
   useEffect(() => {
     if (selectedId === null) return;
     if (!visible.nodes.some((node) => node.id === selectedId)) {
@@ -143,8 +139,6 @@ export function GraphModule(): React.JSX.Element {
     }
   }, [visible.nodes, selectedId]);
 
-  // The inspector's second line. Chat membership is a count, so it is worded
-  // here rather than in the payload (which stays locale-free).
   const selectedSub = useMemo((): string | null => {
     if (!selected) return null;
     if (selected.kind !== "chat") return selected.sub;
@@ -183,16 +177,20 @@ export function GraphModule(): React.JSX.Element {
     <div className="imb-graph">
       <header className="imb-graph-head">
         <div className="imb-graph-headline">
-          <IconGraph className="imb-graph-headicon" />
-          <h1 className="imb-graph-title">{t("Graph")}</h1>
-          {payload ? (
-            <span className="imb-graph-stats">
-              {t("${nodes} nodes · ${edges} links", {
-                nodes: String(visible.nodes.length),
-                edges: String(visible.edges.length),
-              })}
-            </span>
-          ) : null}
+          <div className="imb-graph-headicon-wrap">
+            <IconGraph className="imb-graph-headicon" />
+          </div>
+          <div className="imb-graph-head-meta">
+            <h1 className="imb-graph-title">{t("Graph")}</h1>
+            {payload ? (
+              <span className="imb-graph-stats">
+                {t("${nodes} nodes · ${edges} links", {
+                  nodes: String(visible.nodes.length),
+                  edges: String(visible.edges.length),
+                })}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="imb-graph-legend" role="group" aria-label={t("Links")}>
           <span className="imb-graph-legend-title">{t("Links")}</span>
@@ -211,7 +209,9 @@ export function GraphModule(): React.JSX.Element {
                 onClick={() => toggleKind(kind)}
               >
                 <span className="imb-graph-chip-dot" />
-                {t(GRAPH_EDGE_LABELS[kind])}
+                <span className="imb-graph-chip-label">
+                  {t(GRAPH_EDGE_LABELS[kind])}
+                </span>
               </button>
             );
           })}
@@ -241,17 +241,29 @@ export function GraphModule(): React.JSX.Element {
           />
         )}
 
+        {/* Collect UI Floating Inspector Panel */}
         {selected ? (
           <aside className="imb-graph-inspector">
             <header className="imb-graph-inspector-head">
-              <span
-                className={cls(
-                  "imb-graph-kind",
-                  `imb-graph-kind--${selected.kind}`,
-                )}
-              >
-                {t(kindLabel(selected.kind))}
-              </span>
+              <div className="imb-graph-inspector-head-top">
+                <span
+                  className={cls(
+                    "imb-graph-kind",
+                    `imb-graph-kind--${selected.kind}`,
+                  )}
+                >
+                  {t(kindLabel(selected.kind))}
+                </span>
+                <button
+                  type="button"
+                  className="imb-graph-inspector-close"
+                  onClick={() => setSelectedId(null)}
+                  aria-label={t("Close")}
+                  title={t("Close (Esc)")}
+                >
+                  <IconX className="imb-graph-close-icon" />
+                </button>
+              </div>
               <strong className="imb-graph-inspector-name">
                 {selected.label}
               </strong>
@@ -259,44 +271,61 @@ export function GraphModule(): React.JSX.Element {
                 <span className="imb-graph-inspector-sub">{selectedSub}</span>
               ) : null}
             </header>
-            {links.length > 0 ? (
-              <ul className="imb-graph-inspector-links">
-                {links.map((link) => (
-                  <li key={link.key}>
-                    <button
-                      type="button"
-                      className="imb-graph-link-node"
-                      onClick={() => setSelectedId(link.node.id)}
-                    >
-                      <span
-                        className={cls(
-                          "imb-graph-dot",
-                          `imb-graph-dot--${link.node.kind}`,
-                        )}
-                      />
-                      {link.node.label}
-                    </button>
-                    <span className="imb-graph-link-kind">
-                      {DIRECTED_KINDS.has(link.kind)
-                        ? `${link.outgoing ? "→" : "←"} `
-                        : ""}
-                      {t(GRAPH_EDGE_LABELS[link.kind])}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="imb-module-note">{t("No links")}</p>
-            )}
-            {selected.kind === "chat" ? (
-              <button
-                type="button"
-                className="imb-graph-open"
-                onClick={() => openNode(selected)}
-              >
-                {t("Open")}
-              </button>
-            ) : null}
+
+            <div className="imb-graph-inspector-body">
+              <div className="imb-graph-inspector-section-title">
+                {t("Connections")} ({links.length})
+              </div>
+              {links.length > 0 ? (
+                <ul className="imb-graph-inspector-links">
+                  {links.map((link) => (
+                    <li key={link.key}>
+                      <button
+                        type="button"
+                        className="imb-graph-link-node"
+                        onClick={() => setSelectedId(link.node.id)}
+                      >
+                        <span
+                          className={cls(
+                            "imb-graph-dot",
+                            `imb-graph-dot--${link.node.kind}`,
+                          )}
+                        />
+                        <span className="imb-graph-link-label">
+                          {link.node.label}
+                        </span>
+                      </button>
+                      <span className="imb-graph-link-kind">
+                        {DIRECTED_KINDS.has(link.kind)
+                          ? `${link.outgoing ? "→" : "←"} `
+                          : ""}
+                        {t(GRAPH_EDGE_LABELS[link.kind])}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="imb-module-note imb-graph-no-links">
+                  {t("No links")}
+                </p>
+              )}
+            </div>
+
+            <footer className="imb-graph-inspector-footer">
+              {selected.kind === "chat" || selected.kind === "employee" ? (
+                <button
+                  type="button"
+                  className="imb-graph-open"
+                  onClick={() => openNode(selected)}
+                >
+                  {t(
+                    selected.kind === "employee"
+                      ? "View Employee"
+                      : "Open Conversation",
+                  )}
+                </button>
+              ) : null}
+            </footer>
           </aside>
         ) : null}
       </div>

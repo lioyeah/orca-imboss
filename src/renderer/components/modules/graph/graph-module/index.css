@@ -1,8 +1,8 @@
-/* The graph module: a read-only lens over the workspace's latent graph.
+/**
+ * Graph module styles — inspired by Neurite (organic non-linear spatial graph)
+ * and Collect UI (modern glassmorphism, refined typography, and tactile micro-interactions).
  *
- * Colours come from the shared tokens where a role exists (accent, warn,
- * muted, surface); the per-kind hues below are local, because an employee or a
- * tag is not a themed role and a fixed hue reads the same in light and dark.
+ * Fully integrated with the private layer design tokens.
  */
 
 .imb-graph {
@@ -10,9 +10,12 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  background: var(--imb-bg);
+  position: relative;
+  user-select: none;
 }
 
-/* --- Header + legend ------------------------------------------------------- */
+/* --- Header & Filter Bar (Collect UI clean aesthetics) -------------------- */
 
 .imb-graph-head {
   display: flex;
@@ -20,34 +23,56 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--imb-space-4);
-  padding: var(--imb-space-3) var(--imb-space-5);
+  padding: 12px 24px;
+  background: color-mix(in oklab, var(--imb-surface) 95%, transparent);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--imb-border);
+  z-index: 10;
 }
 
 .imb-graph-headline {
   display: flex;
   align-items: center;
-  gap: var(--imb-space-2);
+  gap: 12px;
   min-width: 0;
+}
+
+.imb-graph-headicon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--imb-accent) 12%, transparent);
+  color: var(--imb-accent);
+  flex: none;
 }
 
 .imb-graph-headicon {
   width: 20px;
   height: 20px;
-  flex: none;
-  color: var(--imb-accent);
+}
+
+.imb-graph-head-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .imb-graph-title {
   margin: 0;
-  font-size: var(--imb-text-lg);
+  font-size: var(--imb-text-base);
   font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--imb-fg);
+  line-height: 1.2;
 }
 
 .imb-graph-stats {
   color: var(--imb-muted);
-  font-size: var(--imb-text-sm);
-  white-space: nowrap;
+  font-size: var(--imb-text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .imb-graph-legend {
@@ -58,44 +83,64 @@
 }
 
 .imb-graph-legend-title {
-  margin-right: 2px;
+  margin-right: 4px;
   color: var(--imb-muted);
-  font-size: var(--imb-text-xs);
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
+/* Pill Filter Chips */
 .imb-graph-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid var(--imb-border);
+  padding: 4px 11px;
+  border: 1px solid color-mix(in oklab, var(--imb-border) 80%, transparent);
   border-radius: 999px;
   background: var(--imb-surface);
   color: var(--imb-fg);
-  font-size: var(--imb-text-xs);
+  font-size: 11.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    opacity var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
 .imb-graph-chip:hover {
-  border-color: var(--imb-accent);
+  border-color: color-mix(in oklab, var(--g-edge, var(--imb-accent)) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+.imb-graph-chip:active {
+  transform: translateY(0);
 }
 
 .imb-graph-chip.imb-is-off {
-  opacity: 0.4;
+  opacity: 0.45;
+  background: transparent;
+  box-shadow: none;
 }
 
 .imb-graph-chip-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   flex: none;
   border-radius: 50%;
   background: var(--g-edge, var(--imb-muted));
+  box-shadow: 0 0 6px var(--g-edge, transparent);
 }
 
-/* One hue per link kind, shared by the legend dot and the drawn edge. */
+.imb-graph-chip-label {
+  line-height: 1;
+}
+
+/* Edge colors */
 .imb-graph-chip--spawned,
 .imb-graph-edge--spawned {
   --g-edge: var(--imb-accent);
@@ -103,7 +148,7 @@
 
 .imb-graph-chip--attached,
 .imb-graph-edge--attached {
-  --g-edge: #4c8dff;
+  --g-edge: #3b82f6;
 }
 
 .imb-graph-chip--progress,
@@ -113,36 +158,31 @@
 
 .imb-graph-chip--participant,
 .imb-graph-edge--participant {
-  --g-edge: var(--imb-muted);
+  --g-edge: #8b949e;
 }
 
 .imb-graph-chip--session,
 .imb-graph-edge--session {
-  --g-edge: #b07cff;
+  --g-edge: #a855f7;
 }
 
 .imb-graph-chip--tag,
 .imb-graph-edge--tag {
-  --g-edge: #22b3a3;
+  --g-edge: #14b8a6;
 }
 
-/* --- Stage ----------------------------------------------------------------- */
+/* --- Canvas Stage (Infinite Spatial Plane) -------------------------------- */
 
 .imb-graph-stage {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--imb-bg);
-}
-
-.imb-graph-placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--imb-surface) 40%, var(--imb-bg)) 0%,
+    var(--imb-bg) 100%
+  );
 }
 
 .imb-graph-canvas {
@@ -162,173 +202,467 @@
   cursor: grabbing;
 }
 
-/* --- Edges ----------------------------------------------------------------- */
+/* Spatial Grid pattern */
+.imb-graph-grid-dot {
+  fill: color-mix(in oklab, var(--imb-fg) 12%, transparent);
+}
+
+/* --- Organic Bezier Edges ------------------------------------------------ */
 
 .imb-graph-edge {
+  fill: none;
   stroke: var(--g-edge, var(--imb-muted));
-  stroke-width: 1.4;
-  opacity: 0.5;
-  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.45;
+  transition:
+    opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    stroke-width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.imb-graph-edge.imb-is-focused {
+  opacity: 0.95;
+  stroke-width: 2.6;
+  stroke-dasharray: 6 3;
+  animation: imb-edge-flow 1.2s linear infinite;
+}
+
+@keyframes imb-edge-flow {
+  from {
+    stroke-dashoffset: 18;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .imb-graph-edge.imb-is-dim {
-  opacity: 0.08;
+  opacity: 0.06;
+  stroke-width: 1;
 }
 
-/* --- Nodes ----------------------------------------------------------------- */
+/* --- Nodes with Aura & Halos (Neurite inspired) --------------------------- */
 
 .imb-graph-node {
   cursor: pointer;
 }
 
-.imb-graph-node circle {
+.imb-graph-node-core {
   stroke: var(--imb-surface);
-  stroke-width: 1.5;
-  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+  stroke-width: 2;
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    stroke-width 0.2s ease;
 }
 
-.imb-graph-node--chat circle {
+.imb-graph-node:hover .imb-graph-node-core {
+  stroke-width: 2.5;
+  filter: brightness(1.15);
+}
+
+/* Employee node */
+.imb-graph-node--employee .imb-graph-node-core {
+  fill: #3b82f6;
+}
+
+/* Chat node */
+.imb-graph-node--chat .imb-graph-node-core {
   fill: var(--imb-accent);
 }
 
-/* A root conversation is the origin of a branch: hollow, so a spawned task
- * group reads as a filled node hanging off it. */
-.imb-graph-node--chat.imb-is-root circle {
+.imb-graph-node--chat.imb-is-root .imb-graph-node-core {
   fill: var(--imb-surface);
   stroke: var(--imb-accent);
+  stroke-width: 2.8;
+}
+
+.imb-graph-node-ring {
+  fill: none;
+  stroke: color-mix(in oklab, var(--imb-accent) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  animation: imb-spin-slow 24s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes imb-spin-slow {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tag node */
+.imb-graph-node--tag .imb-graph-node-core {
+  fill: #14b8a6;
+}
+
+/* Halos & Auras */
+.imb-graph-node-halo {
+  fill: none;
+  stroke: var(--imb-accent);
   stroke-width: 2;
+  opacity: 0.7;
+  animation: imb-halo-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.imb-graph-node--employee circle {
-  fill: #4c8dff;
+.imb-graph-node-halo.imb-is-agent-aura {
+  stroke: #3b82f6;
+  opacity: 0.5;
+  animation: imb-agent-aura 3s ease-in-out infinite;
 }
 
-.imb-graph-node--tag circle {
-  fill: #b07cff;
+@keyframes imb-halo-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+@keyframes imb-agent-aura {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.65;
+  }
 }
 
 .imb-graph-node.imb-is-dim {
-  opacity: 0.15;
+  opacity: 0.12;
 }
 
-.imb-graph-node.imb-is-selected circle {
+.imb-graph-node.imb-is-selected .imb-graph-node-core {
   stroke: var(--imb-fg);
-  stroke-width: 2.5;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--imb-accent) 60%, transparent));
 }
 
 .imb-graph-label {
   fill: var(--imb-fg);
   font-size: 11px;
-  opacity: 0.85;
+  font-weight: 500;
+  opacity: 0.9;
   pointer-events: none;
   paint-order: stroke;
   stroke: var(--imb-bg);
-  stroke-width: 3px;
+  stroke-width: 3.5px;
   stroke-linejoin: round;
+  letter-spacing: -0.01em;
 }
 
-/* --- Overlays -------------------------------------------------------------- */
+/* --- Collect UI Floating Hover Card -------------------------------------- */
 
-.imb-graph-hint {
+.imb-graph-hover-card {
   position: absolute;
-  left: 50%;
-  bottom: var(--imb-space-3);
-  transform: translateX(-50%);
-  margin: 0;
-  color: var(--imb-muted);
-  font-size: var(--imb-text-xs);
-  white-space: nowrap;
+  top: 0;
+  left: 0;
   pointer-events: none;
+  z-index: 20;
+  transform-origin: bottom center;
+  animation: imb-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.imb-graph-controls {
-  position: absolute;
-  right: var(--imb-space-3);
-  bottom: var(--imb-space-3);
+@keyframes imb-pop-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.imb-graph-hover-card-inner {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  min-width: 170px;
+  max-width: 260px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--imb-surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in oklab, var(--imb-border) 80%, transparent);
+  box-shadow:
+    0 12px 32px -4px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.imb-graph-controls button {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--imb-border);
-  border-radius: var(--imb-radius-md);
-  background: var(--imb-surface);
-  color: var(--imb-fg);
-  font-size: var(--imb-text-base);
+.imb-graph-hover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.imb-graph-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
   line-height: 1;
-  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.imb-graph-controls button:hover {
-  border-color: var(--imb-accent);
+.imb-graph-badge--chat {
+  background: color-mix(in oklab, var(--imb-accent) 15%, transparent);
   color: var(--imb-accent);
 }
 
-/* --- Inspector ------------------------------------------------------------- */
+.imb-graph-badge--employee {
+  background: color-mix(in oklab, #3b82f6 15%, transparent);
+  color: #3b82f6;
+}
+
+.imb-graph-badge--tag {
+  background: color-mix(in oklab, #14b8a6 15%, transparent);
+  color: #14b8a6;
+}
+
+.imb-graph-hover-degree {
+  font-size: 11px;
+  color: var(--imb-muted);
+}
+
+.imb-graph-hover-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--imb-fg);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.imb-graph-hover-tip {
+  font-size: 10.5px;
+  color: var(--imb-muted);
+  border-top: 1px solid color-mix(in oklab, var(--imb-border) 60%, transparent);
+  padding-top: 5px;
+  margin-top: 2px;
+}
+
+/* --- Bottom Hint & Floating Controls ------------------------------------- */
+
+.imb-graph-hint-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--imb-surface) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in oklab, var(--imb-border) 75%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  color: var(--imb-muted);
+  font-size: 11.5px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.imb-graph-floating-toolbar {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--imb-surface) 90%, transparent);
+  backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in oklab, var(--imb-border) 80%, transparent);
+  box-shadow:
+    0 10px 28px -4px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+  z-index: 15;
+}
+
+.imb-graph-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--imb-fg);
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-graph-tool-btn:hover {
+  background: color-mix(in oklab, var(--imb-fg) 8%, transparent);
+  color: var(--imb-accent);
+  transform: scale(1.05);
+}
+
+.imb-graph-tool-btn:active {
+  transform: scale(0.95);
+}
+
+.imb-graph-tool-btn.imb-is-active {
+  background: color-mix(in oklab, var(--imb-accent) 15%, transparent);
+  color: var(--imb-accent);
+}
+
+.imb-graph-tool-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--imb-border);
+  margin: 0 2px;
+}
+
+/* --- Collect UI Floating Inspector Panel --------------------------------- */
 
 .imb-graph-inspector {
   position: absolute;
-  left: var(--imb-space-3);
-  bottom: var(--imb-space-3);
+  left: 20px;
+  bottom: 20px;
+  width: 310px;
+  max-height: calc(100% - 100px);
   display: flex;
   flex-direction: column;
-  gap: var(--imb-space-2);
-  width: 280px;
-  max-height: 60%;
-  overflow: auto;
-  padding: var(--imb-space-3);
-  border: 1px solid var(--imb-border);
-  border-radius: var(--imb-radius-lg);
-  background: color-mix(in oklch, var(--imb-surface) 92%, transparent);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--imb-elev-raised);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--imb-surface) 92%, transparent);
+  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in oklab, var(--imb-border) 85%, transparent);
+  box-shadow:
+    0 16px 40px -8px rgba(0, 0, 0, 0.16),
+    0 4px 12px rgba(0, 0, 0, 0.05);
+  z-index: 25;
+  animation: imb-inspector-appear 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes imb-inspector-appear {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .imb-graph-inspector-head {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid color-mix(in oklab, var(--imb-border) 60%, transparent);
+}
+
+.imb-graph-inspector-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .imb-graph-kind {
-  align-self: flex-start;
-  padding: 1px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: var(--imb-muted);
-  color: var(--imb-surface);
-  font-size: var(--imb-text-xs);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .imb-graph-kind--chat {
-  background: var(--imb-accent);
-  color: var(--imb-accent-on);
+  background: color-mix(in oklab, var(--imb-accent) 15%, transparent);
+  color: var(--imb-accent);
 }
 
 .imb-graph-kind--employee {
-  background: #4c8dff;
+  background: color-mix(in oklab, #3b82f6 15%, transparent);
+  color: #3b82f6;
 }
 
 .imb-graph-kind--tag {
-  background: #b07cff;
+  background: color-mix(in oklab, #14b8a6 15%, transparent);
+  color: #14b8a6;
+}
+
+.imb-graph-inspector-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--imb-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.imb-graph-inspector-close:hover {
+  background: color-mix(in oklab, var(--imb-fg) 8%, transparent);
+  color: var(--imb-fg);
+}
+
+.imb-graph-close-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .imb-graph-inspector-name {
-  font-size: var(--imb-text-base);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--imb-fg);
+  line-height: 1.35;
   word-break: break-word;
 }
 
 .imb-graph-inspector-sub {
   color: var(--imb-muted);
-  font-size: var(--imb-text-xs);
+  font-size: 11.5px;
+}
+
+.imb-graph-inspector-body {
+  padding: 12px 16px;
+  overflow-y: auto;
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.imb-graph-inspector-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--imb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .imb-graph-inspector-links {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -338,30 +672,44 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--imb-space-2);
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.imb-graph-inspector-links li:hover {
+  background: color-mix(in oklab, var(--imb-fg) 4%, transparent);
 }
 
 .imb-graph-link-node {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
-  padding: 2px 0;
+  padding: 0;
   border: none;
   background: none;
   color: var(--imb-fg);
-  font-size: var(--imb-text-sm);
+  font-size: 12.5px;
   text-align: left;
   cursor: pointer;
+  flex: 1;
 }
 
 .imb-graph-link-node:hover {
   color: var(--imb-accent);
 }
 
+.imb-graph-link-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .imb-graph-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   flex: none;
   border-radius: 50%;
   background: var(--imb-muted);
@@ -372,31 +720,57 @@
 }
 
 .imb-graph-dot--employee {
-  background: #4c8dff;
+  background: #3b82f6;
 }
 
 .imb-graph-dot--tag {
-  background: #b07cff;
+  background: #14b8a6;
 }
 
 .imb-graph-link-kind {
   color: var(--imb-muted);
-  font-size: var(--imb-text-xs);
+  font-size: 11px;
   white-space: nowrap;
+  flex: none;
 }
 
+.imb-graph-no-links {
+  margin: 6px 0;
+  font-size: 12px;
+}
+
+.imb-graph-inspector-footer {
+  padding: 12px 16px 16px;
+  border-top: 1px solid color-mix(in oklab, var(--imb-border) 60%, transparent);
+}
+
+/* Collect UI Button */
 .imb-graph-open {
-  align-self: flex-start;
-  padding: 4px 14px;
-  border: 1px solid var(--imb-accent);
-  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   background: var(--imb-accent);
   color: var(--imb-accent-on);
-  font-size: var(--imb-text-sm);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--imb-accent) 30%, transparent);
+  transition:
+    background 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .imb-graph-open:hover {
   background: var(--imb-accent-hover);
-  border-color: var(--imb-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--imb-accent) 40%, transparent);
+}
+
+.imb-graph-open:active {
+  transform: translateY(0);
 }
