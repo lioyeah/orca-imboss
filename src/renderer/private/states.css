@@ -13,6 +13,17 @@
 
 /* --- Empty ----------------------------------------------------------- */
 
+@keyframes imb-state-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* One sentence, muted, centred, on a measure so it wraps like prose. */
 .imb-list-empty,
 .imb-list-empty.imb-detail,
@@ -24,19 +35,26 @@
   color: var(--imb-muted);
   font-size: var(--imb-text-sm);
   line-height: var(--imb-leading-body);
+  letter-spacing: -0.005em;
   max-width: 46ch;
   margin-inline: auto;
   text-align: center;
 }
 
+/* Entrance animation for main empty views */
+.imb-list-empty,
+.imb-chat-empty-detail {
+  animation: imb-state-enter var(--imb-private-motion-enter) var(--imb-ease-standard) both;
+}
+
 /* A pane keeps room to breathe; a dropdown is a small box and stays compact. */
 .imb-list-empty {
-  padding: var(--imb-space-8) var(--imb-space-4);
+  padding: var(--imb-space-12) var(--imb-space-4);
 }
 
 .imb-list-empty.imb-detail,
 .imb-chat-empty-detail {
-  padding: var(--imb-space-12) var(--imb-space-6);
+  padding: var(--imb-space-12) var(--imb-space-8);
 }
 
 .imb-chat-picker-empty {
@@ -78,17 +96,35 @@
   color: var(--imb-danger);
   font-size: var(--imb-text-sm);
   line-height: var(--imb-leading-body);
+  animation: imb-state-enter var(--imb-motion-fast) var(--imb-ease-standard) both;
 }
 
-/* The two floating error toasts were the same rule written twice, both on
-   `bottom: 12px` and `padding: 6px 14px`. */
+/* Floating error toasts: frosted glass, tactile elevation & smooth entry */
+@keyframes imb-toast-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
 .imb-chat-error,
 .imb-module-error {
-  bottom: var(--imb-space-3);
+  bottom: var(--imb-space-4);
   padding: var(--imb-space-2) var(--imb-space-4);
   border-radius: var(--imb-radius-md);
   font-size: var(--imb-text-sm);
-  box-shadow: var(--imb-elev-raised);
+  background: color-mix(in oklab, var(--imb-surface) 90%, var(--imb-danger) 10%);
+  border: 1px solid color-mix(in oklab, var(--imb-danger) 40%, transparent);
+  color: var(--imb-fg);
+  box-shadow:
+    0 4px 16px -2px rgba(0, 0, 0, 0.12),
+    0 12px 32px -4px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(12px);
+  animation: imb-toast-enter var(--imb-private-motion-enter) var(--imb-ease-standard) both;
 }
 
 /* --- Loading --------------------------------------------------------- */
@@ -99,6 +135,16 @@
 .imb-btn-spinner {
   width: 1em;
   height: 1em;
+}
+
+/* Bottom "loading more" sentinel in virtualized lists */
+.imb-item-list-hint {
+  display: block;
+  text-align: center;
+  padding: var(--imb-space-3);
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
 /* --- Disabled -------------------------------------------------------- */
