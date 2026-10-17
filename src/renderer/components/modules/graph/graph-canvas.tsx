@@ -4,14 +4,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cls } from "reactutils";
 
 /**
- * The enhanced graph canvas inspired by Neurite (organic non-linear spatial graph)
- * and Collect UI (refined modern surfaces, micro-interactions, smooth feedback).
- *
- * Dependency-free force simulation rendered via SVG with dynamic bezier connectors,
- * breathing halos for AI agents, spatial dot grid, and contextual hover cards.
+ * Production-grade Graph Canvas inspired by Neurite & Obsidian:
+ * - Dynamic organic bezier connectors with neural flow pulses
+ * - Interactive Minimap with viewport tracker
+ * - Configurable force physics (repulsion, spring distance, gravity)
+ * - Smooth camera transitions (flyTo lerp easing)
+ * - Cluster/Community and Kind coloring modes
+ * - Temporal filtering and search spotlight
  */
 
-/** One body in the simulation; `x`/`y` are in graph space. */
+export interface PhysicsConfig {
+  repulsion: number;
+  linkDistance: number;
+  centerPull: number;
+  damping: number;
+}
+
+export const DEFAULT_PHYSICS: PhysicsConfig = {
+  repulsion: 14000,
+  linkDistance: 130,
+  centerPull: 0.0025,
+  damping: 0.85,
+};
+
 export interface SimNode {
   id: string;
   node: GraphNode;
@@ -19,17 +34,15 @@ export interface SimNode {
   y: number;
   vx: number;
   vy: number;
-  /** Drawn radius. */
   r: number;
-  /** True while the pointer drags it (integration is skipped). */
   held: boolean;
+  color?: string;
 }
 
 interface Sim {
   nodes: SimNode[];
   byId: Map<string, SimNode>;
   alpha: number;
-  /** True once the initial layout has cooled and the view has been fitted. */
   fitted: boolean;
 }
 
@@ -39,22 +52,39 @@ interface ViewTransform {
   y: number;
 }
 
-const REPULSION = 14000;
-const SPRING = 0.035;
-const LINK_DISTANCE = 130;
-const CENTER_PULL = 0.0025;
-const DAMPING = 0.85;
 const ALPHA_DECAY = 0.96;
-const ALPHA_MIN = 0.005;
-const MAX_SPEED = 15;
+const ALPHA_MIN = 0.004;
+const MAX_SPEED = 16;
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 3.5;
+
+// Distinct palette for cluster/community grouping
+const CLUSTER_COLORS = [
+  "#31895f",
+  "#3b82f6",
+  "#a855f7",
+  "#f59e0b",
+  "#ec4899",
+  "#14b8a6",
+  "#6366f1",
+  "#f97316",
+  "#06b6d4",
+  "#84cc16",
+];
+
+function getClusterColor(clusterId: string | undefined): string {
+  if (!clusterId) return "var(--imb-accent)";
+  let hash = 0;
+  for (let i = 0; i < clusterId.length; i++) {
+    hash = (hash * 31 + clusterId.charCodeAt(i)) | 0;
+  }
+  return CLUSTER_COLORS[Math.abs(hash) % CLUSTER_COLORS.length];
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-/** Node size: employees read as primary cognitive anchors, tags as fine markers. */
 function radiusFor(node: GraphNode): number {
   const base = node.kind === "employee" ? 11 : node.kind === "tag" ? 7 : 6.5;
   const gain = node.kind === "employee" ? 1.8 : 1.15;
@@ -62,11 +92,10 @@ function radiusFor(node: GraphNode): number {
   return Math.min(base + Math.sqrt(Math.max(node.weight, 0)) * gain, cap);
 }
 
-function truncate(label: string, max = 26): string {
+function truncate(label: string, max = 24): string {
   return label.length > max ? `${label.slice(0, max - 1)}…` : label;
 }
 
-/** Compute an organic curved bezier path between two nodes. */
 function getOrganicPath(
   a: SimNode,
   b: SimNode,
@@ -76,11 +105,8 @@ function getOrganicPath(
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dist = Math.hypot(dx, dy);
-  if (dist < 1) {
-    return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
-  }
+  if (dist < 1) return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
 
-  // Generate a deterministic slight lateral curve based on the edge id hash
   let hash = 0;
   for (let i = 0; i < edgeId.length; i++) {
     hash = (hash * 31 + edgeId.charCodeAt(i)) | 0;
@@ -88,23 +114,24 @@ function getOrganicPath(
   const sign = hash % 2 === 0 ? 1 : -1;
   const offset = Math.min(dist * curvatureFactor, 36) * sign;
 
-  // Normal vector perpendicular to the line
   const nx = -dy / dist;
   const ny = dx / dist;
 
-  // Midpoint with curve offset
   const cx = (a.x + b.x) / 2 + nx * offset;
   const cy = (a.y + b.y) / 2 + ny * offset;
 
   return `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
 }
 
-/** Advance the simulation one frame. */
-function tick(sim: Sim, edges: readonly GraphEdge[]): void {
+function tick(
+  sim: Sim,
+  edges: readonly GraphEdge[],
+  physics: PhysicsConfig,
+): void {
   const nodes = sim.nodes;
   const alpha = sim.alpha;
 
-  // Pairwise node repulsion
+  // Pairwise repulsion
   for (let i = 0; i < nodes.length; i++) {
     const a = nodes[i];
     for (let j = i + 1; j < nodes.length; j++) {
@@ -118,7 +145,13 @@ function tick(sim: Sim, edges: readonly GraphEdge[]): void {
         d2 = 0.5;
       }
       const dist = Math.sqrt(d2);
-      const force = (REPULSION * alpha) / (d2 + 400);
+      // Collision padding
+      const minDistance = a.r + b.r + 6;
+      let force = (physics.repulsion * alpha) / (d2 + 400);
+      if (dist < minDistance) {
+        force += ((minDistance - dist) / minDistance) * 2.5 * alpha;
+      }
+
       const fx = (dx / dist) * force;
       const fy = (dy / dist) * force;
       if (!a.held) {
@@ -132,7 +165,7 @@ function tick(sim: Sim, edges: readonly GraphEdge[]): void {
     }
   }
 
-  // Spring attraction along edges
+  // Edge springs
   for (const edge of edges) {
     const a = sim.byId.get(edge.source);
     const b = sim.byId.get(edge.target);
@@ -140,8 +173,8 @@ function tick(sim: Sim, edges: readonly GraphEdge[]): void {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const dist = Math.hypot(dx, dy) || 0.1;
-    const delta = dist - LINK_DISTANCE;
-    const force = delta * SPRING * alpha;
+    const delta = dist - physics.linkDistance;
+    const force = delta * 0.035 * alpha;
     const fx = (dx / dist) * force;
     const fy = (dy / dist) * force;
     if (!a.held) {
@@ -149,18 +182,18 @@ function tick(sim: Sim, edges: readonly GraphEdge[]): void {
       a.vy += fy;
     }
     if (!b.held) {
-      b.vx -= fx;
-      b.vy -= fy;
+      b.vx += fx;
+      b.vy += fy;
     }
   }
 
-  // Gentle central gravity pull
+  // Center pull and damping
   for (const node of nodes) {
     if (node.held) continue;
-    node.vx -= node.x * CENTER_PULL * alpha;
-    node.vy -= node.y * CENTER_PULL * alpha;
-    node.vx *= DAMPING;
-    node.vy *= DAMPING;
+    node.vx -= node.x * physics.centerPull * alpha;
+    node.vy -= node.y * physics.centerPull * alpha;
+    node.vx *= physics.damping;
+    node.vy *= physics.damping;
     const speed = Math.hypot(node.vx, node.vy);
     if (speed > MAX_SPEED) {
       node.vx = (node.vx / speed) * MAX_SPEED;
@@ -177,16 +210,26 @@ export interface GraphCanvasProps {
   nodes: readonly GraphNode[];
   edges: readonly GraphEdge[];
   selectedId: string | null;
+  searchQuery?: string;
+  colorMode?: "kind" | "cluster";
+  physicsConfig?: PhysicsConfig;
+  showMinimap?: boolean;
   onSelect: (id: string | null) => void;
   onOpen: (node: GraphNode) => void;
+  onFlyToReady?: (flyFn: (id: string) => void) => void;
 }
 
 export function GraphCanvas({
   nodes,
   edges,
   selectedId,
+  searchQuery = "",
+  colorMode = "kind",
+  physicsConfig = DEFAULT_PHYSICS,
+  showMinimap = true,
   onSelect,
   onOpen,
+  onFlyToReady,
 }: GraphCanvasProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -200,13 +243,15 @@ export function GraphCanvas({
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
+  const [minimapCollapsed, setMinimapCollapsed] = useState(!showMinimap);
 
-  // View transform: pan & zoom
   const [view, setView] = useState<ViewTransform>({ k: 1, x: 0, y: 0 });
   const viewRef = useRef(view);
   viewRef.current = view;
 
-  // Active drag state
+  // Active camera animation cancel ref
+  const cameraAnimRef = useRef<number | null>(null);
+
   const dragRef = useRef<{
     mode: "pan" | "node";
     pointerId: number;
@@ -218,7 +263,6 @@ export function GraphCanvas({
     moved: boolean;
   } | null>(null);
 
-  // Simulation state
   const simRef = useRef<Sim>({
     nodes: [],
     byId: new Map(),
@@ -227,7 +271,6 @@ export function GraphCanvas({
   });
   const kickRef = useRef<() => void>(() => {});
 
-  // Observe stage dimensions
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -243,15 +286,68 @@ export function GraphCanvas({
     return () => observer.disconnect();
   }, []);
 
-  // Center & fit the graph nodes in view
+  // Smooth camera flyTo with ease-out cubic
+  const flyToCoords = useCallback(
+    (targetX: number, targetY: number, targetZoom?: number): void => {
+      if (cameraAnimRef.current !== null) {
+        cancelAnimationFrame(cameraAnimRef.current);
+      }
+      const stage = sizeRef.current;
+      const start = { ...viewRef.current };
+      const destK = targetZoom !== undefined ? targetZoom : start.k;
+      const destX = stage.width / 2 - targetX * destK;
+      const destY = stage.height / 2 - targetY * destK;
+
+      const startTime = performance.now();
+      const duration = 480;
+
+      const animate = (now: number): void => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // easeOutCubic
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        const nextK = start.k + (destK - start.k) * ease;
+        const nextX = start.x + (destX - start.x) * ease;
+        const nextY = start.y + (destY - start.y) * ease;
+
+        setView({ k: nextK, x: nextX, y: nextY });
+
+        if (progress < 1) {
+          cameraAnimRef.current = requestAnimationFrame(animate);
+        } else {
+          cameraAnimRef.current = null;
+        }
+      };
+
+      cameraAnimRef.current = requestAnimationFrame(animate);
+    },
+    [],
+  );
+
+  const flyToNode = useCallback(
+    (nodeId: string): void => {
+      const node = simRef.current.byId.get(nodeId);
+      if (node) {
+        flyToCoords(node.x, node.y, Math.max(viewRef.current.k, 1.1));
+      }
+    },
+    [flyToCoords],
+  );
+
+  useEffect(() => {
+    if (onFlyToReady) onFlyToReady(flyToNode);
+  }, [flyToNode, onFlyToReady]);
+
+  // Fit all nodes in view
   const fitView = useCallback((): void => {
-    const nodes = simRef.current.nodes;
-    if (nodes.length === 0) return;
+    const simNodes = simRef.current.nodes;
+    if (simNodes.length === 0) return;
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
-    for (const node of nodes) {
+    for (const node of simNodes) {
       if (node.x - node.r < minX) minX = node.x - node.r;
       if (node.x + node.r > maxX) maxX = node.x + node.r;
       if (node.y - node.r < minY) minY = node.y - node.r;
@@ -260,28 +356,24 @@ export function GraphCanvas({
     const width = Math.max(maxX - minX, 1);
     const height = Math.max(maxY - minY, 1);
     const stage = sizeRef.current;
-    const padding = 70;
+    const padding = 75;
     const kFit = Math.min(
       (stage.width - padding * 2) / width,
       (stage.height - padding * 2) / height,
     );
-    const k = clamp(Number.isFinite(kFit) ? kFit : 1, MIN_ZOOM, 1.25);
+    const k = clamp(Number.isFinite(kFit) ? kFit : 1, MIN_ZOOM, 1.2);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    setView({
-      k,
-      x: stage.width / 2 - cx * k,
-      y: stage.height / 2 - cy * k,
-    });
-  }, []);
 
-  // Re-heat simulation
+    flyToCoords(cx, cy, k);
+  }, [flyToCoords]);
+
   const reheat = useCallback((): void => {
     simRef.current.alpha = Math.max(simRef.current.alpha, 0.45);
     kickRef.current();
   }, []);
 
-  // Sync simulation nodes with props
+  // Update simulation topology
   useEffect(() => {
     const previous = simRef.current.byId;
     const nextNodes: SimNode[] = [];
@@ -308,6 +400,10 @@ export function GraphCanvas({
         vy: prev?.vy ?? 0,
         r: radiusFor(node),
         held: false,
+        color:
+          colorMode === "cluster"
+            ? getClusterColor(node.clusterId)
+            : undefined,
       };
       nextNodes.push(simNode);
       nextById.set(node.id, simNode);
@@ -320,7 +416,7 @@ export function GraphCanvas({
     let raf = 0;
     const step = (): void => {
       const sim = simRef.current;
-      tick(sim, edges);
+      tick(sim, edges, physicsConfig);
       forceRender();
       if (!sim.fitted && sim.alpha < 0.6) {
         sim.fitted = true;
@@ -340,7 +436,7 @@ export function GraphCanvas({
       if (raf !== 0) cancelAnimationFrame(raf);
       kickRef.current = () => {};
     };
-  }, [nodes, edges, fitView, forceRender]);
+  }, [nodes, edges, colorMode, physicsConfig, fitView, forceRender]);
 
   // Wheel zoom
   useEffect(() => {
@@ -348,6 +444,10 @@ export function GraphCanvas({
     if (!el) return;
     const onWheel = (event: WheelEvent): void => {
       event.preventDefault();
+      if (cameraAnimRef.current !== null) {
+        cancelAnimationFrame(cameraAnimRef.current);
+        cameraAnimRef.current = null;
+      }
       const rect = el.getBoundingClientRect();
       const current = viewRef.current;
       const k = clamp(
@@ -385,6 +485,10 @@ export function GraphCanvas({
     event: React.PointerEvent<SVGSVGElement>,
   ): void => {
     if (event.button !== 0) return;
+    if (cameraAnimRef.current !== null) {
+      cancelAnimationFrame(cameraAnimRef.current);
+      cameraAnimRef.current = null;
+    }
     svgRef.current?.setPointerCapture(event.pointerId);
     dragRef.current = {
       mode: "pan",
@@ -404,6 +508,10 @@ export function GraphCanvas({
   ): void => {
     event.stopPropagation();
     if (event.button !== 0) return;
+    if (cameraAnimRef.current !== null) {
+      cancelAnimationFrame(cameraAnimRef.current);
+      cameraAnimRef.current = null;
+    }
     svgRef.current?.setPointerCapture(event.pointerId);
     dragRef.current = {
       mode: "node",
@@ -454,7 +562,6 @@ export function GraphCanvas({
     onSelect(drag.mode === "node" && drag.node ? drag.node.id : null);
   };
 
-  // Keyboard escape cancels selection
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key === "Escape") onSelect(null);
@@ -463,8 +570,10 @@ export function GraphCanvas({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onSelect]);
 
-  // Focus network graph
+  // Focus and search highlights
+  const cleanQuery = searchQuery.trim().toLowerCase();
   const focusId = selectedId ?? hoveredId;
+
   const { neighbours, focusEdges, activeDegree } = useMemo(() => {
     const set = new Set<string>();
     const ids = new Set<string>();
@@ -483,14 +592,74 @@ export function GraphCanvas({
     return { neighbours: set, focusEdges: ids, activeDegree: ids.size };
   }, [focusId, edges]);
 
-  // Hovered node details for the Collect UI mini-preview tooltip
+  const matchedNodeIds = useMemo(() => {
+    if (!cleanQuery) return null;
+    const matches = new Set<string>();
+    for (const node of nodes) {
+      if (
+        node.label.toLowerCase().includes(cleanQuery) ||
+        (node.sub && node.sub.toLowerCase().includes(cleanQuery))
+      ) {
+        matches.add(node.id);
+      }
+    }
+    return matches;
+  }, [nodes, cleanQuery]);
+
   const hoveredNode = useMemo((): SimNode | null => {
     if (!hoveredId) return null;
     return simRef.current.byId.get(hoveredId) ?? null;
   }, [hoveredId]);
 
+  // Bounds for interactive Minimap
+  const bounds = useMemo(() => {
+    const simNodes = simRef.current.nodes;
+    if (simNodes.length === 0) {
+      return { minX: -200, maxX: 200, minY: -200, maxY: 200 };
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const node of simNodes) {
+      if (node.x < minX) minX = node.x;
+      if (node.x > maxX) maxX = node.x;
+      if (node.y < minY) minY = node.y;
+      if (node.y > maxY) maxY = node.y;
+    }
+    const pad = 120;
+    return {
+      minX: minX - pad,
+      maxX: maxX + pad,
+      minY: minY - pad,
+      maxY: maxY + pad,
+    };
+  }, [simRef.current.nodes]);
+
   const labelScale = 1 / view.k;
   const gridStep = 32 * view.k;
+
+  // Minimap coordinates calculation
+  const mmW = 140;
+  const mmH = 95;
+  const bW = Math.max(bounds.maxX - bounds.minX, 1);
+  const bH = Math.max(bounds.maxY - bounds.minY, 1);
+  const mmScale = Math.min(mmW / bW, mmH / bH);
+
+  // Viewport rect on minimap
+  const vpX0 = (-view.x / view.k - bounds.minX) * mmScale;
+  const vpY0 = (-view.y / view.k - bounds.minY) * mmScale;
+  const vpW = (sizeRef.current.width / view.k) * mmScale;
+  const vpH = (sizeRef.current.height / view.k) * mmScale;
+
+  const onMinimapClick = (e: React.MouseEvent<SVGSVGElement>): void => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const targetGraphX = clickX / mmScale + bounds.minX;
+    const targetGraphY = clickY / mmScale + bounds.minY;
+    flyToCoords(targetGraphX, targetGraphY);
+  };
 
   return (
     <div className="imb-graph-canvas" ref={containerRef}>
@@ -503,7 +672,6 @@ export function GraphCanvas({
         onPointerCancel={endDrag}
       >
         <defs>
-          {/* Spatial dot grid pattern (Neurite infinite coordinate plane) */}
           <pattern
             id="imb-graph-grid"
             x={view.x % gridStep}
@@ -519,14 +687,18 @@ export function GraphCanvas({
               className="imb-graph-grid-dot"
             />
           </pattern>
-          {/* Glow filter for active neural connection pathways */}
-          <filter id="imb-graph-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter
+            id="imb-graph-glow"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
 
-        {/* Spatial background plane */}
         {showGrid && (
           <rect
             className="imb-graph-grid-plane"
@@ -536,16 +708,20 @@ export function GraphCanvas({
           />
         )}
 
-        {/* Transformed scene */}
         <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-          {/* Edges layer */}
+          {/* Edges */}
           <g className="imb-graph-edges">
             {edges.map((edge) => {
               const a = simRef.current.byId.get(edge.source);
               const b = simRef.current.byId.get(edge.target);
               if (!a || !b) return null;
               const isFocused = focusEdges.has(edge.id);
-              const isDim = focusId !== null && !isFocused;
+              const isSearchDim =
+                matchedNodeIds !== null &&
+                (!matchedNodeIds.has(edge.source) ||
+                  !matchedNodeIds.has(edge.target));
+              const isDim =
+                (focusId !== null && !isFocused) || (isSearchDim && !isFocused);
               const pathD = getOrganicPath(a, b, edge.id);
               return (
                 <path
@@ -563,16 +739,25 @@ export function GraphCanvas({
             })}
           </g>
 
-          {/* Nodes layer */}
+          {/* Nodes */}
           <g className="imb-graph-nodes">
             {simRef.current.nodes.map((body) => {
               const isFocused = body.id === focusId;
               const isSelected = body.id === selectedId;
               const isNeighbor = neighbours.has(body.id);
-              const isDim = focusId !== null && !isNeighbor;
+              const isSearchMatch =
+                matchedNodeIds !== null && matchedNodeIds.has(body.id);
+              const isSearchDim =
+                matchedNodeIds !== null && !matchedNodeIds.has(body.id);
+              const isDim =
+                (focusId !== null && !isNeighbor) ||
+                (isSearchDim && focusId === null);
               const isEmployee = body.node.kind === "employee";
               const isChat = body.node.kind === "chat";
               const isRoot = body.node.isRoot === true;
+
+              const customFill =
+                colorMode === "cluster" ? body.color : undefined;
 
               return (
                 <g
@@ -583,6 +768,7 @@ export function GraphCanvas({
                     isRoot && "imb-is-root",
                     isSelected && "imb-is-selected",
                     isFocused && "imb-is-focused",
+                    isSearchMatch && "imb-is-search-match",
                     isDim && "imb-is-dim",
                   )}
                   transform={`translate(${body.x},${body.y})`}
@@ -595,29 +781,35 @@ export function GraphCanvas({
                   }
                   onDoubleClick={() => onOpen(body.node)}
                 >
-                  {/* Subtle breathing halo / ripple for active or agent nodes */}
-                  {(isSelected || isEmployee) && (
+                  {(isSelected || isEmployee || isSearchMatch) && (
                     <circle
                       className={cls(
                         "imb-graph-node-halo",
                         isEmployee && "imb-is-agent-aura",
+                        isSearchMatch && "imb-is-search-aura",
                       )}
                       r={body.r + (isSelected ? 7 : 5)}
                     />
                   )}
 
-                  {/* Main node surface */}
-                  <circle className="imb-graph-node-core" r={body.r} />
+                  <circle
+                    className="imb-graph-node-core"
+                    r={body.r}
+                    style={customFill ? { fill: customFill } : undefined}
+                  />
 
-                  {/* Concentric orbital ring for root chats */}
                   {isChat && isRoot && (
                     <circle
                       className="imb-graph-node-ring"
                       r={body.r + 3.5}
+                      style={
+                        customFill
+                          ? { stroke: customFill, opacity: 0.5 }
+                          : undefined
+                      }
                     />
                   )}
 
-                  {/* Node label */}
                   <g
                     className="imb-graph-label-box"
                     transform={`translate(0,${body.r + 11}) scale(${labelScale})`}
@@ -633,7 +825,7 @@ export function GraphCanvas({
         </g>
       </svg>
 
-      {/* Floating Collect UI Hover Card for quick node context */}
+      {/* Hover Card */}
       {hoveredNode && !selectedId && (
         <div
           className="imb-graph-hover-card"
@@ -677,13 +869,59 @@ export function GraphCanvas({
         </div>
       )}
 
-      {/* Modern status hint */}
-      <div className="imb-graph-hint-pill">
-        <span>{t("Drag to pan · Scroll to zoom · Double-click to open")}</span>
-      </div>
+      {/* Interactive Radar Minimap (Obsidian / Neurite style) */}
+      {!minimapCollapsed && (
+        <div className="imb-graph-minimap">
+          <div className="imb-graph-minimap-head">
+            <span className="imb-graph-minimap-title">{t("Radar")}</span>
+            <button
+              type="button"
+              className="imb-graph-minimap-close"
+              onClick={() => setMinimapCollapsed(true)}
+              title={t("Collapse minimap")}
+            >
+              ×
+            </button>
+          </div>
+          <svg
+            className="imb-graph-minimap-svg"
+            width={mmW}
+            height={mmH}
+            onClick={onMinimapClick}
+          >
+            {simRef.current.nodes.map((n) => {
+              const mx = (n.x - bounds.minX) * mmScale;
+              const my = (n.y - bounds.minY) * mmScale;
+              return (
+                <circle
+                  key={n.id}
+                  cx={mx}
+                  cy={my}
+                  r={Math.max(1.2, (n.r / 7) * 1.5)}
+                  className={cls(
+                    "imb-graph-mm-dot",
+                    `imb-graph-mm-dot--${n.node.kind}`,
+                  )}
+                />
+              );
+            })}
+            <rect
+              x={vpX0}
+              y={vpY0}
+              width={vpW}
+              height={vpH}
+              className="imb-graph-mm-viewport"
+            />
+          </svg>
+        </div>
+      )}
 
-      {/* Floating Controls Toolbar (Collect UI Glass Panel) */}
-      <div className="imb-graph-floating-toolbar" role="toolbar" aria-label={t("Graph Controls")}>
+      {/* Floating Controls Toolbar */}
+      <div
+        className="imb-graph-floating-toolbar"
+        role="toolbar"
+        aria-label={t("Graph Controls")}
+      >
         <button
           type="button"
           className="imb-graph-tool-btn"
@@ -708,7 +946,7 @@ export function GraphCanvas({
           className="imb-graph-tool-btn"
           onClick={fitView}
           aria-label={t("Reset view")}
-          title={t("Reset view")}
+          title={t("Fit to view")}
         >
           ⤢
         </button>
@@ -721,6 +959,17 @@ export function GraphCanvas({
         >
           ▦
         </button>
+        {minimapCollapsed && (
+          <button
+            type="button"
+            className="imb-graph-tool-btn"
+            onClick={() => setMinimapCollapsed(false)}
+            aria-label={t("Show radar")}
+            title={t("Show radar minimap")}
+          >
+            ◎
+          </button>
+        )}
         <button
           type="button"
           className="imb-graph-tool-btn"

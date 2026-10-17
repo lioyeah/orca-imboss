@@ -27,6 +27,8 @@ interface ChatRow {
   title: string;
   participants: string;
   from_chat_id: number | null;
+  created_at: number;
+  last_message_at: number;
 }
 
 interface EmployeeRow {
@@ -34,6 +36,7 @@ interface EmployeeRow {
   name: string;
   role: string;
   disabled: number;
+  avatar: string | null;
 }
 
 interface MessageLinkRow {
@@ -41,15 +44,18 @@ interface MessageLinkRow {
   kind: string;
   steps: string | null;
   attachments: string | null;
+  created_at: number;
 }
 
 export function buildGraph(): GraphPayload {
   const db = getDB();
   const chatRows = db
-    .prepare("SELECT id, title, participants, from_chat_id FROM chats")
+    .prepare(
+      "SELECT id, title, participants, from_chat_id, created_at, last_message_at FROM chats",
+    )
     .all() as ChatRow[];
   const employeeRows = db
-    .prepare("SELECT id, name, role, disabled FROM employees")
+    .prepare("SELECT id, name, role, disabled, avatar FROM employees")
     .all() as EmployeeRow[];
   const sessionRows = db
     .prepare("SELECT chat_id, employee_id FROM sessions")
@@ -65,9 +71,29 @@ export function buildGraph(): GraphPayload {
   for (const row of countRows) messageCounts.set(row.chat_id, row.n);
 
   const chatIds = new Set<number>();
-  for (const row of chatRows) chatIds.add(row.id);
+  const chatParentMap = new Map<number, number | null>();
+  for (const row of chatRows) {
+    chatIds.add(row.id);
+    chatParentMap.set(row.id, row.from_chat_id);
+  }
   const employeeIds = new Set<number>();
   for (const row of employeeRows) employeeIds.add(row.id);
+
+  // Compute clusterId for each chat (recursively resolve to its root ancestor)
+  const resolveRootId = (id: number): number => {
+    let curr = id;
+    const visited = new Set<number>();
+    while (curr !== null) {
+      if (visited.has(curr)) break;
+      visited.add(curr);
+      const parent = chatParentMap.get(curr);
+      if (parent === null || parent === undefined || !chatIds.has(parent)) {
+        return curr;
+      }
+      curr = parent;
+    }
+    return curr;
+  };
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -85,10 +111,27 @@ export function buildGraph(): GraphPayload {
     edges.push({ id, source, target, kind });
   };
 
+  let minTime = Infinity;
+  let maxTime = -Infinity;
+
   // --- Chats: nodes, participant edges and spawn edges ---
   for (const row of chatRows) {
     const participants = parseNumberArray(row.participants);
     const title = row.title.trim();
+    // Normalize timestamps to milliseconds
+    const createdAtMs = row.created_at > 1e11 ? row.created_at : row.created_at * 1000;
+    const lastActiveMs =
+      row.last_message_at > 0
+        ? row.last_message_at > 1e11
+          ? row.last_message_at
+          : row.last_message_at * 1000
+        : createdAtMs;
+
+    if (createdAtMs < minTime) minTime = createdAtMs;
+    if (lastActiveMs > maxTime) maxTime = lastActiveMs;
+
+    const rootId = resolveRootId(row.id);
+
     nodes.push({
       id: `chat:${row.id}`,
       kind: "chat",
@@ -98,7 +141,11 @@ export function buildGraph(): GraphPayload {
       chatId: row.id,
       isRoot: row.from_chat_id === null,
       participants: participants.length,
+      createdAt: createdAtMs,
+      updatedAt: lastActiveMs,
+      clusterId: `cluster:${rootId}`,
     });
+
     for (const employeeId of participants) {
       if (!employeeIds.has(employeeId)) continue;
       addEdge(`chat:${row.id}`, `employee:${employeeId}`, "participant");
@@ -118,6 +165,8 @@ export function buildGraph(): GraphPayload {
       sub: row.role.trim().length > 0 ? row.role.trim() : null,
       weight: 0,
       employeeId: row.id,
+      avatar: row.avatar,
+      disabled: row.disabled === 1,
     });
   }
 
@@ -131,7 +180,7 @@ export function buildGraph(): GraphPayload {
   // --- Message-derived chat → chat links ---
   const messageLinks = db
     .prepare(
-      "SELECT chat_id, kind, steps, attachments FROM messages " +
+      "SELECT chat_id, kind, steps, attachments, created_at FROM messages " +
         "WHERE steps IS NOT NULL OR attachments IS NOT NULL",
     )
     .all() as MessageLinkRow[];
@@ -165,18 +214,38 @@ export function buildGraph(): GraphPayload {
     addEdge(`chat:${row.chat_id}`, `tag:${row.tag}`, "tag");
   }
 
-  // Employees and tags are sized by how connected they are; chats keep their
-  // message count as the weight.
-  const degree = new Map<string, number>();
+  // Calculate degrees (inDegree, outDegree, total degree)
+  const inDegreeMap = new Map<string, number>();
+  const outDegreeMap = new Map<string, number>();
+  const totalDegreeMap = new Map<string, number>();
+
   for (const edge of edges) {
-    degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
-    degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
-  }
-  for (const node of nodes) {
-    if (node.kind !== "chat") node.weight = degree.get(node.id) ?? 0;
+    outDegreeMap.set(edge.source, (outDegreeMap.get(edge.source) ?? 0) + 1);
+    inDegreeMap.set(edge.target, (inDegreeMap.get(edge.target) ?? 0) + 1);
+    totalDegreeMap.set(edge.source, (totalDegreeMap.get(edge.source) ?? 0) + 1);
+    totalDegreeMap.set(edge.target, (totalDegreeMap.get(edge.target) ?? 0) + 1);
   }
 
-  return { nodes, edges, generatedAt: Date.now() };
+  for (const node of nodes) {
+    node.inDegree = inDegreeMap.get(node.id) ?? 0;
+    node.outDegree = outDegreeMap.get(node.id) ?? 0;
+    node.degree = totalDegreeMap.get(node.id) ?? 0;
+    if (node.kind !== "chat") {
+      node.weight = node.degree;
+    }
+  }
+
+  const now = Date.now();
+  if (minTime === Infinity) minTime = now - 86400000;
+  if (maxTime === -Infinity) maxTime = now;
+
+  return {
+    nodes,
+    edges,
+    generatedAt: now,
+    minTime,
+    maxTime,
+  };
 }
 
 /** Read the linked task-group id stored alongside a step list. */

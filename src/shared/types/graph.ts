@@ -18,7 +18,12 @@ export type GraphNodeKind = "chat" | "employee" | "tag";
  * with an agent session in that conversation).
  */
 export type GraphEdgeKind =
-  "spawned" | "attached" | "progress" | "participant" | "session" | "tag";
+  | "spawned"
+  | "attached"
+  | "progress"
+  | "participant"
+  | "session"
+  | "tag";
 
 export interface GraphNode {
   /** Namespaced stable id, e.g. `chat:12`, `employee:3`, `tag:work`. */
@@ -40,8 +45,24 @@ export interface GraphNode {
   participants?: number;
   /** Employee nodes only. */
   employeeId?: number;
+  /** Employee avatar asset path or URI. */
+  avatar?: string | null;
+  /** Employee disabled flag. */
+  disabled?: boolean;
   /** Tag nodes only. */
   tag?: string;
+  /** Milliseconds epoch timestamp when node was created. */
+  createdAt?: number;
+  /** Milliseconds epoch timestamp when node was last active/updated. */
+  updatedAt?: number;
+  /** In-degree (incoming links count). */
+  inDegree?: number;
+  /** Out-degree (outgoing links count). */
+  outDegree?: number;
+  /** Total degree of connections. */
+  degree?: number;
+  /** Topology cluster ID (e.g. root chat id) for community grouping/coloring. */
+  clusterId?: string;
 }
 
 export interface GraphEdge {
@@ -58,4 +79,8 @@ export interface GraphPayload {
   edges: GraphEdge[];
   /** Epoch ms the payload was built. */
   generatedAt: number;
+  /** Earliest createdAt across all nodes in epoch ms. */
+  minTime?: number;
+  /** Latest updatedAt/createdAt across all nodes in epoch ms. */
+  maxTime?: number;
 }
