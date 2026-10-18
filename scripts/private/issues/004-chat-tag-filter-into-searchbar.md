@@ -70,6 +70,8 @@ CSS 在 `src/renderer/components/modules/chat/chat-module/index.css:79-95`：`.i
 
 注意：`040ae10` 时代是另一种形态（单选的「全部 + 标签 chips + "+N"」独立行 `imb-chat-filter-row`），暂存 WIP 已把它换成现在这个多选 `TagSelect`。**本 issue 的验收以当前工作区的多选 `TagSelect` 行为为准**，不要回退到单选。
 
+**结构纠正（@0，m00096 核对当前代码）**：`src/renderer/components/modules/chat/chat-module/index.tsx:775-795` 是 `imb-chat-search-stack` 内**纵向堆叠**两个整宽控件——`SearchInput`（搜索）+ `TagSelect`（`allowNoTag`、`value={tagFilter}` 数组、`placeholder=t("Filter by tags")`、`options=tagOptions`）。另外 **ListRow footer 里还有一个行级 `TagSelect`（`.imb-chat-tag-select`，给单条对话打标签用）——那个不能动**，只改列表筛选那一个。
+
 ## 验收标准
 
 1. 独立的第二行筛选控件移除：`.imb-chat-search-stack` 内不再出现第二个整宽行，中栏头部回到「标题 + 一行搜索栏」。
@@ -79,7 +81,7 @@ CSS 在 `src/renderer/components/modules/chat/chat-module/index.css:79-95`：`.i
 5. 联动不回归：`serverMode`（`isSearching || tagFilter.length > 0`）、`tagFilterKey` 请求参数、空列表文案 `chatListEmptyMessage(isSearching, tagFilter.length)` 三条链路行为不变。
 6. 中栏窄宽度（≈300px）下可用：搜索框不被筛选控件挤压到无法输入，筛选入口仍可点击。
 7. 视觉符合当前 quiet 语言：发丝线边框、36px 级别控件、与 `.imb-searchbox` 同一基线；不放第二个整宽行。
-8. 其他模块无回归（employees / 设置等不受影响）。
+8. 其他模块无回归（employees / 设置等不受影响）；**ListRow 行级 `TagSelect`（`.imb-chat-tag-select`）保持原样**，不得随本次改动被移除或改行为。
 
 ## 处理记录
 
