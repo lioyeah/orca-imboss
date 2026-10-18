@@ -104,6 +104,17 @@ list-detail 无回归：对话 / 员工 / 定时任务 / 统计 / 设置 5 个 `
 
 single 布局机制：图谱与 miniapp / group-chat / agent-session 共用 `.imb-layout-single → .imb-contentpane` 同一填充路径，图谱通过即覆盖该机制。（设置 settings 实为 `list-detail`，非 single。）
 
+**miniapp 实测补证（@3，独立复测）**：live `~/.imboss/mini-apps/` 只有一个空 `index.json`（`{"order": []}`，无实际 mini-app），复制路线无效，改为在隔离 HOME **自造最小 mini-app**（只写 `~/.imboss-ui-test/.imboss/mini-apps/steward-probe/`：`metadata.json` = `{"name":"UI 验证探针","entry":"http://127.0.0.1:5178/index.html"}` + `index.html`；`index.json` = `{"order":["steward-probe"]}`；entry 走 `python3 -m http.server 5178 --bind 127.0.0.1`，我自己的进程 PID 309127，验证完只杀它）。`run-test-env.sh --stop` 重启后 nav 出现「UI 验证探针」项，点击进入后 `.imb-miniapp-host` iframe 正常加载。
+
+| 视口 | 导航 | shell grid | `.imb-contentpane` 宽 | `.imb-miniapp-host` 宽 | 结论 |
+| --- | --- | --- | --- | --- | --- |
+| 1262×1030 | 展开 208 | `1054px`（单列） | 1054 | 1054 | 铺满 ✓ |
+| 1262×1030 | 折叠 64 | `1186px`（单列） | 1186 | 1186 | 铺满 ✓ |
+| 1920×1080 | 展开 208 | `1712px`（单列） | 1712 | 1712 | 铺满 ✓ |
+| 1920×1080 | 折叠 64 | `1844px`（单列） | 1844 | 1844 | 铺满 ✓ |
+
+证据：`evidence/001-verify-miniapp-1262-expanded.png`、`001-verify-miniapp-1920-expanded.png`。**mini-app 证据格已补齐，无 310px 陷阱。**
+
 固化状态（需 Boss 决策）：修复 = 暂存 WIP 删除 `src/renderer/private/overrides.css` 的 `.imb-shell-content { grid-template-columns: 310px 1fr !important }`；`mine` HEAD `87cb86c` 的 `overrides.css:487-488` 仍含该行，故修复**仅存在于工作区**，待 Boss 提交 WIP 后固化。@4 未提交该 WIP 文件（红线：绝不碰 Boss 暂存 WIP）。310px 未回加：310px 属 040ae10 实验值，WIP 已按验收标准 #5 建议的「整体删除该块」把中栏退回基础 300px；若日后想要更宽中栏，应走 `.imb-shell-content:not(.imb-layout-single)` 这类**限定 list-detail** 的作用域，而非曾破坏 single 布局的全局 `!important`。
 
 ## 处理记录
@@ -122,3 +133,4 @@ single 布局机制：图谱与 miniapp / group-chat / agent-session 共用 `.im
 | 2026-10-18 | @3 复测图谱铺满：视口 900×700 / 1262×1030 / 1920×1080 三档，`.imb-graph` 与 `.imb-contentpane` 宽度逐一相等（824 / 1186 / 1844）；导航展开 208px 时 1054px、折叠 64px 时 1186px，均铺满 | 通过（证据 `evidence/001-verify-steward-1262-expanded.png`，47 节点 / 45 连线富数据） |
 | 2026-10-18 | @3 复测 list-detail 无回归：对话 / 员工 / 定时任务 / 统计 / 设置 均 `300px 754px`，中栏 pane 300px、内容区 754px | 通过 |
 | 2026-10-18 | @3 记录环境限制：miniapp 也是 single 布局，但该表面只在存在 mini-app 时由 nav 动态渲染，隔离测试实例内未安装任何 mini-app，**本次无法实测**；需 @4 或有 mini-app 的环境补一份证据 | 待补证据（不影响 #001 结论，根因与修复均为同一网格规则） |
+| 2026-10-18 | @3 补 mini-app 证据：隔离 HOME 自造最小 mini-app（`steward-probe`，entry 127.0.0.1:5178，PID 309127 自行清理），重启实例后 nav 出现该项，`.imb-miniapp-host` 在 1262×1030 / 1920×1080 × 导航展开/折叠四种组合下均等于内容区宽（1054 / 1186 / 1712 / 1844） | **mini-app 证据格已补齐**，通过 |
