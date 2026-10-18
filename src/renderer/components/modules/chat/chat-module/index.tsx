@@ -1181,6 +1181,26 @@ export function ChatModule(): React.JSX.Element {
   const listPane = (
     <ListPane
       title={t("Chats")}
+      actions={
+        <Tooltip content={t("New Chat")} placement="bottom">
+          <button
+            type="button"
+            className="imb-icon-btn imb-btn-ghost imb-pane-action-btn"
+            aria-label={t("New Chat")}
+            onClick={() => void newChat()}
+          >
+            <svg
+              className="imb-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            >
+              <path d="M8 3v10M3 8h10" />
+            </svg>
+          </button>
+        </Tooltip>
+      }
       search={
         <FilterBar
           inputRef={searchInputRef}
@@ -1249,7 +1269,7 @@ export function ChatModule(): React.JSX.Element {
               <Avatar
                 letter={displayTitle(chat.title).slice(0, 1)}
                 name={displayTitle(chat.title)}
-                size={30}
+                size={32}
               />
             }
             name={

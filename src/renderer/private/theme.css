@@ -24,12 +24,17 @@
   /* Self-check: this reads back as 1 when the private layer is loaded. */
   --imb-private-layer: 1;
 
-  /* Surfaces — a light stone canvas, near-white panes, hairline seams. */
-  --imb-bg: #f2f2f0;
-  --imb-surface: #fbfbfa;
-  --imb-fg: #1b1d1c;
+  /* Horizon Baseline & TitleBar Grid */
+  --imb-titlebar-h: 24px;
+  --imb-header-h: 52px;
+
+  /* Surfaces — layered progressive depth: base canvas, list pane, detail canvas */
+  --imb-bg: #f2f3f5;
+  --imb-surface: #f8f9fa;
+  --imb-surface-warm: #ffffff;
+  --imb-fg: #1a1c1b;
   --imb-muted: #6e7573;
-  --imb-border: #e5e6e4;
+  --imb-border: rgba(0, 0, 0, 0.065);
 
   /* One accent: a calm pine green, balanced for both themes (~4.3:1 against
      white and against the dark canvas), so it can carry white text on the
@@ -125,11 +130,12 @@
 /* Dark theme: the OS prefers dark and the user has not forced light. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme-mode="light"]) {
-    --imb-bg: #141615;
-    --imb-surface: #1c1e1d;
+    --imb-bg: #151618;
+    --imb-surface: #1b1c1e;
+    --imb-surface-warm: #212225;
     --imb-fg: #e9ebe9;
     --imb-muted: #9aa29e;
-    --imb-border: #2b2f2d;
+    --imb-border: rgba(255, 255, 255, 0.075);
 
     --imb-accent: #45a37b;
     --imb-accent-on: #10201a;
@@ -162,11 +168,12 @@
 
 /* Dark theme: forced in Settings › Appearance. */
 :root[data-theme-mode="dark"] {
-  --imb-bg: #141615;
-  --imb-surface: #1c1e1d;
+  --imb-bg: #151618;
+  --imb-surface: #1b1c1e;
+  --imb-surface-warm: #212225;
   --imb-fg: #e9ebe9;
   --imb-muted: #9aa29e;
-  --imb-border: #2b2f2d;
+  --imb-border: rgba(255, 255, 255, 0.075);
 
   --imb-accent: #45a37b;
   --imb-accent-on: #10201a;

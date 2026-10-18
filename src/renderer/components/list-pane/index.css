@@ -19,12 +19,36 @@
 .imb-pane-header {
   padding: var(--imb-space-2) var(--imb-space-3);
   flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.imb-pane-header-top {
+  height: var(--imb-header-h, 52px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--imb-space-4);
+  box-sizing: border-box;
 }
 
 .imb-pane-title {
   font-size: var(--imb-fs-title-3);
   font-weight: var(--imb-fw-semibold);
+  letter-spacing: -0.015em;
+  color: var(--imb-fg);
+  line-height: 1;
   padding: 0 2px var(--imb-space-3);
+}
+
+.imb-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--imb-space-2);
+}
+
+.imb-pane-search-row {
+  padding: 0 var(--imb-space-3) var(--imb-space-3);
 }
 
 /* Scrollable list body. Most modules fill it with `ItemList` (whose
