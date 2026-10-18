@@ -472,62 +472,101 @@
 }
 
 /* =====================================================================
- * 4. 侧边栏与顶栏的空间布局 (Spacious Sidebar & Floating Header)
+ * 4. 三栏空间递延与全局水平基准线 (Global Horizon Baseline & Spatial Hierarchy)
  * ===================================================================== */
 
-/* Grid layout with breathing room for capsule buttons */
+/* Grid layout with proportional width & breathing room */
 .imb-app {
-  grid-template-columns: 216px 1fr;
+  grid-template-columns: 216px 1fr !important;
 }
 
 .imb-app.imb-is-collapsed {
-  grid-template-columns: 76px 1fr;
+  grid-template-columns: 64px 1fr !important;
 }
 
+.imb-shell-content {
+  grid-template-columns: 310px 1fr !important;
+}
+
+/* SearchBox standardized scale & rounded pill contour */
+.imb-searchbox {
+  height: 36px !important;
+  border-radius: 10px !important;
+  background: color-mix(in oklab, var(--imb-fg) 3.5%, var(--imb-surface)) !important;
+  border: 1px solid var(--imb-border) !important;
+  padding: 0 10px !important;
+  box-sizing: border-box !important;
+  gap: 8px !important;
+}
+
+.imb-searchbox input {
+  font-size: 13px !important;
+}
+
+.imb-searchbox-hint {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  padding: 1px 6px !important;
+  background: var(--imb-surface) !important;
+  border: 1px solid var(--imb-border) !important;
+}
+
+/* ---------------------------------------------------------------------
+ * Column 1: Navigation Rail
+ * ------------------------------------------------------------------- */
 .imb-nav {
-  padding: calc(var(--imb-titlebar-h) + 14px) 12px 14px 12px;
+  padding-top: var(--imb-titlebar-h) !important;
+  padding-inline: 10px !important;
+  padding-bottom: 12px !important;
+  background: var(--imb-bg) !important;
+  border-right: 1px solid var(--imb-border) !important;
 }
 
-/* Navigation brand header with integrated top-right toggle */
+/* Nav brand row: strict 52px horizon header */
 .imb-nav-brand {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 4px 18px 8px !important;
+  height: var(--imb-header-h, 52px) !important;
+  min-height: var(--imb-header-h, 52px) !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 6px !important;
+  margin-bottom: 6px !important;
 }
 
 .imb-nav-brand-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
 }
 
 .imb-nav-brandname {
-  font-size: 15.5px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  color: var(--imb-fg) !important;
 }
 
-/* Top-right icon toggle button */
+/* Top-right collapse toggle */
 .imb-nav-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px !important;
-  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 30px !important;
+  height: 30px !important;
   padding: 0 !important;
   border-radius: var(--imb-radius-sm) !important;
   background: transparent !important;
-  border: none;
-  color: var(--imb-muted);
-  cursor: pointer;
-  flex-shrink: 0;
+  border: none !important;
+  color: var(--imb-muted) !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
   transition:
     color var(--imb-motion-fast) var(--imb-ease-standard),
     background var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard);
+    transform var(--imb-motion-fast) var(--imb-ease-standard) !important;
 }
 
 .imb-nav-toggle:hover {
@@ -536,8 +575,8 @@
 }
 
 .imb-nav-toggle .imb-icon {
-  width: 17px;
-  height: 17px;
+  width: 16px !important;
+  height: 16px !important;
   transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
@@ -550,8 +589,8 @@
 }
 
 .imb-nav.imb-is-collapsed .imb-nav-toggle {
-  width: 32px !important;
-  height: 32px !important;
+  width: 30px !important;
+  height: 30px !important;
 }
 
 .imb-nav.imb-is-collapsed .imb-nav-toggle .imb-icon {
@@ -559,16 +598,22 @@
 }
 
 .imb-nav-items {
-  gap: 4px;
+  gap: 3px !important;
 }
 
 /* Modern capsule nav button */
 .imb-nav-item {
-  height: 38px !important;
-  padding: 0 14px !important;
-  border-radius: var(--imb-radius-md) !important; /* 12px capsule */
-  font-size: 14px;
-  font-weight: 500;
+  height: 36px !important;
+  padding: 0 11px !important;
+  border-radius: 9px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  gap: 10px !important;
+}
+
+.imb-nav-item .imb-icon {
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .imb-nav-item:hover {
@@ -585,34 +630,106 @@
   color: var(--imb-private-accent-text) !important;
   font-weight: 600 !important;
   box-shadow:
-    inset 0 0 0 1px color-mix(in oklab, var(--imb-accent) 22%, transparent),
+    inset 0 0 0 1px color-mix(in oklab, var(--imb-accent) 20%, transparent),
     0 1px 3px rgba(20, 28, 24, 0.04) !important;
 }
 
-/* Floating Header with translucency and spatial hierarchy */
+/* ---------------------------------------------------------------------
+ * Column 2: List Pane
+ * ------------------------------------------------------------------- */
+.imb-pane.imb-listpane {
+  padding-top: var(--imb-titlebar-h) !important;
+  background: var(--imb-surface) !important;
+  border-right: 1px solid var(--imb-border) !important;
+}
+
+.imb-pane-header-top {
+  height: var(--imb-header-h, 52px) !important;
+  min-height: var(--imb-header-h, 52px) !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 14px 0 16px !important;
+}
+
+.imb-pane-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+  color: var(--imb-fg) !important;
+  line-height: 1 !important;
+}
+
+.imb-pane-action-btn {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 8px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--imb-muted) !important;
+  cursor: pointer !important;
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-pane-action-btn:hover {
+  background: color-mix(in oklab, var(--imb-fg) 8%, transparent) !important;
+  color: var(--imb-fg) !important;
+}
+
+.imb-pane-action-btn:active {
+  transform: scale(0.95);
+}
+
+.imb-pane-search-row {
+  padding: 0 12px 10px 12px !important;
+}
+
+/* ---------------------------------------------------------------------
+ * Column 3: Detail Workspace Canvas
+ * ------------------------------------------------------------------- */
+.imb-pane.imb-detailpane {
+  padding-top: var(--imb-titlebar-h) !important;
+  background: var(--imb-surface-warm, #ffffff) !important;
+}
+
 .imb-chat-header {
-  min-height: 58px;
-  padding: 12px var(--imb-space-6) !important;
+  height: var(--imb-header-h, 52px) !important;
+  min-height: var(--imb-header-h, 52px) !important;
+  box-sizing: border-box !important;
+  padding: 0 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
   gap: 12px !important;
-  background: color-mix(in oklab, var(--imb-surface) 86%, transparent) !important;
+  background: color-mix(in oklab, var(--imb-surface-warm, #ffffff) 92%, transparent) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid color-mix(in oklab, var(--imb-border) 75%, transparent) !important;
+  border-bottom: 1px solid var(--imb-border) !important;
 }
 
 .imb-chat-header-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .imb-chat-header-avatar .imb-avatar {
-  border-radius: 11px;
+  border-radius: 9px !important;
 }
 
 .imb-chat-title {
-  font-size: 17px !important;
+  font-size: 15px !important;
   font-weight: 600 !important;
-  letter-spacing: -0.016em;
+  letter-spacing: -0.012em !important;
+  color: var(--imb-fg) !important;
 }
 
 .imb-chat-source {
@@ -627,15 +744,40 @@
 }
 
 .imb-detail-head {
+  padding: 12px var(--imb-space-6) 14px !important;
   background: color-mix(in oklab, var(--imb-surface) 86%, transparent) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid color-mix(in oklab, var(--imb-border) 75%, transparent) !important;
+  border-bottom: 1px solid var(--imb-border) !important;
 }
 
 /* =====================================================================
  * General Micro-Interactions & Form Controls
  * ===================================================================== */
+
+.imb-icon-btn,
+.imb-btn-ghost,
+.imb-nav-toggle,
+.imb-pane-action-btn {
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-icon-btn:hover,
+.imb-btn-ghost:hover,
+.imb-nav-toggle:hover,
+.imb-pane-action-btn:hover {
+  background: color-mix(in oklab, var(--imb-fg) 7%, transparent) !important;
+}
+
+.imb-icon-btn:active,
+.imb-btn-ghost:active,
+.imb-nav-toggle:active,
+.imb-pane-action-btn:active {
+  transform: scale(0.96);
+}
 
 /* Accent as TEXT */
 .imb-detail-head-eyebrow,
@@ -647,264 +789,4 @@
 .imb-ask-submitted,
 .imb-progress-tag.imb-done {
   color: var(--imb-private-accent-text);
-}
-
-/* Window controls */
-.imb-winbtn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--imb-accent) 26%, transparent);
-}
-
-/* Scrollbars */
-* {
-  scrollbar-color: color-mix(in oklab, var(--imb-fg) 20%, transparent)
-    transparent;
-}
-
-/* Text selection & accent-color */
-::selection {
-  background: color-mix(in oklab, var(--imb-accent) 32%, transparent);
-}
-
-:root {
-  accent-color: var(--imb-accent);
-}
-
-/* Modals */
-.imb-modal-overlay {
-  background: rgba(24, 32, 28, 0.35);
-  backdrop-filter: blur(6px);
-  animation: imb-overlay-enter var(--imb-motion-base) var(--imb-ease-standard);
-}
-
-:root[data-theme-mode="dark"] .imb-modal-overlay {
-  background: rgba(0, 0, 0, 0.65);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-modal-overlay {
-    background: rgba(0, 0, 0, 0.65);
-  }
-}
-
-.imb-modal {
-  box-shadow: var(--imb-private-elev-overlay);
-  border: 1px solid var(--imb-border);
-  border-radius: var(--imb-radius-lg);
-  animation: imb-modal-enter var(--imb-motion-base) var(--imb-ease-standard);
-}
-
-@keyframes imb-modal-enter {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes imb-overlay-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Dropdown menus & anchored popovers */
-@keyframes imb-dropdown-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.imb-select-panel,
-.imb-ms-panel,
-.imb-mention-popup,
-.imb-attach-popup,
-.imb-ctx-menu.imb-open,
-.imb-popover {
-  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
-  box-shadow: var(--imb-private-elev-overlay);
-  backdrop-filter: blur(12px);
-  border-radius: var(--imb-radius-md);
-}
-
-.imb-tooltip {
-  backdrop-filter: blur(8px);
-  border-radius: var(--imb-radius-sm);
-}
-
-/* Buttons */
-.imb-btn {
-  font-size: var(--imb-text-base);
-  min-height: var(--imb-private-h-control);
-  padding: 8px 16px;
-  border-radius: var(--imb-radius-md);
-  transition:
-    background var(--imb-motion-fast) var(--imb-ease-standard),
-    border-color var(--imb-motion-fast) var(--imb-ease-standard),
-    color var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard),
-    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-btn-primary {
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-}
-
-.imb-btn-primary:hover:not(:disabled) {
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  transform: translateY(-0.5px);
-}
-
-.imb-btn-primary:active:not(:disabled) {
-  transform: translateY(0.5px) scale(0.985);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-.imb-btn-secondary:hover:not(:disabled) {
-  border-color: color-mix(in oklab, var(--imb-fg) 40%, transparent);
-  background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
-  transform: translateY(-0.5px);
-}
-
-.imb-btn-secondary:active:not(:disabled) {
-  transform: translateY(0.5px) scale(0.985);
-}
-
-.imb-btn-sm {
-  min-height: var(--imb-private-h-control-sm);
-  padding: 4px 10px;
-  font-size: var(--imb-text-sm);
-}
-
-/* Icon buttons: micro-press feedback */
-.imb-icon-btn,
-.imb-attach-btn,
-.imb-progress-open {
-  transition:
-    color var(--imb-motion-fast) var(--imb-ease-standard),
-    background var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-icon-btn:active:not(:disabled),
-.imb-attach-btn:active:not(:disabled),
-.imb-progress-open:active:not(:disabled) {
-  transform: scale(0.94);
-  background: color-mix(in oklab, var(--imb-fg) 8%, transparent);
-}
-
-/* Form Controls Focus Glow */
-.imb-input:focus,
-.imb-input:focus-visible,
-.imb-textarea:focus,
-.imb-textarea:focus-visible,
-.imb-search-input:focus,
-.imb-search-input:focus-visible,
-.imb-ask-other:focus,
-.imb-ask-other:focus-visible,
-.imb-ask-free:focus,
-.imb-ask-free:focus-visible {
-  outline: none;
-  border-color: var(--imb-accent);
-  box-shadow:
-    0 0 0 3px color-mix(in oklab, var(--imb-accent) 20%, transparent),
-    0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-/* Select & multi-select trigger states */
-.imb-select:hover:not(:disabled),
-.imb-ms-trigger:hover:not(:disabled) {
-  border-color: color-mix(in oklab, var(--imb-fg) 35%, transparent);
-}
-
-.imb-select:focus-visible,
-.imb-select[aria-expanded="true"],
-.imb-ms-trigger:focus-visible,
-.imb-ms-trigger[aria-expanded="true"] {
-  outline: none;
-  border-color: var(--imb-accent);
-  box-shadow:
-    0 0 0 3px color-mix(in oklab, var(--imb-accent) 20%, transparent),
-    0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-/* Search input & tag filter */
-.imb-searchbox input,
-.imb-chat-tag-filter .imb-ms-trigger {
-  border-radius: var(--imb-radius-md) !important;
-}
-
-/* Toggle switch: spring motion and tactile stretch on press */
-.imb-toggle {
-  transition:
-    background var(--imb-motion-fast) var(--imb-ease-standard),
-    border-color var(--imb-motion-fast) var(--imb-ease-standard),
-    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-toggle:hover:not(:disabled):not(.imb-is-on) {
-  border-color: color-mix(in oklab, var(--imb-fg) 35%, transparent);
-}
-
-.imb-toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 24%, transparent);
-}
-
-.imb-toggle-knob {
-  transition:
-    transform var(--imb-motion-fast) var(--imb-ease-standard),
-    width var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-toggle:active:not(:disabled) .imb-toggle-knob {
-  width: 20px;
-}
-
-/* Centred reading measure */
-.imb-chat-header,
-.imb-thread,
-.imb-chat-input-wrap,
-.imb-detail-head,
-.imb-detail-body {
-  padding-inline: max(
-    var(--imb-space-6),
-    calc((100% - var(--imb-private-measure)) / 2)
-  );
-}
-
-.imb-detail-head-actions {
-  right: max(var(--imb-space-6), calc((100% - var(--imb-private-measure)) / 2));
-}
-
-/* Motion cadence */
-.imb-btn-spinner {
-  animation-duration: var(--imb-private-motion-spin);
-}
-
-.imb-session-tool.imb-is-running .imb-session-tool-dot,
-.imb-progress-tag.imb-busy .imb-status-dot,
-.imb-image-gen-shimmer,
-.imb-ack-fill {
-  animation-duration: var(--imb-private-motion-pulse);
-}
-
-.imb-image-gen-arrived .imb-image-card-front {
-  animation-duration: var(--imb-private-motion-enter);
-  animation-timing-function: var(--imb-ease-standard);
 }
