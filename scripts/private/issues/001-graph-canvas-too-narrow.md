@@ -1,11 +1,11 @@
 # 001 · 图谱画布只占内容区一小块（常规尺寸与最大化一致）
 
-- **状态**: `verified`（已复现，等待修复）
+- **状态**: `fixed-verified`（@4 已在工作区构建上验证通过；修复 = 暂存 WIP 删除 310px 覆盖块，待 Boss 提交 WIP 后固化为 `mine` 提交）
 - **报告人**: Boss（chat 10）
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 高（核心视图不可用）
 - **组件/区域**: 图谱模块（Knowledge Graph）+ 应用外壳网格布局
-- **相关提交**: `040ae10`（引入）／当前 `mine` HEAD `3da025f`（已被 WIP 顺带修复）
+- **相关提交**: `040ae10`（引入 bug：`overrides.css` 的 `310px 1fr !important`）；`9d42c25`（本 issue 落档）。**注意**：`mine` 最新 HEAD `87cb86c` 的 `src/renderer/private/overrides.css:487-488` 仍含该覆盖；修复只存在于 Boss 的暂存 WIP 工作区（该文件已 `M`，0 处命中 310px），待 WIP 提交后固化。
 - **环境**:
   - 分支 `mine`，复现基准 `040ae10`（= Boss AppImage 的源码状态）
   - 构建：`git archive 040ae10` → 独立目录 `/tmp/repro` → `pnpm run build`（typecheck + electron-vite build 全绿）
@@ -36,6 +36,13 @@ Boss 报告截图：`/home/ilio/.imboss/attachments/10/pasted-20261018-110721.pn
 - `evidence/001-graph-narrow-040ae10.png` — 复现截图：图谱模块整体只有 310px 宽，右侧大片空白。
 - `evidence/001-graph-narrow-040ae10-collapsed.png` — 折叠导航栏后仍为 310px（证明与导航栏宽度无关）。
 - `evidence/001-graph-fixed-simulation.png` — 修复模拟：加回 `.imb-shell-content.imb-layout-single` 的 `!important` 声明后图谱立即铺满 1198px（视口 1262 − 导航 64）。
+
+@4 工作区修复验证截图（测试环境，seed 47 节点富数据）：
+
+- `evidence/001-graph-worktree-normal-45nodes.png` — 工作区构建、47 节点 / 45 连线、铺满内容区（折叠导航）。
+- `evidence/001-graph-worktree-fill-900.png` — 视口 900×680，图谱铺满 824px（单列，无 310px 陷阱）。
+- `evidence/001-graph-worktree-fill-1262.png` — 视口 1262×1030，铺满 1186px。
+- `evidence/001-graph-worktree-fill-1920.png` — 视口 1920×1080（≈最大化宽），铺满 1844px。
 
 CDP 实测（`scripts/private/cdp-eval.mjs`，`CDP_PORT=9226`）：
 
@@ -76,6 +83,29 @@ CDP 实测（`scripts/private/cdp-eval.mjs`，`CDP_PORT=9226`）：
 4. 导航栏展开（216px）/ 折叠（64px）两种状态下均正确。
 5. 修复不得依赖覆盖 `.imb-layout-single` 的 `!important` 军备竞赛；建议直接把私有层里这条 `.imb-shell-content` 网格覆盖改成只作用于 `list-detail`（例如 `.imb-shell-content:not(.imb-layout-single)`，或整体删除该块——当前 WIP 的做法）。
 
+## 修复验证（@4，工作区构建）
+
+验证环境：`scripts/private/run-test-env.sh`（`HOME=~/.imboss-ui-test`、CDP 端口 9224、PID 278022、视口 1262×1030），`pnpm run build` 从**当前工作区**（含 Boss 暂存 WIP）构建——被测对象已含「删除 310px 覆盖块」的修复。用 `imb.chats.create()`（与「新对话」按钮同一 IPC 路径）在隔离 HOME 内 seed 了 47 节点 / 45 连线（对齐 Boss ~42/52 场景）。
+
+视口 × 导航矩阵（`Emulation.setDeviceMetricsOverride` 触发与真实缩放一致的 reflow；本 Electron 构建的 CDP 未暴露 `Browser.setWindowBounds`，故以视口覆盖等效验证「最大化 / 缩放」）：
+
+| 视口 | 导航 | `.imb-shell-content` grid | contentpane/stage 宽 | 结果 |
+| --- | --- | --- | --- | --- |
+| 900×680 | 折叠 76 | `824px`（单列） | 824 | 铺满 ✓ |
+| 1262×1030 | 折叠 76 | `1186px`（单列） | 1186 | 铺满 ✓ |
+| 1500×950 | 折叠 76 | `1424px`（单列） | 1424 | 铺满 ✓ |
+| 1920×1080 | 折叠 76 | `1844px`（单列） | 1844 | 铺满 ✓（≈最大化宽） |
+| 900×680 | 展开 208 | `692px`（单列） | 692 | 铺满 ✓ |
+| 1920×1080 | 展开 208 | `1712px`（单列） | 1712 | 铺满 ✓ |
+
+所有组合：grid 均为**单列**（绝非 `310px 1fr`），`.imb-contentpane` 宽 == 视口宽 − 导航宽，stage 铺满，图谱保持挂载（47 节点），节点横向铺开；缩放后加载 reflow 正确。
+
+list-detail 无回归：对话 / 员工 / 定时任务 / 统计 / 设置 5 个 `list-detail` 模块 grid 均 `300px 754px`（中栏回到基础 300px，310px 覆盖已消失）、`.imb-contentpane` 隐藏、双列结构完好。
+
+single 布局机制：图谱与 miniapp / group-chat / agent-session 共用 `.imb-layout-single → .imb-contentpane` 同一填充路径，图谱通过即覆盖该机制。（设置 settings 实为 `list-detail`，非 single。）
+
+固化状态（需 Boss 决策）：修复 = 暂存 WIP 删除 `src/renderer/private/overrides.css` 的 `.imb-shell-content { grid-template-columns: 310px 1fr !important }`；`mine` HEAD `87cb86c` 的 `overrides.css:487-488` 仍含该行，故修复**仅存在于工作区**，待 Boss 提交 WIP 后固化。@4 未提交该 WIP 文件（红线：绝不碰 Boss 暂存 WIP）。310px 未回加：310px 属 040ae10 实验值，WIP 已按验收标准 #5 建议的「整体删除该块」把中栏退回基础 300px；若日后想要更宽中栏，应走 `.imb-shell-content:not(.imb-layout-single)` 这类**限定 list-detail** 的作用域，而非曾破坏 single 布局的全局 `!important`。
+
 ## 处理记录
 
 | 日期 | 操作 | 结果 |
@@ -85,3 +115,6 @@ CDP 实测（`scripts/private/cdp-eval.mjs`，`CDP_PORT=9226`）：
 | 2026-10-18 | 以 `040ae10` 为基准在 `/tmp/repro` 独立构建 + 独立 HOME 启动，CDP 实测 `.imb-graph` = 310px | **复现成功**，与 Boss 截图一致 |
 | 2026-10-18 | 折叠/展开导航栏复测 | 仍 310px，排除导航栏因素 |
 | 2026-10-18 | 加回 `.imb-layout-single { grid-template-columns: 1fr !important }` 模拟修复 | 图谱立即铺满 1198px，修复方向验证有效 |
+| 2026-10-18 | @4 测试环境（工作区构建）验证：seed 47 节点，视口 900/1262/1500/1920 × 导航折叠/展开矩阵，grid 均单列、contentpane 铺满、无 310px 陷阱 | **fixed-verified** |
+| 2026-10-18 | @4 复测 list-detail 无回归：chat/employees/cron/spend/settings 均 `300px 754px`、contentpane 隐藏 | 通过 |
+| 2026-10-18 | @4 确认修复仅在暂存 WIP（HEAD `87cb86c` 仍含 310px 覆盖），未提交 WIP 文件；310px 未回加，固化待 Boss 提交 WIP | 已记录，待 Boss 拍板固化 |
