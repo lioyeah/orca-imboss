@@ -9,7 +9,7 @@
 - issue #002 要求把中间栏底部的「新建对话 / 招募」大 Button 改成标题行右侧的 32×32 图标按钮。
 - 老板暂存 WIP 已包含 #001 的修复；**#002 的修复目前只以未暂存改动存在于工作区**（`git diff --stat` 见下），已构建（`out/renderer/assets/index-C1scJDwf.css` + `index-CsI-QzR8.js`）并在测试实例（PID 487264，07:46:29 启动）里跑起来。
 - 决策 D1（底部大按钮是否删除）**在工作区实现里已被裁定为「删除」**：chat 与 employees 两个模块的 footer 大 Button 都被移除，实测 `.imb-pane-footer` 为 null、`.imb-listpane` 内 0 个 `.imb-btn-primary`。
-- ⚠️ **未暂存 = 脆弱**：任何 `git stash` / `git checkout --` / 切分支都会静默丢掉这份修复。建议老板尽快 `git add -N <4 个文件> && git commit --only <4 个文件>`。
+- ⚠️ **这 4 个文件禁止任何 git 写操作（2026-10-19 大总管消息 id 130 起冻结）**：其中 3 个是 **MM 状态**——`list-pane/index.css`、`list-pane/index.tsx`、`chat-module/index.tsx` 在老板暂存区里本来就有它们的 WIP 版本，@5 的编辑叠在上面；`employees-module/index.tsx` 是 ` M`（纯未暂存）。**在 MM 文件上执行 `git add -N` + `git commit --only <路径>` 会把老板暂存的 WIP 内容一起卷进提交**（`commit --only` 提交的是工作区版本）——这正是全队一直防的事。提交策略由大总管决定（正在就「老板 21 个暂存 WIP 何时落账」问老板），他会给精确命令；在那之前：不 add、不 commit、不 stash、不 checkout、不 rebase 这 4 个路径，也不碰老板那 21 个暂存文件。
 
 ---
 
@@ -250,8 +250,7 @@ node scripts/private/cdp-eval.mjs --dpr 2   # 需要时再切回 1
 
 ## 6. 收尾动作（需要老板/大总管决定）
 
-1. **立即提交这 4 个文件**（未暂存改动随时可能被 `stash`/`checkout` 抹掉）：
-   `git add -N src/renderer/components/list-pane/index.css src/renderer/components/list-pane/index.tsx src/renderer/components/modules/chat/chat-module/index.tsx src/renderer/components/modules/employees/employees-module/index.tsx && git commit --only <同样 4 个路径>`（`git add -N` 后必须立刻 commit，且只 commit 这几个路径；老板暂存的 21 个文件不能动）。
-2. 确认 D1：删除底部大按钮是否符合预期（issue #002 的验收标准说「去掉」，040ae10 是保留的）。
+1. **（本条已撤销，以现在这段为准）不要自行提交这 4 个文件。** 本文档 v1（commit `ebfcdd5`）与 @1 的报告（chat 11 report id 128）曾建议 `git add -N <4 路径> && git commit --only <4 路径>`，该建议对 **MM 文件是危险的**：会把老板暂存的 WIP 一起卷进提交。大总管消息 id 130 已冻结这 4 个路径的 git 写操作，提交策略（干净单 commit vs 临时 index 隔离提交）由他拍板，命令会单独下发。
+2. ~~确认 D1：删除底部大按钮是否符合预期~~ **已确认（大总管 id 130/132）**：删除底部大按钮符合老板原话「只需要在中栏的右侧提供代表新建的+号即可」，不用改回 040ae10 的双按钮形态。
 3. 决定这份修复是先进 `mine` 私有分支，还是要整理成可上游 PR 的形态（若是后者，`.imb-pane-action-btn` 的自包含样式 + 无 `!important` 的写法正好适合上游；`IconPlus` 复用也是上游友好写法）。
-4. employees 的 `+` 是纯新增，与 chat 的「恢复」语义不同，commit message 建议分开表述。
+4. employees 的 `+` 是纯新增、chat 的 `+` 是恢复——已确认分开表述，commit message 由大总管来写。
