@@ -136,7 +136,11 @@ export function buildGraph(): GraphPayload {
     chatParentMap.set(row.id, row.from_chat_id);
   }
   const employeeIds = new Set<number>();
-  for (const row of employeeRows) employeeIds.add(row.id);
+  const employeeNameMap = new Map<number, string>();
+  for (const row of employeeRows) {
+    employeeIds.add(row.id);
+    employeeNameMap.set(row.id, row.name.trim());
+  }
 
   // Compute clusterId and hierarchical level for each chat
   const resolveCausalMeta = (id: number): { rootId: number; level: number } => {
@@ -224,6 +228,9 @@ export function buildGraph(): GraphPayload {
       lifecycle = "completed";
     }
 
+    const isRoot = row.from_chat_id === null;
+    const hasUpstream = !isRoot && chatIds.has(row.from_chat_id!);
+
     addNode({
       id: `chat:${row.id}`,
       kind: "chat",
@@ -231,7 +238,10 @@ export function buildGraph(): GraphPayload {
       sub: null,
       weight: messageCounts.get(row.id) ?? 0,
       chatId: row.id,
-      isRoot: row.from_chat_id === null,
+      isRoot,
+      hasUpstreamContext: hasUpstream,
+      upstreamChatId: row.from_chat_id,
+      contextInjectionStatus: isRoot ? "root" : (hasUpstream ? "injected" : "none"),
       participants: participants.length,
       createdAt: createdAtMs,
       updatedAt: lastActiveMs,
@@ -246,6 +256,7 @@ export function buildGraph(): GraphPayload {
     }
     if (row.from_chat_id !== null && chatIds.has(row.from_chat_id)) {
       addEdge(`chat:${row.from_chat_id}`, `chat:${row.id}`, "spawned", 2);
+      addEdge(`chat:${row.id}`, `chat:${row.from_chat_id}`, "depends_on", 2);
     }
   }
 
@@ -389,6 +400,10 @@ export function buildGraph(): GraphPayload {
 
       const artId = `artifact:img_${row.id}`;
       const promptSnippet = row.content.trim().slice(0, 32);
+      const imgProducerName =
+        row.sender_employee_id !== null
+          ? employeeNameMap.get(row.sender_employee_id)
+          : undefined;
       addNode({
         id: artId,
         kind: "artifact",
@@ -398,6 +413,7 @@ export function buildGraph(): GraphPayload {
         artifactType: "image/png",
         sourceChatId: row.chat_id,
         producedByEmployeeId: row.sender_employee_id ?? undefined,
+        producedByEmployeeName: imgProducerName,
         createdAt: createdAtMs,
         clusterId,
         level,
@@ -433,6 +449,10 @@ export function buildGraph(): GraphPayload {
         .filter(Boolean)
         .join(" · ") || "File Artifact";
 
+      const fileProducerName =
+        row.sender_employee_id !== null
+          ? employeeNameMap.get(row.sender_employee_id)
+          : undefined;
       addNode({
         id: artId,
         kind: "artifact",
@@ -444,6 +464,7 @@ export function buildGraph(): GraphPayload {
         artifactSize: file.size,
         sourceChatId: row.chat_id,
         producedByEmployeeId: row.sender_employee_id ?? undefined,
+        producedByEmployeeName: fileProducerName,
         createdAt: createdAtMs,
         clusterId,
         level,
@@ -497,6 +518,32 @@ export function buildGraph(): GraphPayload {
   for (const row of tagRows) {
     if (!chatIds.has(row.chat_id)) continue;
     addEdge(`chat:${row.chat_id}`, `tag:${row.tag}`, "tag", 1);
+  }
+
+  // Calculate upstream artifacts count per chat along causal in-edges
+  const chatProducedArtifacts = new Map<number, number>();
+  for (const node of nodes) {
+    if (node.kind === "artifact" && node.sourceChatId !== undefined) {
+      chatProducedArtifacts.set(
+        node.sourceChatId,
+        (chatProducedArtifacts.get(node.sourceChatId) ?? 0) + 1,
+      );
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.kind === "chat" && node.chatId !== undefined) {
+      let count = 0;
+      let curr = chatParentMap.get(node.chatId);
+      const visited = new Set<number>();
+      while (curr !== null && curr !== undefined) {
+        if (visited.has(curr)) break;
+        visited.add(curr);
+        count += chatProducedArtifacts.get(curr) ?? 0;
+        curr = chatParentMap.get(curr);
+      }
+      node.upstreamArtifactsCount = count;
+    }
   }
 
   // Calculate degrees (inDegree, outDegree, total degree)
