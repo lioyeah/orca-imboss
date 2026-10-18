@@ -58,6 +58,47 @@ IMBOSS_UPSTREAM_APPIMAGE=~/Applications/orca-imboss-1.7.0.AppImage \
   scripts/private/run-compare.sh                  # compare against the shipped build
 ```
 
+`scripts/private/run-test-env.sh` — one isolated instance of the current branch
+for UI verification and fixes, on its own data directory and its own CDP port.
+Every UI round runs here; the boss's running instance is never touched.
+
+```sh
+scripts/private/run-test-env.sh              # build the current branch, then launch
+scripts/private/run-test-env.sh --no-build   # launch the existing out/ build
+scripts/private/run-test-env.sh --status     # our PID + CDP, and the boss's instance for comparison
+scripts/private/run-test-env.sh --stop       # stop only our instance
+```
+
+| knob                 | default                  | what it does                              |
+| -------------------- | ------------------------ | ----------------------------------------- |
+| `IMBOSS_TEST_HOME`   | `~/.imboss-ui-test`      | data HOME (data root `$HOME/.imboss`)     |
+| `IMBOSS_TEST_PORT`   | `9224`                   | CDP port (compare uses 9222/9223)         |
+| `IMBOSS_TEST_LOG`    | `$IMBOSS_TEST_HOME/imboss-test.log` | instance log                  |
+| `IMBOSS_TEST_BUILD_CMD` | `pnpm run build`      | build command (`--no-build` skips it)     |
+| `IMBOSS_TEST_EXTRA_ARGS` | `--no-sandbox --ozone-platform=wayland` | extra Electron flags |
+
+The PID goes to `~/.imboss-ui-test/imboss-test.pid`, and `--status` also prints
+the boss's process list and `~/.imboss` mtime next to the baseline taken at
+start, so "the boss's instance is untouched" is checkable at any time.
+
+There is no `--headless` mode on purpose: the verification loop drives a real
+window (cua-driver, Wayland) and needs real screenshots.
+
+`scripts/private/cdp-eval.mjs` — talk to that instance over CDP when a finding
+needs numbers instead of only a picture.
+
+```sh
+node scripts/private/cdp-eval.mjs --list                          # page targets
+node scripts/private/cdp-eval.mjs --shot evidence/before.png       # screenshot
+node scripts/private/cdp-eval.mjs --eval 'document.title'
+node scripts/private/cdp-eval.mjs --dpr 2 --eval '<measure something>'
+```
+
+`--dpr` forces a device scale factor through `Emulation.setDeviceMetricsOverride`
+(`--dpr 1` restores it), which is how a HiDPI-only layout bug gets reproduced on
+a dpr-1 display. Seed data is created through the UI inside the test instance —
+never by editing a database file, and never the boss's `~/.imboss`.
+
 The "mine" side is whatever branch is checked out, so the same script also
 compares a PR branch against upstream.
 
