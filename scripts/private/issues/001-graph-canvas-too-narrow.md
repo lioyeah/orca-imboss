@@ -1,6 +1,6 @@
 # 001 · 图谱画布只占内容区一小块（常规尺寸与最大化一致）
 
-- **状态**: `fixed-verified`（@4 已在工作区构建上验证通过；修复 = 暂存 WIP 删除 310px 覆盖块，待 Boss 提交 WIP 后固化为 `mine` 提交）
+- **状态**: `fixed-verified`（@4 已在工作区构建上验证通过；修复 = 暂存 WIP 删除 310px 覆盖块，待 Boss 提交 WIP 后固化为 `mine` 提交。@3 已独立复测确认）
 - **报告人**: Boss（chat 10）
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 高（核心视图不可用）
@@ -118,3 +118,7 @@ single 布局机制：图谱与 miniapp / group-chat / agent-session 共用 `.im
 | 2026-10-18 | @4 测试环境（工作区构建）验证：seed 47 节点，视口 900/1262/1500/1920 × 导航折叠/展开矩阵，grid 均单列、contentpane 铺满、无 310px 陷阱 | **fixed-verified** |
 | 2026-10-18 | @4 复测 list-detail 无回归：chat/employees/cron/spend/settings 均 `300px 754px`、contentpane 隐藏 | 通过 |
 | 2026-10-18 | @4 确认修复仅在暂存 WIP（HEAD `87cb86c` 仍含 310px 覆盖），未提交 WIP 文件；310px 未回加，固化待 Boss 提交 WIP | 已记录，待 Boss 拍板固化 |
+| 2026-10-18 | **@3 独立复测**（不依赖 @4 证据，另写 `/tmp/cdp-metrics.mjs` 用 `Emulation.setDeviceMetricsOverride` 直接设视口）：`grep -rn 'grid-template-columns.*!important' src/renderer/private/` → 0 命中，私有层已无该覆盖；基础 `.imb-layout-single` 规则完好 | 修复成立，未引入 `!important` 军备竞赛 |
+| 2026-10-18 | @3 复测图谱铺满：视口 900×700 / 1262×1030 / 1920×1080 三档，`.imb-graph` 与 `.imb-contentpane` 宽度逐一相等（824 / 1186 / 1844）；导航展开 208px 时 1054px、折叠 64px 时 1186px，均铺满 | 通过（证据 `evidence/001-verify-steward-1262-expanded.png`，47 节点 / 45 连线富数据） |
+| 2026-10-18 | @3 复测 list-detail 无回归：对话 / 员工 / 定时任务 / 统计 / 设置 均 `300px 754px`，中栏 pane 300px、内容区 754px | 通过 |
+| 2026-10-18 | @3 记录环境限制：miniapp 也是 single 布局，但该表面只在存在 mini-app 时由 nav 动态渲染，隔离测试实例内未安装任何 mini-app，**本次无法实测**；需 @4 或有 mini-app 的环境补一份证据 | 待补证据（不影响 #001 结论，根因与修复均为同一网格规则） |
