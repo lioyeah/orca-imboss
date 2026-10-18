@@ -488,14 +488,74 @@
   padding: calc(var(--imb-titlebar-h) + 14px) 12px 14px 12px;
 }
 
+/* Navigation brand header with integrated top-right toggle */
 .imb-nav-brand {
-  padding: 6px 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px 18px 8px !important;
+}
+
+.imb-nav-brand-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .imb-nav-brandname {
   font-size: 15.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+/* Top-right icon toggle button */
+.imb-nav-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: var(--imb-radius-sm) !important;
+  background: transparent !important;
+  border: none;
+  color: var(--imb-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-nav-toggle:hover {
+  color: var(--imb-fg) !important;
+  background: color-mix(in oklab, var(--imb-fg) 8%, transparent) !important;
+}
+
+.imb-nav-toggle .imb-icon {
+  width: 17px;
+  height: 17px;
+  transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-nav.imb-is-collapsed .imb-nav-brand {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 16px !important;
+}
+
+.imb-nav.imb-is-collapsed .imb-nav-toggle {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.imb-nav.imb-is-collapsed .imb-nav-toggle .imb-icon {
+  transform: rotate(180deg);
 }
 
 .imb-nav-items {
@@ -527,12 +587,6 @@
   box-shadow:
     inset 0 0 0 1px color-mix(in oklab, var(--imb-accent) 22%, transparent),
     0 1px 3px rgba(20, 28, 24, 0.04) !important;
-}
-
-.imb-nav-toggle {
-  height: 38px;
-  border-radius: var(--imb-radius-md);
-  padding: 0 14px;
 }
 
 /* Floating Header with translucency and spatial hierarchy */

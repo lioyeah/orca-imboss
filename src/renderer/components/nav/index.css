@@ -12,8 +12,16 @@
 .imb-nav-brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px 18px 8px;
+}
+
+.imb-nav-brand-title {
+  display: flex;
+  align-items: center;
   gap: 10px;
-  padding: 6px 10px 18px;
+  min-width: 0;
 }
 
 .imb-nav-brandname {
@@ -138,14 +146,20 @@
 .imb-nav-toggle {
   display: flex;
   align-items: center;
-  gap: 11px;
-  width: 100%;
-  padding: 8px 12px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   background: none;
   border: none;
   cursor: pointer;
   border-radius: var(--imb-radius-md);
-  white-space: nowrap;
+  color: var(--imb-muted);
+  flex-shrink: 0;
+  transition:
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
 .imb-nav-toggle:hover {
@@ -159,27 +173,19 @@
 }
 
 .imb-nav-toggle .imb-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
-}
-
-.imb-nav-toggle span {
-  font-size: 14px;
-  white-space: nowrap;
+  transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
 .imb-nav.imb-is-collapsed .imb-nav-toggle {
-  justify-content: center;
-  padding: 11px 0;
+  width: 32px;
+  height: 32px;
 }
 
 .imb-nav.imb-is-collapsed .imb-nav-toggle .imb-icon {
   transform: rotate(180deg);
-}
-
-.imb-nav.imb-is-collapsed .imb-nav-toggle span {
-  display: none;
 }
 
 .imb-app.imb-is-collapsed {
@@ -192,8 +198,11 @@
 }
 
 .imb-nav.imb-is-collapsed .imb-nav-brand {
+  flex-direction: column;
   justify-content: center;
-  padding: 6px 1px 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 16px;
 }
 
 .imb-nav.imb-is-collapsed .imb-nav-item {
