@@ -5,7 +5,7 @@
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 中（中栏头部占两行，视觉冗余）
 - **组件/区域**: 对话模块中栏（chat-module 的 ListPane 头部）
-- **相关提交**: 当前 `mine` HEAD `3da025f`（含 Boss 暂存 WIP）
+- **相关提交**: 报告时 `mine` HEAD `3da025f`（含 Boss 暂存 WIP）；**基线复测时（2026-10-19）HEAD 为 `9aaf0a9`**（= `3e5fcee` 老板 WIP 落账 + #002 `feat(ui)` 修复），形态未变（见下方「基线实测」）
 - **环境**:
   - 分支 `mine`，commit `3da025f`
   - 构建：`scripts/private/run-test-env.sh` 默认模式
@@ -38,6 +38,35 @@ CDP 实测（`CDP_PORT=9224`）：
 | `.imb-chat-search-stack` | x=216 y=65 w=283 h=70（内含两行） |
 | 搜索框 `.imb-searchbox` | 283×34 |
 | 标签筛选触发器 `.imb-chat-tag-filter .imb-ms-trigger` | x=216 y=101 w=283 h=34 |
+
+## 基线实测（修复前 · 供 before/after 对比）
+
+> 2026-10-19 由 @3 在**已含 #002 修复**的 HEAD（`9aaf0a9` = `3e5fcee` 老板 WIP + `feat(ui)` + 号按钮）上重测。注意：由于 #002 给中栏加了标题行 `actions` 插槽，头部已从 123px 变为 **126px**，列表起点从 y=146 起算不变。
+
+被测：测试实例 PID 499924，CDP 9224，视口 1262×1030，导航展开。
+
+| 项 | 修复前实测值 |
+| --- | --- |
+| `.imb-pane-header` | x=76 y=20 w=299 **h=126** |
+| `.imb-pane-header-top`（#002 的标题 + 号行） | x=84 y=20 w=283 h=48 |
+| `.imb-chat-search-stack` | x=84 y=68 w=283 **h=70**（两行） |
+| 搜索框 input（placeholder `搜索对话`） | x=121 y=71 w=183 h=26 |
+| 标签筛选触发器 `.imb-chat-tag-filter .imb-ms-trigger` | x=84 y=104 w=283 h=34（placeholder `按标签筛选`） |
+| 列表容器 | x=76 **y=146** w=299 **h=884** |
+| 行级 `.imb-chat-tag-select`（禁动） | **18** 个 |
+| `.imb-chat-filter-row`（040ae10 旧单选行） | **不存在**（`null`）——当前形态就是 `imb-chat-search-stack` 内的第二行，不是旧 filter-row |
+| 横向溢出 | `scrollWidth > innerWidth` = false |
+
+证据：`evidence/004-steward-baseline-chat.png`（1262×1030，可见标题 + 号、`搜索对话`、`按标签筛选` 第二行、下方列表）。
+
+**@1 蓝图（`004-blueprint.md`，commit `23a69d0`）PP1 的几何预测**（修复后对照用）：头部 126 → **88px**，列表 y 146 → **108**、高 884 → **922**。复测时直接对比这两组数。
+
+**@3 的 CDP 技术备注（复测 #004 时直接用，避免假阴性）**：
+1. `Page.captureScreenshot` 传 `fromSurface: false` 在**本应用会挂住**（promise 永不 resolve，直到超时）；用默认（`fromSurface: true`）即可。
+2. 用真实 `Input.dispatchMouseEvent`（mousePressed/mouseReleased）点导航项**不会激活按钮**（hover 生效、tooltip 弹出，但模块不切换——Tooltip 层吞掉了默认动作）；导航切换请用合成事件：`el.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window}))`。
+3. `Emulation.setDeviceMetricsOverride`（`/tmp/cdp-metrics.mjs` 每次都调）会让应用**重置回持久化的模块**（疑似触发渲染层重载，`initAppStore()` 从 `SettingKeys.Module` 恢复）；所以「先设视口、再点导航」的顺序才是对的，设完视口必须重新导航一次。
+4. 导航激活态类名是 `imb-is-active`（不是 `imb-nav-item--active`），aria 上是 `aria-current="page"`。
+5. 截图前后各取一次 DOM 状态、两者一致才认该图（本次基线图拍摄前后均为 `对话` + searchStack=true）。
 
 ## 根因分析 / 现状定位
 
@@ -89,3 +118,4 @@ CSS 在 `src/renderer/components/modules/chat/chat-module/index.css:79-95`：`.i
 | --- | --- | --- |
 | 2026-10-18 | 实测 `3da025f` 测试实例的对话中栏头部 | 确认搜索框与标签筛选各占一整行，头部 123px，两行无视觉关联 |
 | 2026-10-18 | 读取 `chat-module/index.tsx:775-812` 与 `index.css:79-95` | 定位到 `imb-chat-search-stack` 内并列 `SearchInput` + `TagSelect`，CSS 纵向堆叠 |
+| 2026-10-19 | 在含 #002 修复的 `9aaf0a9` 上重测基线（@3） | 头部 126px（#002 标题行使 123→126）、search-stack 283×70 两行、列表 y146 h884、行级 tag-select 18 个；旧 `.imb-chat-filter-row` 已不存在；截图 `004-steward-baseline-chat.png` |
