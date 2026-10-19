@@ -76,3 +76,19 @@ Precise location: between "assistant message persisted" and "provider request bu
 ## 6. Read-only compliance
 
 No process killed or restarted; no writes to the live instance, `~/.imboss`, `~/.config/orca-imboss`, or `/tmp/.mount_imbosspWR5iY`; no repo writes other than this document (committed with `git add -N` + `git commit --only`); the boss's 21 staged WIP files untouched (`git diff --cached --name-only | wc -l` = 21 before and after). Live instance verified healthy throughout: PID 261970 unchanged, `~/.imboss` mtime still `2026-10-18 10:46:48`.
+
+## 7. 行号勘误(据 `005-toolcall-sanitize-pr-spec.md` 复验,2026-10-19)
+
+原文 §1/§2 的行号有一处系统性 +1 偏移(当时按 `grep -n` 的视觉行号记录,未按 JSONL 逐行解析核对)。**事实与结论不变,仅行号修正**;后续引用请以本节与 005 文档 §1.2 为准。
+
+| 原文行号 | 准确行号 | 内容 |
+| --- | --- | --- |
+| `4.jsonl:123` | **`4.jsonl:124`** | 毒化 assistant 消息(`stopReason: toolUse`,`2026-10-18T04:03:23.096Z`),`message.content[]` 内含两个 `{type:"toolCall"}` 条目:第一个 `name="bash"` `id="chatcmpl-tool-9514387ab685a2b2"`(正常),第二个 `name=""` `id="call_18df83e6959c779000000001"` `arguments={}`(**空名,id 前缀 `call_` 而非 `chatcmpl-tool-`,即结构畸形的 provider 输出**) |
+| `4.jsonl:125` | **`4.jsonl:126`** | 孤立 error toolResult:`role: toolResult` `toolCallId="call_18df83e6959c779000000001"` `toolName=""` `text="Tool  not found"` `isError=true`,`2026-10-18T04:03:23.131Z` |
+| `4.jsonl:126` | **`4.jsonl:127`** | 第一次 400:`stopReason: "error"`,`2026-10-18T04:03:24.346Z`,errorMessage `400: {"code":null,"message":"StepFun (China): tool_calls.function.name is required","param":null,"type":"invalid_request_error"}`,usage 全 0 |
+| `4.jsonl:129` | **`4.jsonl:130`** | 第二次 400:`2026-10-18T09:21:43.806Z`(回复 ping id 107,1.76 s) |
+| `4.jsonl:132` | **`4.jsonl:133`** | 第三次 400:`2026-10-18T23:36:34.846Z`(回复 notify id 115,1.37 s)= 文件最后 mtime |
+| `4.jsonl:127-128`(wake pair) | **`4.jsonl:128-129`** | id 107 的 system+user 唤醒对 |
+| `4.jsonl:130-131`(wake pair) | **`4.jsonl:131-132`** | id 115 的 system+user 唤醒对 |
+
+补充取证口径(与 005 一致):toolCall 在 `4.jsonl` 里位于 `message.content[]` 的 `{type:"toolCall", id, name, arguments}` 条目中,**不是**顶层 `toolCalls` 字段——写巡检脚本时按这个结构走,否则会漏报(本次巡检脚本第一版即因此漏报,已修正)。
