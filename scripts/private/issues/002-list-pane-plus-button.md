@@ -1,6 +1,6 @@
 # 002 · 中栏「新对话 / 招募」底部大按钮应改为标题右侧 + 号
 
-- **状态**: `verified`（已核实，等待修复）
+- **状态**: `fixed-verified`（@3 独立复测通过；修复实现位于工作区未暂存改动，尚未提交，固化待 Boss 决策）
 - **报告人**: Boss（chat 10）
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 中（视觉噪声，与 quiet 设计语言冲突）
@@ -64,3 +64,29 @@ CDP 实测（`CDP_PORT=9224`，`scripts/private/cdp-eval.mjs`）：
 | --- | --- | --- |
 | 2026-10-18 | 在 `3da025f` 测试实例上实测两个模块中栏 | 确认均只剩底部整宽大按钮，标题栏无 actions 槽 |
 | 2026-10-18 | 比对 `040ae10` 源码 | 确认 `040ae10` 已有 ListPane `actions` 槽 + 对话模块 + 号；暂存 WIP 删除 |
+
+## @3 独立复测记录（2026-10-19）
+
+**被测构建**：测试实例 PID **499924**（CDP 端口 9224，HOME `~/.imboss-ui-test`），产物 `out/renderer/assets/index-CtQnmfFE.css`（07:59:50 构建，晚于源码改动 07:42–07:59:40），即当前工作区（含 #002 实现的未暂存改动）。
+
+### 验收逐条
+
+| # | 验收标准 | 实测 | 结论 |
+| --- | --- | --- | --- |
+| 1 | 标题右侧 + 号 / 底部大按钮移除 | 对话：`.imb-pane-action-btn` 32×32 @ x=335 y=20（中栏右缘 376，右内缩 9px），radius 10px；`.imb-pane-footer` = null，中栏内 `.imb-btn-primary` = 0。员工：同规格 32×32 @ x=335，footer null、primary 0 | 通过 |
+| 2 | 点击行为不变 | 对话：先选中 `Seed chat 45`（activeIdx 7）→ 点 + → active 切到索引 0 的新建空「新对话」，详情标题同步 → `newChat()` 行为一致。员工：点 + → 弹出招募弹窗（含「未命名」名字框 +「如：调研员」角色框）→ `setRecruitOpen(true)` 一致；Esc 可关闭 | 通过 |
+| 3 | Tooltip + aria-label 复用现有键 | aria-label 实测「新对话」/「招募」；`t("New Chat")`/`t("Recruit")` 键已存在于 `src/shared/translations/zhCN.json:240,309`，未新增键 | 通过 |
+| 4 | 300px 窄宽不挤压 | 视口 1262×1030 / 1024×768 / 900×700 / 800×600 × 导航展开/折叠共 8 组：按钮恒 32×32、右内缩恒 9px、标题右缘到按钮左缘间距恒 211px、搜索区恒 283px 宽（对话 70px 高 = SearchInput + TagSelect 两行完好），`scrollWidth > innerWidth` 恒 false | 通过 |
+| 5 | 其他 ListPane 消费者无回归 | `actions` 为可选 prop（`actions?: ReactNode`，仅 `!== undefined` 时渲染）。几何中性证明：把 padding 移回标题模拟修复前，**无 actions 按钮的消费者 header 高度完全不变**——定时任务 85→85、统计 135→135、设置/模型服务商/MCP/技能 53→53；仅对话/员工因 32px 按钮高于 29px 标题行而 +3px（1262×1030 下 123→126）。模型服务商/MCP/技能原有的 footer 主色按钮（添加模型提供商 / 添加 MCP Server / 导入技能）均未被动 | 通过 |
+| 6 | 键盘可达 | 原生 `<button type="button">`、无 tabindex 覆盖，`focus()` 后 `activeElement === btn`。用 CDP `Input.dispatchKeyEvent` 发**可信**按键（关键：必须带 `text` 字段，Enter 传 `\r`、Space 传 ` `，否则默认点击动作不触发——这是 CDP 用法问题非应用缺陷，已用注入的裸按钮做对照确认）：Enter 与 Space 均产生真实 `click` 并打开招募弹窗 | 通过 |
+| 7 | quiet 视觉 | `.imb-pane-action-btn` 自包含：32×32、`var(--imb-radius-md)`、`var(--imb-muted)`、透明底、hover `--imb-fg-soft`/`--imb-fg`、`:focus-visible` `var(--imb-focus-ring)`；`list-pane/index.css` 内 `!important` 计数 **0** | 通过 |
+
+### 证据
+
+- `evidence/002-verify-steward-chat.png`：对话中栏，标题右侧 + 号、底部无大按钮、搜索 + 标签筛选两行完好
+- `evidence/002-verify-steward-employees.png`：员工中栏同规格
+
+### 遗留
+
+- 修复实现**仍未提交**（4 个文件 `MM`/`M` 状态：`list-pane/index.tsx`、`list-pane/index.css`、`chat-module/index.tsx`、`employees-module/index.tsx`）。任何 `stash`/`checkout` 都会静默丢失；提交与否由 Boss 决策（@0 已冻结 agent 代提建议）。提交后我可立即在新 commit 上做最终复测。
+- CSS 注释说明 `.imb-pane-action-btn` 必须自包含的原因（`.imb-icon-btn` 基础样式表只在 `IconButton` 组件被 import 时才进 bundle）——实测确认当前 bundle 无该基础表，自包含写法是必要的。
