@@ -105,7 +105,7 @@ CSS 在 `src/renderer/components/modules/chat/chat-module/index.css:79-95`：`.i
 
 1. 独立的第二行筛选控件移除：`.imb-chat-search-stack` 内不再出现第二个整宽行，中栏头部回到「标题 + 一行搜索栏」。
 2. 标签筛选能力完整保留并集成进搜索栏，形态由 @4 定（栏内筛选图标 + 弹层，或栏内可移除 chips 均可），但必须保留现有全部能力：多选、`allowNoTag`（「无标签」虚拟选项）、`options={tagOptions}`。
-3. 筛选行为与现状一致：仍是多选 `tagFilter` 数组，`onChange` 仍走 `setTagFilter`；不得改成单选或改语义。
+3. 筛选行为与现状一致：仍是多选 `tagFilter` 数组，`onChange` 仍走 `setTagFilter`；不得改成单选或改语义。**语义实测定论（2026-10-19）是 AND 不是 OR**：`src/main/db/chats.ts:173-181` 为 `c.id IN (SELECT chat_id FROM chat_tags WHERE tag IN (?, ?) GROUP BY chat_id HAVING COUNT(DISTINCT tag) = ?)`，注释原文 "Tag filter (AND): the chat must carry every requested tag"——选 2 个标签只列出**同时带这两个标签**的对话；`noTags` 则是 `NOT EXISTS`（完全没有标签）。复测按此判：选 1 个标签 → 每渲染行都带该标签；选 2 个 → 每渲染行都带两个（当前种子数据无此对话 → 0 行 + 空态「没有带这些标签的对话」）。
 4. 当前生效的筛选条件在栏内可见（至少显示已选数量或已选标签 chips），且可一键清除（清空后回到「按标签筛选」占位态）。
 5. 联动不回归：`serverMode`（`isSearching || tagFilter.length > 0`）、`tagFilterKey` 请求参数、空列表文案 `chatListEmptyMessage(isSearching, tagFilter.length)` 三条链路行为不变。
 6. 中栏窄宽度（≈300px）下可用：搜索框不被筛选控件挤压到无法输入，筛选入口仍可点击。
@@ -119,3 +119,5 @@ CSS 在 `src/renderer/components/modules/chat/chat-module/index.css:79-95`：`.i
 | 2026-10-18 | 实测 `3da025f` 测试实例的对话中栏头部 | 确认搜索框与标签筛选各占一整行，头部 123px，两行无视觉关联 |
 | 2026-10-18 | 读取 `chat-module/index.tsx:775-812` 与 `index.css:79-95` | 定位到 `imb-chat-search-stack` 内并列 `SearchInput` + `TagSelect`，CSS 纵向堆叠 |
 | 2026-10-19 | 在含 #002 修复的 `9aaf0a9` 上重测基线（@3） | 头部 126px（#002 标题行使 123→126）、search-stack 283×70 两行、列表 y146 h884、行级 tag-select 18 个；旧 `.imb-chat-filter-row` 已不存在；截图 `004-steward-baseline-chat.png` |
+
+| 2026-10-19 | 探针 `/tmp/verify-004.mjs --filter` 冒烟跑通（pre-fix 态 9/9 断言 PASS）；定案标签筛选语义为 AND（`chats.ts:173-181`），issue 验收③补入；runbook `3eec804` 记 7 条探针教训 | 行为链可自动复现，等 @5 实现后即可复测 |
