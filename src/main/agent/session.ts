@@ -46,6 +46,7 @@ import { toMcpServerEntries } from "./mcp";
 import { getModelRuntime, resolveModel } from "./model-runtime";
 import { loadPiSdk, type PiSdk } from "./pi-sdk";
 import { listSkills } from "./skills";
+import { createToolCallSanitizerExtension } from "./toolcall-sanitizer";
 import { createShellToolDefinitions } from "./tools";
 import { readUserEnv } from "./user-env";
 import { resolveWorkDir } from "./workdir";
@@ -375,6 +376,11 @@ export class AgentSession {
       }),
     });
 
+    // Malformed tool calls (empty/unregistered `function.name`) survive in the
+    // session history and make every later provider request fail with a 400;
+    // this strips them from the outgoing payload.
+    const toolCallSanitizerExtension = createToolCallSanitizerExtension();
+
     const shellTools = await createShellToolDefinitions({ cwd });
     // Role-based team tools: the assistant orchestrates; participants just
     // work inside chats. The context is guaranteed by `prepare()`.
@@ -513,8 +519,10 @@ export class AgentSession {
         ? { additionalSkillPaths: [getBuiltinSkillsDir()] }
         : {}),
       // Built-in extensions are opt-in for SDK hosts; add the MCP extension so
-      // this session connects the employee's servers.
-      extensionFactories: [mcpExtension],
+      // this session connects the employee's servers, and the tool-call
+      // sanitizer so a malformed call can never poison the session (see
+      // `toolcall-sanitizer.ts`).
+      extensionFactories: [mcpExtension, toolCallSanitizerExtension],
     });
     await resourceLoader.reload();
 
