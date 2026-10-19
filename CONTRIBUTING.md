@@ -64,11 +64,12 @@ pnpm dev        # run the app in development
 
 ```bash
 pnpm typecheck  # type-check the main and renderer processes
+pnpm test       # run the Node test runner (src/**/*.test.ts)
 pnpm build      # type-check + production build
 pnpm format     # format with Prettier
 ```
 
-Please make sure `pnpm typecheck` and `pnpm build` pass.
+Please make sure `pnpm typecheck`, `pnpm test` and `pnpm build` pass.
 
 ### Code style
 
