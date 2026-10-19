@@ -35,7 +35,6 @@ const DIRECTED_KINDS: ReadonlySet<GraphEdgeKind> = new Set([
   "produces",
   "references",
   "invokes",
-  "depends_on",
 ]);
 
 interface InspectorLink {
@@ -153,7 +152,7 @@ export function GraphModule(): React.JSX.Element {
   // Perspective presets for links & entities
   useEffect(() => {
     if (perspective === "causality") {
-      setEnabled(new Set(["spawned", "attached", "progress", "produces", "depends_on"]));
+      setEnabled(new Set(["spawned", "attached", "progress", "produces"]));
     } else if (perspective === "collaboration") {
       setEnabled(new Set(["participant", "session", "invokes"]));
     } else if (perspective === "artifacts") {
@@ -473,11 +472,6 @@ export function GraphModule(): React.JSX.Element {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    const injectedContextCount = nodes.filter(
-      (n) => n.kind === "chat" && n.hasUpstreamContext === true,
-    ).length;
-    const dependsOnLinks = edges.filter((e) => e.kind === "depends_on").length;
-
     return {
       chatCount,
       employeeCount,
@@ -488,8 +482,6 @@ export function GraphModule(): React.JSX.Element {
       totalLinks: edges.length,
       topEmployees,
       topTools,
-      injectedContextCount,
-      dependsOnLinks,
     };
   }, [payload]);
 
@@ -994,25 +986,6 @@ export function GraphModule(): React.JSX.Element {
                       {t("Participants")}: {selected.participants}
                     </span>
                   )}
-                {selected.hasUpstreamContext && (
-                  <span
-                    className="imb-graph-metric-tag imb-graph-metric--injected"
-                    title={t("Upstream causal context injected into agent runtime")}
-                  >
-                    ✓ {t("Context Injected")}
-                  </span>
-                )}
-                {selected.upstreamArtifactsCount !== undefined &&
-                  selected.upstreamArtifactsCount > 0 && (
-                    <span className="imb-graph-metric-tag">
-                      {t("Upstream Artifacts")}: {selected.upstreamArtifactsCount}
-                    </span>
-                  )}
-                {selected.kind === "artifact" && selected.producedByEmployeeName && (
-                  <span className="imb-graph-metric-tag">
-                    {t("Producer")}: {selected.producedByEmployeeName}
-                  </span>
-                )}
                 {selected.weight > 0 && (
                   <span className="imb-graph-metric-tag">
                     {selected.kind === "chat"
@@ -1090,28 +1063,6 @@ export function GraphModule(): React.JSX.Element {
             </header>
 
             <div className="imb-graph-inspector-body">
-              {selected.kind === "artifact" && selected.artifactPath && (
-                <div className="imb-graph-artifact-path-row">
-                  <span
-                    className="imb-graph-artifact-path-val"
-                    title={selected.artifactPath}
-                  >
-                    {selected.artifactPath}
-                  </span>
-                  <button
-                    type="button"
-                    className="imb-graph-copy-btn"
-                    onClick={() => {
-                      if (selected.artifactPath) {
-                        void navigator.clipboard.writeText(selected.artifactPath);
-                      }
-                    }}
-                    title={t("Copy artifact file path")}
-                  >
-                    {t("Copy Path")}
-                  </button>
-                </div>
-              )}
               <div className="imb-graph-inspector-section-title">
                 {t("Connections")} ({links.length})
               </div>
@@ -1217,47 +1168,6 @@ export function GraphModule(): React.JSX.Element {
             </header>
 
             <div className="imb-graph-topo-body">
-              {/* Graph-as-Infrastructure Observability Card */}
-              <div className="imb-graph-topo-card">
-                <span className="imb-graph-topo-card-title">
-                  {t("Graph-as-Infrastructure Observability")}
-                </span>
-                <div className="imb-graph-topo-grid">
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.injectedContextCount}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Causal Injections")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.artifactCount}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Artifacts Registered")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.dependsOnLinks}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Dependency Links")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val" style={{ color: "#10b981" }}>
-                      ● {t("Active")}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Backend Status")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               {/* Network Overview Card */}
               <div className="imb-graph-topo-card">
                 <span className="imb-graph-topo-card-title">

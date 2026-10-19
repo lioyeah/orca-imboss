@@ -22,7 +22,6 @@ export type GraphNodeKind = "chat" | "employee" | "tag" | "artifact" | "tool";
  * - `produces`: a chat or employee produced an artifact.
  * - `references`: a chat or task references/consumes an artifact.
  * - `invokes`: a chat or employee invoked a tool/capability.
- * - `depends_on`: a task or artifact depends on an upstream dependency.
  */
 export type GraphEdgeKind =
   | "spawned"
@@ -33,8 +32,7 @@ export type GraphEdgeKind =
   | "tag"
   | "produces"
   | "references"
-  | "invokes"
-  | "depends_on";
+  | "invokes";
 
 /** Lifecycle state of a conversation or task node. */
 export type NodeLifecycle =
@@ -98,18 +96,6 @@ export interface GraphNode {
   sourceChatId?: number;
   /** Employee id that produced the artifact or invoked the tool. */
   producedByEmployeeId?: number;
-  /** Employee name who produced the artifact. */
-  producedByEmployeeName?: string;
-  /** Downstream chats that consume or reference this artifact. */
-  consumedByChatIds?: number[];
-  /** Causal DAG Context: whether this chat node has upstream causal context injected. */
-  hasUpstreamContext?: boolean;
-  /** Direct upstream parent chat id. */
-  upstreamChatId?: number | null;
-  /** Number of upstream artifacts injected. */
-  upstreamArtifactsCount?: number;
-  /** Context injection status. */
-  contextInjectionStatus?: "injected" | "root" | "none";
   /** Milliseconds epoch timestamp when node was created. */
   createdAt?: number;
   /** Milliseconds epoch timestamp when node was last active/updated. */
@@ -154,41 +140,4 @@ export interface GraphPayload {
   minTime?: number;
   /** Latest updatedAt/createdAt across all nodes in epoch ms. */
   maxTime?: number;
-}
-
-export interface UpstreamArtifact {
-  id: string;
-  name: string;
-  path?: string;
-  type?: string;
-  size?: number;
-  sourceChatId: number;
-  producedByEmployeeId?: number;
-  producedByEmployeeName?: string;
-  description?: string;
-}
-
-export interface UpstreamMilestone {
-  chatId: number;
-  employeeId?: number;
-  employeeName?: string;
-  kind: string;
-  summary: string;
-  timestamp: number;
-}
-
-export interface UpstreamCausalContext {
-  chatId: number;
-  isRoot: boolean;
-  ancestorChain: Array<{
-    chatId: number;
-    title: string;
-    level: number;
-    isRoot: boolean;
-  }>;
-  parentObjective?: string;
-  artifacts: UpstreamArtifact[];
-  milestones: UpstreamMilestone[];
-  collaboratorIds: number[];
-  xml: string;
 }

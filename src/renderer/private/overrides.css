@@ -4,765 +4,59 @@
  * Loaded after `theme.css` and after every upstream stylesheet, so equal
  * specificity resolves to these rules. Keep this file focused: if a change can be
  * expressed as a token in `theme.css`, put it there instead.
- *
- * Collect UI Craft Pass:
- * 1. Floating Island Composer (悬浮输入岛)
- * 2. Card-Stream Chat List (会话列表独立微卡片流)
- * 3. Message Bubbles & Typography Scale (流向气泡与毛玻璃卡片)
- * 4. Spacious Sidebar & Floating Header (通透顶栏与空间侧栏)
  */
 
-/* =====================================================================
- * 1. 浮岛式输入框 (Floating Island Composer)
- * ===================================================================== */
-
-/* Break away from traditional bottom pinned bar into an elevated island */
-.imb-chat-input-wrap {
-  background: var(--imb-bg) !important;
-  border-top: none !important;
-  padding-top: var(--imb-space-2) !important;
-  padding-bottom: 22px !important;
-  padding-inline: max(
-    var(--imb-space-6),
-    calc((100% - var(--imb-private-measure)) / 2)
-  ) !important;
-}
-
-/* Floating composer island container */
-.imb-chat-input-card {
-  background: var(--imb-surface) !important;
-  border: 1px solid var(--imb-border) !important;
-  border-radius: var(--imb-radius-lg) !important; /* 18px */
-  overflow: hidden;
+/* The thread pane and the received bubble both read --imb-surface, so the
+   bubble had no boundary of its own — invisible in dark mode, where the
+   elevation shadow does not show. Give it its own fill, and a hairline ring so
+   it still reads as a bubble on the near-white pane in light mode. */
+.imb-msg.imb-other .imb-bubble {
+  background: var(--imb-private-bubble-other);
   box-shadow:
-    0 1px 2px rgba(20, 28, 24, 0.04),
-    0 10px 30px -4px rgba(20, 28, 24, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  transition:
-    border-color var(--imb-motion-fast) var(--imb-ease-standard),
-    box-shadow var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard);
+    0 0 0 1px var(--imb-border),
+    var(--imb-elev-raised);
 }
 
-:root[data-theme-mode="dark"] .imb-chat-input-card {
+/* The sent bubble receives a refined hairline boundary to match the tactile
+   depth of received bubbles on the light stone canvas. */
+.imb-msg.imb-self .imb-bubble {
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.07),
-    0 4px 16px -2px rgba(0, 0, 0, 0.5),
-    0 16px 40px -6px rgba(0, 0, 0, 0.65);
+    0 0 0 1px color-mix(in oklab, var(--imb-accent) 18%, transparent),
+    0 1px 2px rgba(20, 28, 24, 0.04);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-chat-input-card {
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.07),
-      0 4px 16px -2px rgba(0, 0, 0, 0.5),
-      0 16px 40px -6px rgba(0, 0, 0, 0.65);
-  }
-}
-
-/* Focused ambient aura ring */
-.imb-chat-input-card:focus-within {
-  border-color: var(--imb-accent) !important;
-  box-shadow:
-    0 0 0 3.5px color-mix(in oklab, var(--imb-accent) 18%, transparent),
-    0 12px 32px -4px color-mix(in oklab, var(--imb-accent) 15%, transparent),
-    0 2px 6px rgba(20, 28, 24, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-}
-
-:root[data-theme-mode="dark"] .imb-chat-input-card:focus-within {
-  box-shadow:
-    0 0 0 3.5px color-mix(in oklab, var(--imb-accent) 26%, transparent),
-    0 16px 40px -6px color-mix(in oklab, var(--imb-accent) 20%, transparent),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-chat-input-card:focus-within {
-    box-shadow:
-      0 0 0 3.5px color-mix(in oklab, var(--imb-accent) 26%, transparent),
-      0 16px 40px -6px color-mix(in oklab, var(--imb-accent) 20%, transparent),
-      0 0 0 1px rgba(255, 255, 255, 0.1);
-  }
-}
-
-/* Multiline comfortable textarea */
-.imb-textarea.imb-chat-input-textarea {
-  padding: 14px 18px 8px !important;
-  font-size: var(--imb-text-base);
-  line-height: 1.6;
-}
-
-/* Compact capsule actions inside the composer */
-.imb-chat-input-actions {
-  padding: 6px 14px 12px !important;
-}
-
-.imb-attach-btn {
-  border-radius: var(--imb-radius-pill) !important;
-  width: 34px;
-  height: 34px;
-}
-
-.imb-send-btn-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--imb-radius-pill);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
-}
-
-.imb-send-btn-circle:hover:not(:disabled) {
-  transform: scale(1.05);
-  box-shadow:
-    0 3px 12px color-mix(in oklab, var(--imb-accent) 45%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-
-.imb-send-btn-circle:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-/* Attached file chips inside composer */
-.imb-attached-files {
-  padding: 10px 16px 2px !important;
-  gap: 8px !important;
-}
-
-.imb-attached-file-thumb {
-  border-radius: var(--imb-radius-md) !important;
-  box-shadow: 0 1px 3px rgba(20, 28, 24, 0.06);
-}
-
-.imb-drop-hint {
-  border-radius: var(--imb-radius-lg) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* =====================================================================
- * 2. 会话列表的「独立微卡片流」(Card-Stream Chat List)
- * ===================================================================== */
-
-/* Virtualized list row spacing & padding for card isolation */
-.imb-vlist-row {
-  padding: 3px 8px;
-  box-sizing: border-box;
-}
-
-/* Static item list padding */
-.imb-list {
-  padding: 4px 0;
-}
-
-.imb-list > .imb-list-row-wrap {
-  margin: 3px 8px;
-}
-
-/* Independent micro-card with gentle elevation & spatial breath */
-.imb-list-row-wrap {
-  border-radius: var(--imb-radius-md); /* 12px */
-  border: 1px solid transparent;
-  background: transparent;
-  position: relative;
-  overflow: hidden;
-  transition:
-    background var(--imb-motion-fast) var(--imb-ease-standard),
-    border-color var(--imb-motion-fast) var(--imb-ease-standard),
-    box-shadow var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-list-row-wrap:hover {
-  background: color-mix(in oklab, var(--imb-surface) 80%, transparent) !important;
-  border-color: color-mix(in oklab, var(--imb-border) 60%, transparent);
-  box-shadow: 0 2px 8px -2px rgba(20, 28, 24, 0.05);
-}
-
-/* Active and selected states: soft ambient floor + left colored light-bar */
-.imb-list-row-wrap.imb-is-active,
-.imb-list-row-wrap.imb-is-selected {
-  background: color-mix(
-    in oklab,
-    var(--imb-accent) 9%,
-    var(--imb-surface)
-  ) !important;
-  border-color: color-mix(
-    in oklab,
-    var(--imb-accent) 26%,
-    var(--imb-border)
-  ) !important;
-  box-shadow:
-    0 3px 12px -2px color-mix(in oklab, var(--imb-accent) 15%, transparent),
-    0 1px 3px rgba(20, 28, 24, 0.04) !important;
-}
-
-.imb-list-row-wrap.imb-is-active::before,
-.imb-list-row-wrap.imb-is-selected::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3.5px;
-  height: 22px;
-  border-radius: 0 4px 4px 0;
-  background: var(--imb-accent);
-  box-shadow: 0 0 8px color-mix(in oklab, var(--imb-accent) 60%, transparent);
-  z-index: 2;
-}
-
-/* Pinned chat item */
-.imb-list-row-wrap.imb-chat-pinned {
-  background: color-mix(in oklab, var(--imb-bg) 50%, var(--imb-surface));
-  border-color: color-mix(in oklab, var(--imb-border) 70%, transparent);
-}
-
-.imb-list-row-wrap.imb-chat-pinned.imb-is-active {
-  background: color-mix(
-    in oklab,
-    var(--imb-accent) 11%,
-    var(--imb-surface)
-  ) !important;
-}
-
-.imb-list-row {
-  min-height: var(--imb-private-h-row);
-  padding: 10px 12px;
-  gap: 12px;
-}
-
-/* Avatar micro-emboss & specular rim */
-.imb-avatar {
-  border-radius: 11px;
-  box-shadow:
-    0 1px 3px rgba(20, 28, 24, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 0 0 1px rgba(20, 28, 24, 0.04);
-  transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-:root[data-theme-mode="dark"] .imb-avatar {
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-avatar {
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      0 0 0 1px rgba(255, 255, 255, 0.08);
-  }
-}
-
-.imb-avatar img {
-  border-radius: 11px;
-}
-
-/* Main title: bold & scale elevation */
-.imb-list-row-name {
-  font-size: 14.5px;
-  font-weight: 600;
-  letter-spacing: -0.012em;
-  color: var(--imb-fg);
-}
-
-/* Subtitle / Preview: refined line-height & grayscale */
-.imb-list-row-desc {
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--imb-muted);
-}
-
-/* Time: tabular numbers & aligned grid */
-.imb-list-row-time {
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  color: var(--imb-muted);
-  font-weight: 500;
-}
-
-/* Unread badge: crisp, luminous capsule */
-.imb-unread {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5.5px;
-  border-radius: var(--imb-radius-pill);
-  font-size: 11px;
-  font-weight: 700;
-  box-shadow: 0 1.5px 5px color-mix(in oklab, var(--imb-accent) 40%, transparent);
-}
-
-.imb-badge {
-  border-radius: var(--imb-radius-pill);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 7px;
-  border: 1px solid color-mix(in oklab, var(--imb-accent) 22%, transparent);
-}
-
-.imb-list-row-footer {
-  padding: 0 12px 6px 54px;
-  margin-top: -4px;
-}
-
-/* List pane bottom CTA */
-.imb-pane-footer {
-  padding: 12px 14px 14px;
-}
-
-.imb-pane-footer .imb-btn {
-  border-radius: var(--imb-radius-md);
-  min-height: 38px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* =====================================================================
- * 3. 消息气泡与版式节奏 (Message Bubbles & Typography Scale)
- * ===================================================================== */
-
-.imb-thread {
-  gap: 18px !important;
-  padding-top: var(--imb-space-4) !important;
-  padding-bottom: var(--imb-space-4) !important;
-}
-
-.imb-msg {
-  gap: 12px !important;
-  max-width: 84% !important;
-}
-
-.imb-bubble {
-  padding: 13px 18px !important;
-  font-size: var(--imb-text-base) !important;
-  line-height: 1.65 !important;
-  letter-spacing: -0.005em !important;
-  word-break: break-word;
-}
-
-/* Received bubble: non-symmetric flow corner (top-left micro-flat 4px, rest 18px) */
-.imb-msg.imb-other .imb-bubble,
-.imb-session-text {
-  border-radius: 4px 18px 18px 18px !important;
-  background: var(--imb-surface);
-  color: var(--imb-fg);
-  border: 1px solid var(--imb-border);
-  box-shadow:
-    0 1px 2px rgba(20, 28, 24, 0.03),
-    0 4px 14px -2px rgba(20, 28, 24, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-:root[data-theme-mode="dark"] .imb-msg.imb-other .imb-bubble,
-:root[data-theme-mode="dark"] .imb-session-text {
-  background: #1e2220;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    0 6px 18px -2px rgba(0, 0, 0, 0.4);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-msg.imb-other .imb-bubble,
-  :root:not([data-theme-mode="light"]) .imb-session-text {
-    background: #1e2220;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.35),
-      0 6px 18px -2px rgba(0, 0, 0, 0.4);
-  }
-}
-
-/* Sent bubble: non-symmetric flow corner (top-right micro-flat 4px, rest 18px) */
-.imb-msg.imb-self .imb-bubble,
-.imb-session-user {
-  border-radius: 18px 4px 18px 18px !important;
-  background: var(--imb-bubble-self);
-  color: var(--imb-bubble-text);
-  border: 1px solid color-mix(in oklab, var(--imb-accent) 22%, transparent);
-  box-shadow:
-    0 1px 3px rgba(20, 28, 24, 0.04),
-    0 3px 10px -2px color-mix(in oklab, var(--imb-accent) 10%, transparent);
-}
-
-:root[data-theme-mode="dark"] .imb-msg.imb-self .imb-bubble,
-:root[data-theme-mode="dark"] .imb-session-user {
-  background: #1f2e26;
-  border: 1px solid color-mix(in oklab, var(--imb-accent) 30%, transparent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-msg.imb-self .imb-bubble,
-  :root:not([data-theme-mode="light"]) .imb-session-user {
-    background: #1f2e26;
-    border: 1px solid color-mix(in oklab, var(--imb-accent) 30%, transparent);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  }
-}
-
-/* Unified Frosted Glass Containers for cards (Progress, Ask, Answer, Chat, Image, Tool) */
-.imb-progress-card,
-.imb-ask-card,
-.imb-answer-card,
-.imb-chat-card,
-.imb-session-tool,
-.imb-image-card,
-.imb-session-thinking {
-  border-radius: 16px !important;
-  background: color-mix(in oklab, var(--imb-surface) 90%, transparent) !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid color-mix(in oklab, var(--imb-border) 80%, transparent) !important;
-  box-shadow:
-    0 1px 3px rgba(20, 28, 24, 0.04),
-    0 8px 24px -4px rgba(20, 28, 24, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65) !important;
-}
-
-:root[data-theme-mode="dark"] .imb-progress-card,
-:root[data-theme-mode="dark"] .imb-ask-card,
-:root[data-theme-mode="dark"] .imb-answer-card,
-:root[data-theme-mode="dark"] .imb-chat-card,
-:root[data-theme-mode="dark"] .imb-session-tool,
-:root[data-theme-mode="dark"] .imb-image-card,
-:root[data-theme-mode="dark"] .imb-session-thinking {
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 4px 16px -2px rgba(0, 0, 0, 0.5) !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme-mode="light"]) .imb-progress-card,
-  :root:not([data-theme-mode="light"]) .imb-ask-card,
-  :root:not([data-theme-mode="light"]) .imb-answer-card,
-  :root:not([data-theme-mode="light"]) .imb-chat-card,
-  :root:not([data-theme-mode="light"]) .imb-session-tool,
-  :root:not([data-theme-mode="light"]) .imb-image-card,
-  :root:not([data-theme-mode="light"]) .imb-session-thinking {
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.06),
-      0 4px 16px -2px rgba(0, 0, 0, 0.5) !important;
-  }
-}
-
+/* File chips inside a bubble were tuned for a saturated green sent bubble
+   (translucent white). With a pale tint they need ink instead. One rule set
+   covers both themes because it mixes the theme's own foreground. */
 .imb-bubble-chip {
-  border-radius: var(--imb-radius-sm) !important;
-  padding: 5px 10px !important;
-  font-size: var(--imb-text-xs);
-  font-weight: 500;
-  border: 1px solid color-mix(in oklab, var(--imb-fg) 8%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.imb-time-separator {
-  padding: 3px 12px;
-  border-radius: var(--imb-radius-pill);
-  background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  margin: var(--imb-space-2) 0;
-}
-
-/* =====================================================================
- * 4. 三栏空间递延与全局水平基准线 (Global Horizon Baseline & Spatial Hierarchy)
- * ===================================================================== */
-
-/* Grid layout with proportional width & breathing room */
-.imb-app {
-  grid-template-columns: 216px 1fr !important;
-}
-
-.imb-app.imb-is-collapsed {
-  grid-template-columns: 64px 1fr !important;
-}
-
-.imb-shell-content {
-  grid-template-columns: 310px 1fr !important;
-}
-
-/* SearchBox standardized scale & rounded pill contour */
-.imb-searchbox {
-  height: 36px !important;
-  border-radius: 10px !important;
-  background: color-mix(in oklab, var(--imb-fg) 3.5%, var(--imb-surface)) !important;
-  border: 1px solid var(--imb-border) !important;
-  padding: 0 10px !important;
-  box-sizing: border-box !important;
-  gap: 8px !important;
-}
-
-.imb-searchbox input {
-  font-size: 13px !important;
-}
-
-.imb-searchbox-hint {
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  border-radius: 6px !important;
-  padding: 1px 6px !important;
-  background: var(--imb-surface) !important;
-  border: 1px solid var(--imb-border) !important;
-}
-
-/* ---------------------------------------------------------------------
- * Column 1: Navigation Rail
- * ------------------------------------------------------------------- */
-.imb-nav {
-  padding-top: var(--imb-titlebar-h) !important;
-  padding-inline: 10px !important;
-  padding-bottom: 12px !important;
-  background: var(--imb-bg) !important;
-  border-right: 1px solid var(--imb-border) !important;
-}
-
-.imb-nav-brand {
-  padding: 6px 10px 18px;
-}
-
-.imb-nav-brandname {
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.015em !important;
-  color: var(--imb-fg) !important;
-}
-
-/* Top-right collapse toggle */
-.imb-nav-toggle {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 30px !important;
-  height: 30px !important;
-  padding: 0 !important;
-  border-radius: var(--imb-radius-sm) !important;
-  background: transparent !important;
-  border: none !important;
-  color: var(--imb-muted) !important;
-  cursor: pointer !important;
-  flex-shrink: 0 !important;
-  transition:
-    color var(--imb-motion-fast) var(--imb-ease-standard),
-    background var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard) !important;
-}
-
-.imb-nav-toggle:hover {
-  color: var(--imb-fg) !important;
-  background: color-mix(in oklab, var(--imb-fg) 8%, transparent) !important;
-}
-
-.imb-nav-toggle .imb-icon {
-  width: 16px !important;
-  height: 16px !important;
-  transition: transform var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-nav.imb-is-collapsed .imb-nav-brand {
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0 16px !important;
-}
-
-.imb-nav.imb-is-collapsed .imb-nav-toggle {
-  width: 30px !important;
-  height: 30px !important;
-}
-
-.imb-nav.imb-is-collapsed .imb-nav-toggle .imb-icon {
-  transform: rotate(180deg);
-}
-.imb-nav-items {
-  gap: 3px !important;
-}
-
-/* Modern capsule nav button */
-.imb-nav-item {
-  height: 36px !important;
-  padding: 0 11px !important;
-  border-radius: 9px !important;
-  font-size: 13.5px !important;
-  font-weight: 500 !important;
-  gap: 10px !important;
-}
-
-.imb-nav-item .imb-icon {
-  width: 16px !important;
-  height: 16px !important;
-}
-
-.imb-nav-item:hover {
-  background: color-mix(in oklab, var(--imb-fg) 6%, transparent) !important;
-  color: var(--imb-fg) !important;
-}
-
-.imb-nav-item.imb-is-active {
-  background: color-mix(
-    in oklab,
-    var(--imb-accent) 12%,
-    var(--imb-surface)
-  ) !important;
-  color: var(--imb-private-accent-text) !important;
-  font-weight: 600 !important;
-  box-shadow:
-    inset 0 0 0 1px color-mix(in oklab, var(--imb-accent) 20%, transparent),
-    0 1px 3px rgba(20, 28, 24, 0.04) !important;
-}
-
-/* ---------------------------------------------------------------------
- * Column 2: List Pane
- * ------------------------------------------------------------------- */
-.imb-pane.imb-listpane {
-  padding-top: var(--imb-titlebar-h) !important;
-  background: var(--imb-surface) !important;
-  border-right: 1px solid var(--imb-border) !important;
-}
-
-.imb-pane-header-top {
-  height: var(--imb-header-h, 52px) !important;
-  min-height: var(--imb-header-h, 52px) !important;
-  box-sizing: border-box !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  padding: 0 14px 0 16px !important;
-}
-
-.imb-pane-title {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.015em !important;
-  color: var(--imb-fg) !important;
-  line-height: 1 !important;
-}
-
-.imb-pane-action-btn {
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 8px !important;
-  display: grid !important;
-  place-items: center !important;
-  background: transparent !important;
-  border: none !important;
-  color: var(--imb-muted) !important;
-  cursor: pointer !important;
+  background: color-mix(in oklab, var(--imb-fg) 6%, transparent);
   transition:
     background var(--imb-motion-fast) var(--imb-ease-standard),
-    color var(--imb-motion-fast) var(--imb-ease-standard),
     transform var(--imb-motion-fast) var(--imb-ease-standard);
 }
 
-.imb-pane-action-btn:hover {
-  background: color-mix(in oklab, var(--imb-fg) 8%, transparent) !important;
-  color: var(--imb-fg) !important;
+.imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
+  background: color-mix(in oklab, var(--imb-fg) 11%, transparent);
 }
 
-.imb-pane-action-btn:active {
-  transform: scale(0.95);
+.imb-bubble-chip:active:not(.imb-bubble-chip-static) {
+  transform: scale(0.97);
 }
 
-.imb-pane-search-row {
-  padding: 0 12px 10px 12px !important;
+.imb-msg.imb-self .imb-bubble-chip {
+  background: color-mix(in oklab, var(--imb-bubble-text) 8%, transparent);
 }
 
-/* ---------------------------------------------------------------------
- * Column 3: Detail Workspace Canvas
- * ------------------------------------------------------------------- */
-.imb-pane.imb-detailpane {
-  padding-top: var(--imb-titlebar-h) !important;
-  background: var(--imb-surface-warm, #ffffff) !important;
-}
-.imb-chat-header {
-  height: var(--imb-header-h, 52px) !important;
-  min-height: var(--imb-header-h, 52px) !important;
-  box-sizing: border-box !important;
-  padding: 0 20px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 12px !important;
-  background: color-mix(in oklab, var(--imb-surface-warm, #ffffff) 92%, transparent) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--imb-border) !important;
+.imb-msg.imb-self .imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
+  background: color-mix(in oklab, var(--imb-bubble-text) 14%, transparent);
 }
 
-.imb-chat-header-avatar {
-  width: 32px !important;
-  height: 32px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.imb-chat-header-avatar .imb-avatar {
-  border-radius: 9px !important;
-}
-
-.imb-chat-title {
-  font-size: 15px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.012em !important;
-  color: var(--imb-fg) !important;
-}
-
-.imb-chat-source {
-  padding: 2px 9px !important;
-  border-radius: var(--imb-radius-pill) !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  line-height: 18px !important;
-  border: 1px solid color-mix(in oklab, var(--imb-accent) 25%, transparent);
-  background: color-mix(in oklab, var(--imb-accent) 10%, transparent) !important;
-  color: var(--imb-accent) !important;
-}
-
-.imb-detail-head {
-  padding: 12px var(--imb-space-6) 14px !important;
-  background: color-mix(in oklab, var(--imb-surface) 86%, transparent) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--imb-border) !important;
-}
-
-/* =====================================================================
- * General Micro-Interactions & Form Controls
- * ===================================================================== */
-
-.imb-icon-btn,
-.imb-btn-ghost,
-.imb-nav-toggle,
-.imb-pane-action-btn {
-  transition:
-    background var(--imb-motion-fast) var(--imb-ease-standard),
-    color var(--imb-motion-fast) var(--imb-ease-standard),
-    transform var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-icon-btn:hover,
-.imb-btn-ghost:hover,
-.imb-nav-toggle:hover,
-.imb-pane-action-btn:hover {
-  background: color-mix(in oklab, var(--imb-fg) 7%, transparent) !important;
-}
-
-.imb-icon-btn:active,
-.imb-btn-ghost:active,
-.imb-nav-toggle:active,
-.imb-pane-action-btn:active {
-  transform: scale(0.96);
-}
-
-/* Accent as TEXT */
+/* Accent as TEXT. Every one of these upstream rules paints text (or a glyph)
+   with --imb-accent-active, a single value derived for both themes; the
+   private layer swaps in its mode-aware --imb-private-accent-text instead
+   (see theme.css). Fills (button backgrounds, the unread badge, the theme
+   swatch border) are deliberately left alone. */
+.imb-nav-item.imb-is-active,
 .imb-detail-head-eyebrow,
 .imb-ms-chip,
 .imb-ms-option.imb-is-checked,
@@ -772,4 +66,461 @@
 .imb-ask-submitted,
 .imb-progress-tag.imb-done {
   color: var(--imb-private-accent-text);
+}
+
+/* The active nav row was marked by colour and weight alone; a soft tint of the
+   same accent gives it the same shape language as an active list row. */
+.imb-nav-item.imb-is-active {
+  background: var(--imb-private-tint-current);
+}
+
+/* Window controls kept the browser's default focus ring (an orange `outline:
+   auto`), while every other control in the app uses the app's own ring. */
+.imb-winbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--imb-accent) 26%, transparent);
+}
+
+/* Scrollbars: upstream makes them thin but leaves the colours to the platform,
+   which paints a light track and a grey thumb against both palettes. A
+   translucent ink thumb on an invisible track keeps long lists quiet — it
+   covers the thread, the chat list, the code blocks and the settings panes. */
+* {
+  scrollbar-color: color-mix(in oklab, var(--imb-fg) 20%, transparent)
+    transparent;
+}
+
+/* Text selection and form controls are the last two places the platform
+   default (a blue wash, a blue checkbox) leaks into an otherwise unified
+   palette. Both follow the live accent, so they follow the theme picker too. */
+::selection {
+  background: color-mix(in oklab, var(--imb-accent) 32%, transparent);
+}
+
+:root {
+  accent-color: var(--imb-accent);
+}
+
+/* Modals: the scrim was one flat grey for both themes, so it looked heavy on
+   the light canvas and barely there on the dark one. A theme-tinted scrim plus
+   a small blur reads as depth instead of a grey sheet, and the panel's shadow
+   drops the hard 18% black for the same two-layer shadow the raised elevation
+   uses elsewhere. */
+.imb-modal-overlay {
+  background: rgba(24, 32, 28, 0.35);
+  backdrop-filter: blur(6px);
+  animation: imb-overlay-enter var(--imb-motion-base) var(--imb-ease-standard);
+}
+
+:root[data-theme-mode="dark"] .imb-modal-overlay {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme-mode="light"]) .imb-modal-overlay {
+    background: rgba(0, 0, 0, 0.65);
+  }
+}
+
+.imb-modal {
+  box-shadow: var(--imb-private-elev-overlay);
+  border: 1px solid var(--imb-border);
+  animation: imb-modal-enter var(--imb-motion-base) var(--imb-ease-standard);
+}
+
+@keyframes imb-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes imb-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dropdown menus & anchored popovers: silky spring drop-in and frosted glass */
+@keyframes imb-dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.imb-select-panel,
+.imb-ms-panel,
+.imb-mention-popup {
+  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
+  box-shadow: var(--imb-private-elev-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.imb-ctx-menu.imb-open {
+  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
+  box-shadow: var(--imb-private-elev-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.imb-popover {
+  box-shadow: var(--imb-private-elev-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.imb-tooltip {
+  backdrop-filter: blur(8px);
+}
+
+/* A picture avatar is the one place a light asset lands straight on the
+   canvas; a hairline stops it glaring in dark mode. */
+.imb-avatar img {
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--imb-fg) 10%, transparent);
+}
+
+/* --- Buttons: tactile response, subtle depth & micro-press ------------ */
+
+.imb-btn {
+  font-size: var(--imb-text-base);
+  min-height: var(--imb-private-h-control);
+  padding: 8px 16px;
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+/* Primary button: subtle top specular rim & tactile lift */
+.imb-btn-primary {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.imb-btn-primary:hover:not(:disabled) {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transform: translateY(-0.5px);
+}
+
+.imb-btn-primary:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.985);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Secondary button: half-strength border and soft wash */
+.imb-btn-secondary:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-fg) 40%, transparent);
+  background: color-mix(in oklab, var(--imb-fg) 5%, transparent);
+  transform: translateY(-0.5px);
+}
+
+.imb-btn-secondary:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.985);
+}
+
+.imb-btn-sm {
+  min-height: var(--imb-private-h-control-sm);
+  padding: 4px 10px;
+  font-size: var(--imb-text-sm);
+}
+
+/* Icon buttons: micro-press feedback */
+.imb-icon-btn,
+.imb-attach-btn,
+.imb-progress-open {
+  transition:
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-icon-btn:active:not(:disabled),
+.imb-attach-btn:active:not(:disabled),
+.imb-progress-open:active:not(:disabled) {
+  transform: scale(0.94);
+  background: color-mix(in oklab, var(--imb-fg) 8%, transparent);
+}
+
+/* Send button circle: tactile hover scale and pulse */
+.imb-send-btn-circle {
+  transition:
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-send-btn-circle:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--imb-accent) 35%, transparent);
+}
+
+.imb-send-btn-circle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Segmented controls: micro-press tactile feedback */
+.imb-segmented-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* A field label sits 8px above its control */
+.imb-field {
+  gap: var(--imb-space-2);
+}
+
+/* --- Navigation and lists: rows that match -------------------------- */
+
+.imb-nav-items {
+  gap: var(--imb-space-1);
+}
+
+.imb-nav-item {
+  height: var(--imb-private-h-row);
+  gap: var(--imb-space-2);
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-nav-item.imb-is-active {
+  font-weight: 500;
+}
+
+.imb-nav-bottom {
+  margin-top: var(--imb-space-3);
+  padding-top: var(--imb-space-3);
+}
+
+/* The chat list row and the gap under its second line. */
+.imb-list-row {
+  min-height: var(--imb-private-h-row);
+  padding: 10px 12px;
+}
+
+.imb-list-row-sub {
+  margin-top: var(--imb-space-1);
+}
+
+/* Badges: crisp, aligned typography */
+.imb-unread,
+.imb-badge {
+  font-size: var(--imb-text-xs);
+}
+
+.imb-badge {
+  border: 1px solid color-mix(in oklab, var(--imb-accent) 22%, transparent);
+}
+
+/* --- Selection: one recipe ------------------------------------------- */
+
+.imb-list-row-wrap.imb-is-active,
+.imb-list-row-wrap.imb-is-selected {
+  background: var(--imb-private-tint-current) !important;
+}
+
+/* --- The conversation: air, and a line you can follow ---------------- */
+
+.imb-bubble {
+  padding: 12px 16px;
+}
+
+.imb-msg {
+  gap: var(--imb-space-3);
+}
+
+.imb-bubble-attachments {
+  gap: var(--imb-space-2);
+  margin-bottom: var(--imb-space-2);
+}
+
+.imb-bubble-chip {
+  padding: var(--imb-space-1) var(--imb-space-2);
+}
+
+.imb-chat-header {
+  gap: var(--imb-space-3);
+}
+
+.imb-run-status {
+  height: var(--imb-space-6);
+  padding: 0 var(--imb-space-3);
+}
+
+/* Centred reading measure */
+.imb-chat-header,
+.imb-thread,
+.imb-chat-input-wrap {
+  padding-inline: max(
+    var(--imb-space-6),
+    calc((100% - var(--imb-private-measure)) / 2)
+  );
+}
+
+.imb-detail-head,
+.imb-detail-body {
+  padding-inline: max(
+    var(--imb-space-6),
+    calc((100% - var(--imb-private-measure)) / 2)
+  );
+}
+
+.imb-detail-head-actions {
+  right: max(var(--imb-space-6), calc((100% - var(--imb-private-measure)) / 2));
+}
+
+/* --- Motion: one cadence -------------------------------------------- */
+
+.imb-btn-spinner {
+  animation-duration: var(--imb-private-motion-spin);
+}
+
+.imb-session-tool.imb-is-running .imb-session-tool-dot,
+.imb-progress-tag.imb-busy .imb-status-dot,
+.imb-image-gen-shimmer,
+.imb-ack-fill {
+  animation-duration: var(--imb-private-motion-pulse);
+}
+
+.imb-image-gen-arrived .imb-image-card-front {
+  animation-duration: var(--imb-private-motion-enter);
+  animation-timing-function: var(--imb-ease-standard);
+}
+
+/* Toggle switch: spring motion and tactile stretch on press */
+.imb-toggle {
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-toggle:hover:not(:disabled):not(.imb-is-on) {
+  border-color: color-mix(in oklab, var(--imb-fg) 35%, transparent);
+}
+
+.imb-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 24%, transparent);
+}
+
+.imb-toggle-knob {
+  transition:
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    width var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-toggle:active:not(:disabled) .imb-toggle-knob {
+  width: 20px;
+}
+
+/* --- Round 4 (Collect UI): tactile surfaces & ambient focus rings --- */
+
+/* Card tactile feedback: cards receive gentle ambient elevation and border
+   clarity on hover. */
+.imb-chat-card,
+.imb-employee-card,
+.imb-model-card,
+.imb-mcp-server-card,
+.imb-ask-card,
+.imb-answer-card,
+.imb-progress-card,
+.imb-backup-card,
+.imb-integration-card,
+.imb-image-card {
+  transition:
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-chat-card:hover:not(.imb-is-disabled),
+.imb-employee-card:hover,
+.imb-model-card:hover,
+.imb-mcp-server-card:hover,
+.imb-ask-card:hover,
+.imb-answer-card:hover,
+.imb-progress-card:hover,
+.imb-backup-card:hover:not(.imb-is-pending),
+.imb-integration-card:hover,
+.imb-image-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--imb-fg) 22%, transparent);
+  box-shadow:
+    0 4px 14px -3px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Composer Card Focus Glow: typing into composer gives enclosing card ambient aura */
+.imb-chat-input-card {
+  transition:
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-chat-input-card:focus-within {
+  border-color: var(--imb-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--imb-accent) 18%, transparent),
+    0 2px 8px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Form Controls Focus Glow: soft, diffused multi-layer focus ring */
+.imb-input:focus,
+.imb-input:focus-visible,
+.imb-textarea:focus,
+.imb-textarea:focus-visible,
+.imb-search-input:focus,
+.imb-search-input:focus-visible,
+.imb-ask-other:focus,
+.imb-ask-other:focus-visible,
+.imb-ask-free:focus,
+.imb-ask-free:focus-visible {
+  outline: none;
+  border-color: var(--imb-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--imb-accent) 20%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Select & multi-select trigger states */
+.imb-select:hover:not(:disabled),
+.imb-ms-trigger:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-fg) 35%, transparent);
+}
+
+.imb-select:focus-visible,
+.imb-select[aria-expanded="true"],
+.imb-ms-trigger:focus-visible,
+.imb-ms-trigger[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--imb-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--imb-accent) 20%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Checkboxes and Radios */
+.imb-ask-option input:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--imb-accent) 60%, var(--imb-border));
+}
+
+.imb-ask-option input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 24%, transparent);
 }

@@ -11,7 +11,7 @@
  *   - one deep, calm green as the only accent, used for the primary action and
  *     small highlights only
  *   - the sent bubble is a pale sage tint, not a saturated green block
- *   - softer corners (8/12/18), multi-layer diffuse shadows, and silky spring-eased motion
+ *   - softer corners (6/10/14), multi-layer diffuse shadows, and silky spring-eased motion
  *
  * Rules of the layer (see scripts/private/README.md): prefer a token over a
  * selector, prefer this directory over an upstream file. Anything a token
@@ -24,17 +24,12 @@
   /* Self-check: this reads back as 1 when the private layer is loaded. */
   --imb-private-layer: 1;
 
-  /* Horizon Baseline & TitleBar Grid */
-  --imb-titlebar-h: 24px;
-  --imb-header-h: 52px;
-
-  /* Surfaces — layered progressive depth: base canvas, list pane, detail canvas */
-  --imb-bg: #f2f3f5;
-  --imb-surface: #f8f9fa;
-  --imb-surface-warm: #ffffff;
-  --imb-fg: #1a1c1b;
+  /* Surfaces — a light stone canvas, near-white panes, hairline seams. */
+  --imb-bg: #f2f2f0;
+  --imb-surface: #fbfbfa;
+  --imb-fg: #1b1d1c;
   --imb-muted: #6e7573;
-  --imb-border: rgba(0, 0, 0, 0.065);
+  --imb-border: #e5e6e4;
 
   /* One accent: a calm pine green, balanced for both themes (~4.3:1 against
      white and against the dark canvas), so it can carry white text on the
@@ -75,67 +70,77 @@
     #000000
   );
 
-  /* Modern Collect UI Scale */
-  --imb-radius-sm: 8px;
-  --imb-radius-md: 12px;
-  --imb-radius-lg: 18px;
-  --imb-radius-pill: 9999px;
-
+  --imb-radius-sm: 6px;
+  --imb-radius-md: 10px;
+  --imb-radius-lg: 14px;
   --imb-elev-ring: 0 0 0 1px var(--imb-border);
   --imb-elev-raised:
     0 1px 2px rgba(20, 28, 24, 0.04),
-    0 4px 14px -2px rgba(20, 28, 24, 0.06),
-    0 12px 28px -4px rgba(20, 28, 24, 0.04);
+    0 4px 12px -2px rgba(20, 28, 24, 0.06),
+    0 10px 24px -4px rgba(20, 28, 24, 0.04);
 
   --imb-motion-fast: 120ms;
   --imb-motion-base: 200ms;
   --imb-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* ---------------------------------------------------------------------
-   * Rhythm, motion, states.
+   * Round 3 — rhythm, motion, states.
+   *
+   * Upstream's scale mixes tokens with raw 2/3/5/6/9/10/11/14px values, so
+   * two rows that should have matched slowly drifted apart. These are the
+   * roles the spacing scale does not name yet: a row height, a control
+   * height, a looping cadence, a disabled dim, the top of the elevation
+   * ladder, and the reading measure.
    * ------------------------------------------------------------------- */
 
-  /* Two row heights and two control heights — comfortable modern scale. */
-  --imb-private-h-row: 38px;
-  --imb-private-h-control: 38px;
+  /* Two row heights and two control heights — a ladder, not a menu. */
+  --imb-private-h-row: 36px;
+  --imb-private-h-control: 36px;
   --imb-private-h-control-sm: 28px;
 
-  /* Every looping indicator runs at one cadence. */
+  /* Every looping indicator runs at one cadence, so a busy screen has one
+     heartbeat instead of five (0.8 / 1 / 1.2 / 1.5 / 1.6s upstream). */
   --imb-private-motion-pulse: 1.4s;
   --imb-private-motion-spin: 800ms;
   --imb-private-motion-enter: 280ms;
 
-  /* State dim */
+  /* One dim for "not available" (upstream used three: 0.5, 0.55, 0.6), one
+     cursor, one ink for "went wrong". */
   --imb-private-state-dim: 0.5;
 
-  /* One tint for "this is the current item", shared by nav & card list */
+  /* One tint for "this is the current item", shared by the nav row and the
+     list row: the same idea was three different colours a few pixels apart
+     (10% in the nav, 15% for a list row, 18% for the selected one), and the
+     weakest of them had to shout `!important` to be seen at all. */
   --imb-private-tint-current: color-mix(
     in oklab,
-    var(--imb-accent) 11%,
+    var(--imb-accent) 12%,
     transparent
   );
 
   /* The top of the elevation ladder: a panel that floats above the page. */
   --imb-private-elev-overlay:
-    0 2px 8px rgba(20, 28, 24, 0.05),
-    0 16px 48px -4px rgba(20, 28, 24, 0.14);
+    0 2px 6px rgba(20, 28, 24, 0.06),
+    0 14px 40px -4px rgba(20, 28, 24, 0.14);
 
-  /* Comfortable reading measure */
-  --imb-private-measure: 780px;
+  /* The widest a line of conversation is allowed to get. A 2,500px window
+     otherwise turns a 15px sentence into a 1,400px line, and the eye loses
+     the start of the next one. */
+  --imb-private-measure: 760px;
 
-  /* Crisp baseline typography step */
+  /* Upstream's smallest step (11px) is below comfortable reading on both
+     canvases; small print moves up one pixel, everything else stays put. */
   --imb-text-xs: 12px;
 }
 
 /* Dark theme: the OS prefers dark and the user has not forced light. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme-mode="light"]) {
-    --imb-bg: #151618;
-    --imb-surface: #1b1c1e;
-    --imb-surface-warm: #212225;
+    --imb-bg: #141615;
+    --imb-surface: #1c1e1d;
     --imb-fg: #e9ebe9;
     --imb-muted: #9aa29e;
-    --imb-border: rgba(255, 255, 255, 0.075);
+    --imb-border: #2b2f2d;
 
     --imb-accent: #45a37b;
     --imb-accent-on: #10201a;
@@ -145,9 +150,9 @@
     --imb-warn: #d9a13f;
     --imb-danger: #d9706a;
 
-    --imb-bubble-self: #1f2e26;
+    --imb-bubble-self: #22302a;
     --imb-bubble-text: #dde7e1;
-    --imb-private-bubble-other: #222624;
+    --imb-private-bubble-other: #262a28;
     --imb-private-accent-text: color-mix(
       in oklab,
       var(--imb-accent) 55%,
@@ -156,24 +161,23 @@
 
     /* Collect UI dark elevation: multi-stop ambient depth with specular rim */
     --imb-elev-raised:
-      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 0 0 1px rgba(255, 255, 255, 0.05),
       0 2px 6px rgba(0, 0, 0, 0.4),
-      0 10px 28px -4px rgba(0, 0, 0, 0.55);
+      0 8px 24px -4px rgba(0, 0, 0, 0.5);
     --imb-private-elev-overlay:
       0 0 0 1px rgba(255, 255, 255, 0.08),
-      0 8px 28px -4px rgba(0, 0, 0, 0.6),
-      0 24px 56px -6px rgba(0, 0, 0, 0.75);
+      0 8px 24px -4px rgba(0, 0, 0, 0.6),
+      0 20px 48px -6px rgba(0, 0, 0, 0.7);
   }
 }
 
 /* Dark theme: forced in Settings › Appearance. */
 :root[data-theme-mode="dark"] {
-  --imb-bg: #151618;
-  --imb-surface: #1b1c1e;
-  --imb-surface-warm: #212225;
+  --imb-bg: #141615;
+  --imb-surface: #1c1e1d;
   --imb-fg: #e9ebe9;
   --imb-muted: #9aa29e;
-  --imb-border: rgba(255, 255, 255, 0.075);
+  --imb-border: #2b2f2d;
 
   --imb-accent: #45a37b;
   --imb-accent-on: #10201a;
@@ -183,9 +187,9 @@
   --imb-warn: #d9a13f;
   --imb-danger: #d9706a;
 
-  --imb-bubble-self: #1f2e26;
+  --imb-bubble-self: #22302a;
   --imb-bubble-text: #dde7e1;
-  --imb-private-bubble-other: #222624;
+  --imb-private-bubble-other: #262a28;
   --imb-private-accent-text: color-mix(
     in oklab,
     var(--imb-accent) 55%,
@@ -194,11 +198,11 @@
 
   /* Collect UI dark elevation: multi-stop ambient depth with specular rim */
   --imb-elev-raised:
-    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
     0 2px 6px rgba(0, 0, 0, 0.4),
-    0 10px 28px -4px rgba(0, 0, 0, 0.55);
+    0 8px 24px -4px rgba(0, 0, 0, 0.5);
   --imb-private-elev-overlay:
     0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 28px -4px rgba(0, 0, 0, 0.6),
-    0 24px 56px -6px rgba(0, 0, 0, 0.75);
+    0 8px 24px -4px rgba(0, 0, 0, 0.6),
+    0 20px 48px -6px rgba(0, 0, 0, 0.7);
 }
