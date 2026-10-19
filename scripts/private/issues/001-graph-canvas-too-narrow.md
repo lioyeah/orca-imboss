@@ -1,6 +1,6 @@
 # 001 · 图谱画布只占内容区一小块（常规尺寸与最大化一致）
 
-- **状态**: `fixed-verified`（@4 已在工作区构建上验证通过；修复 = 暂存 WIP 删除 310px 覆盖块，待 Boss 提交 WIP 后固化为 `mine` 提交。@3 已独立复测确认）
+- **状态**: `fixed-verified`（@4 工作区验证 + @3 独立复测 + mini-app 补证；**修复已由 Boss 固化为提交 `3e5fcee`**，@3 已在已提交 HEAD 上完成最终复测，定案关闭）
 - **报告人**: Boss（chat 10）
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 高（核心视图不可用）
@@ -115,6 +115,8 @@ single 布局机制：图谱与 miniapp / group-chat / agent-session 共用 `.im
 
 证据：`evidence/001-verify-miniapp-1262-expanded.png`、`001-verify-miniapp-1920-expanded.png`。**mini-app 证据格已补齐，无 310px 陷阱。**
 
+**最终复测（2026-10-19，Boss 已提交 WIP：`3e5fcee` 提交私有层 WIP、`9aaf0a9` 提交 #002 实现，工作区干净）**：`git grep -c "310px 1fr !important" HEAD -- src/renderer/private/` → 0，`git show HEAD:src/renderer/private/overrides.css` 中 `grid-template-columns` 0 命中，**修复已固化**。在已提交 HEAD 的同一构建上重测：图谱 `.imb-graph` = 1186px == `.imb-contentpane`（导航折叠态）；mini-app `.imb-miniapp-host` = 1186px == 内容区宽，iframe 正常加载 `http://127.0.0.1:5178/index.html`（证据 `evidence/001-verify-miniapp-committed-HEAD.png`）。**#001 定案关闭。**
+
 固化状态（需 Boss 决策）：修复 = 暂存 WIP 删除 `src/renderer/private/overrides.css` 的 `.imb-shell-content { grid-template-columns: 310px 1fr !important }`；`mine` HEAD `87cb86c` 的 `overrides.css:487-488` 仍含该行，故修复**仅存在于工作区**，待 Boss 提交 WIP 后固化。@4 未提交该 WIP 文件（红线：绝不碰 Boss 暂存 WIP）。310px 未回加：310px 属 040ae10 实验值，WIP 已按验收标准 #5 建议的「整体删除该块」把中栏退回基础 300px；若日后想要更宽中栏，应走 `.imb-shell-content:not(.imb-layout-single)` 这类**限定 list-detail** 的作用域，而非曾破坏 single 布局的全局 `!important`。
 
 ## 处理记录
@@ -133,4 +135,4 @@ single 布局机制：图谱与 miniapp / group-chat / agent-session 共用 `.im
 | 2026-10-18 | @3 复测图谱铺满：视口 900×700 / 1262×1030 / 1920×1080 三档，`.imb-graph` 与 `.imb-contentpane` 宽度逐一相等（824 / 1186 / 1844）；导航展开 208px 时 1054px、折叠 64px 时 1186px，均铺满 | 通过（证据 `evidence/001-verify-steward-1262-expanded.png`，47 节点 / 45 连线富数据） |
 | 2026-10-18 | @3 复测 list-detail 无回归：对话 / 员工 / 定时任务 / 统计 / 设置 均 `300px 754px`，中栏 pane 300px、内容区 754px | 通过 |
 | 2026-10-18 | @3 记录环境限制：miniapp 也是 single 布局，但该表面只在存在 mini-app 时由 nav 动态渲染，隔离测试实例内未安装任何 mini-app，**本次无法实测**；需 @4 或有 mini-app 的环境补一份证据 | 待补证据（不影响 #001 结论，根因与修复均为同一网格规则） |
-| 2026-10-18 | @3 补 mini-app 证据：隔离 HOME 自造最小 mini-app（`steward-probe`，entry 127.0.0.1:5178，PID 309127 自行清理），重启实例后 nav 出现该项，`.imb-miniapp-host` 在 1262×1030 / 1920×1080 × 导航展开/折叠四种组合下均等于内容区宽（1054 / 1186 / 1712 / 1844） | **mini-app 证据格已补齐**，通过 |
+| 2026-10-19 | Boss 提交 WIP（`3e5fcee`），工作区干净；@3 在已提交 HEAD 上最终复测：`git grep` 确认私有层无 310px 覆盖，图谱 1186px 铺满、mini-app 1186px 铺满且 iframe 正常加载 | **定案关闭** |
