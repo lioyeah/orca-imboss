@@ -14,6 +14,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"src/**/*.test.ts\"",
     "i18n:prune": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prune-translations.ts",
     "i18n:prune:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prune-translations.ts --dry-run",
     "db:export": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-db-csv.ts",
