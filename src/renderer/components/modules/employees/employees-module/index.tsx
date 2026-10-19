@@ -26,7 +26,7 @@ import {
   type ContextMenuState,
 } from "../../../context-menu";
 import { EmployeeAvatar } from "../../../employee-avatar";
-import { IconX } from "../../../icons";
+import { IconPlus, IconX } from "../../../icons";
 import { ItemList } from "../../../item-list";
 import { ListPane } from "../../../list-pane";
 import { ListRow } from "../../../list-row";
@@ -34,6 +34,7 @@ import { Modal } from "../../../modal";
 import "../../../modules/module-common.css";
 import type { MultiSelectOption } from "../../../multi-select";
 import { SearchInput } from "../../../search-input";
+import { Tooltip } from "../../../tooltip";
 import { EmployeeDetail } from "../employee-detail";
 import { EmployeeImportModal } from "../employee-import-modal";
 import { EmployeeRecruitModal } from "../employee-recruit-modal";
@@ -405,6 +406,18 @@ export function EmployeesModule(): React.JSX.Element {
   const listPane = (
     <ListPane
       title={t("Employees")}
+      actions={
+        <Tooltip content={t("Recruit")} placement="bottom">
+          <button
+            type="button"
+            className="imb-icon-btn imb-pane-action-btn"
+            aria-label={t("Recruit")}
+            onClick={() => setRecruitOpen(true)}
+          >
+            <IconPlus className="imb-icon imb-sm" />
+          </button>
+        </Tooltip>
+      }
       search={
         <SearchInput
           value={query}
@@ -412,37 +425,7 @@ export function EmployeesModule(): React.JSX.Element {
           placeholder={t("Filter by name or role")}
         />
       }
-      footer={
-        // The Recruit button opens a small menu: create a new employee (the
-        // previous behaviour) or import an exported one. Reuses the module's
-        // `ContextMenu` (same look as the row context menus).
-        <Button
-          block
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            setCtxMenu({
-              // Dropdown, not a cursor menu: attached to the button, opened
-              // upwards and centred on it (flips back down only if it would
-              // leave the viewport).
-              anchor: { rect, placement: "top", align: "center" },
-              items: [
-                {
-                  key: "recruit-new",
-                  label: t("New employee…"),
-                  onSelect: () => setRecruitOpen(true),
-                },
-                {
-                  key: "recruit-import",
-                  label: t("Import from file…"),
-                  onSelect: () => void startImport(),
-                },
-              ],
-            });
-          }}
-        >
-          {t("Recruit")}
-        </Button>
-      }
+
     >
       <ItemList
         items={employees}

@@ -31,7 +31,7 @@ import { ContextMenu, type ContextMenuState } from "../../../context-menu";
 import { EmployeeAvatar } from "../../../employee-avatar";
 import { FilterBar } from "../../../filter-bar";
 import { IconButton } from "../../../icon-button";
-import { IconSearch } from "../../../icons";
+import { IconPlus, IconSearch } from "../../../icons";
 import { Input } from "../../../input";
 import { ItemList } from "../../../item-list";
 import { ListPane } from "../../../list-pane";
@@ -1181,6 +1181,18 @@ export function ChatModule(): React.JSX.Element {
   const listPane = (
     <ListPane
       title={t("Chats")}
+      actions={
+        <Tooltip content={t("New Chat")} placement="bottom">
+          <button
+            type="button"
+            className="imb-icon-btn imb-pane-action-btn"
+            aria-label={t("New Chat")}
+            onClick={() => void newChat()}
+          >
+            <IconPlus className="imb-icon imb-sm" />
+          </button>
+        </Tooltip>
+      }
       search={
         <FilterBar
           inputRef={searchInputRef}
@@ -1197,11 +1209,6 @@ export function ChatModule(): React.JSX.Element {
           emptyHint={t("No tags yet")}
           maxSelected={MAX_TAGS_PER_CHAT}
         />
-      }
-      footer={
-        <Button block onClick={() => void newChat()}>
-          {t("New Chat")}
-        </Button>
       }
     >
       <ItemList

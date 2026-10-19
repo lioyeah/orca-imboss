@@ -38,17 +38,56 @@
   letter-spacing: -0.015em;
   color: var(--imb-fg);
   line-height: 1;
-  padding: 0 2px var(--imb-space-3);
+  padding: 0 2px;
+}
+
+.imb-pane-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--imb-space-2);
+  padding-bottom: var(--imb-space-4);
 }
 
 .imb-pane-actions {
   display: flex;
   align-items: center;
   gap: var(--imb-space-2);
+  flex: none;
 }
 
-.imb-pane-search-row {
-  padding: 0 var(--imb-space-3) var(--imb-space-3);
+/* Compact icon action pinned to the header's right edge (chat "+", employee
+   "+"). Self-contained: the base `.imb-icon-btn` sheet only ships when the
+   IconButton component itself is imported, so the pane action button
+   carries its own box, color, hover and focus styling. The private
+   layer's `.imb-icon-btn:active` press still applies via the shared
+   class. */
+.imb-pane-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--imb-radius-md);
+  background: transparent;
+  color: var(--imb-muted);
+  cursor: pointer;
+  flex: none;
+  transition:
+    color var(--imb-motion-fast) var(--imb-ease-standard),
+    background var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-pane-action-btn:hover {
+  background: var(--imb-fg-soft);
+  color: var(--imb-fg);
+}
+
+.imb-pane-action-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--imb-focus-ring);
 }
 
 /* Scrollable list body. Most modules fill it with `ItemList` (whose
