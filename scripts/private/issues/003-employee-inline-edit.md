@@ -63,7 +63,7 @@ CDP 实测（`CDP_PORT=9224`）：
 5. Enter 或失焦提交、Esc 取消；保存走既有 `scheduleSave({ ...form, name/role })` / `onPatch` 链路，**不新造保存逻辑**；空值提交保持与现有 Input 相同的 `placeholder` 行为（「未命名」）。
 6. 内置 0 号员工：**名字可 hover 编辑、角色维持只读**（无编辑入口；与上游 `isAssistant` 保护一致，这是唯一残余特殊点）。
 7. 换头像浮层流程不受影响（头像仍可点击、浮层选项照旧）。
-8. quiet 视觉语言：发丝线边框、36px 级控件、muted 色；编辑态视觉反馈（聚焦环/边框）与现有 `.imb-input` 一致。
+8. quiet 视觉语言：发丝线边框、36px 级控件、muted 色；编辑态视觉反馈（聚焦环/边框）与现有 `.imb-input` 一致。铅笔视觉尺寸 14×14（inline 提示图标，非独立控件），**可点击命中区域 ≥24×24**（@0 依 id 177 裁定：视觉保持 14px、用 padding 扩命中区，WCAG 2.5.8 AA）。
 9. 测试环境（HOME ~/.imboss-ui-test / CDP 9224）自验通过 + 证据图；键盘可达（铅笔可 Tab 聚焦，Enter/Space 进入编辑）。
 
 > 复测补充项（原第 6 条，@0 9 条口径未单列，复测照查）：其他字段（系统提示词、关联 MCP、技能集、使用的模型、思考强度）布局与行为无回归；移除输入框后详情卡不出现明显空隙。
@@ -83,4 +83,5 @@ CDP 实测（`CDP_PORT=9224`）：
 | 2026-10-18 | 为取证在测试实例新建 1 名员工并截图 | 拿到非内置员工分支的证据（`003-employee-detail-non-assistant.png`） |
 | 2026-10-18 | @0 m00157 正式派 @5 实现，口径=全员工统一（含 0 号）+ 头像移到名字/角色左侧 + 0 号仅名字可编辑 | 验收标准改为 9 条版；负责人改为 @5 |
 | 2026-10-18 | 观察到工作区 `employee-detail/index.tsx` +168/−44、`index.css` +58，未跟踪 `evidence/003-hover-tooltip.png`、`003-narrow-assistant.png` | @5 已开工，尚未提交；复测待 @0 给提交命令 |
-| 2026-10-18 | 读 @5 未提交 diff（只读，未驱动 GUI）：`DetailHead` 改为组件内 `.imb-detail-head`（avatar-row 保留、头像与名字/角色同行）；新增 `beginEdit/commitEdit/cancelEdit` + `fieldDoneRef` 防重复提交；铅笔 `.imb-employee-edit-line` + `IconEdit` `.imb-employee-edit-icon`，Tooltip = `t("Edit")`；0 号角色为纯 `.imb-sub` 只读 | 实现与 9 条口径逐条对得上；**实测偏差记录**：铅笔图标 14×14（`.imb-employee-edit-icon`），@0 验收 ⑧ 表述为「36px 控件」——按 #004 待验项先例留待 @0/@5 定夺，不单方面判不过 |
+| 2026-10-18 | 读 @5 未提交 diff（只读，未驱动 GUI）：`DetailHead` 改为组件内 `.imb-detail-head`（avatar-row 保留、头像与名字/角色同行）；新增 `beginEdit/commitEdit/cancelEdit` + `fieldDoneRef` 防重复提交；铅笔 `.imb-employee-edit-line` + `IconEdit` `.imb-employee-edit-icon`，Tooltip = `t("Edit")`；0 号角色为纯 `.imb-sub` 只读 | 实现与 9 条口径逐条对得上 |
+| 2026-10-18 | @0 依 id 177 裁定铅笔尺寸偏差：**保持 14px 视觉**（老板 m00146 要的是「hover 时一个可编辑的图标提示」，inline 语义；36px 验收针对 #002 那种头部独立按钮），**但要求用 padding 把命中区域扩到 ≥24×24**（WCAG 2.5.8 AA） | 复测清单加第 10 条；探针加 `hitArea`（`elementFromPoint` 网格打点，因为全局 `* { box-sizing: border-box }` 下 14px 图标加 padding 不会放大命中盒，必须实测打点） |
