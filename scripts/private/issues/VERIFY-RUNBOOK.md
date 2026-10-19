@@ -64,7 +64,7 @@
 | 验收 | 复测方法 | 通过判据 |
 | --- | --- | --- |
 | ① 独立筛选行移除 | CDP：`.imb-chat-search-stack` 计数（应 0）+ 新行容器（`.imb-chat-search-row` 或 trigger 的父容器）+ `.imb-pane-header` 高度 | 不再有纵向第二个整宽行；**头部 h 126 → 88**（蓝图硬断言；基线 126 见 issue「基线实测」节） |
-| ② 能力完整保留 | 点 `.imb-chat-tag-filter .imb-ms-trigger` → 读 `.imb-ms-panel` 的 `.imb-ms-option` → 多选 2 个具体标签 | 多选生效（chips 累加）、`allowNoTag`「无标签」选项在列、与具体标签互斥（选「无标签」→ 具体 chips 清空）、options 来自 `tagOptions` |
+| ② 能力完整保留 | 点 `.imb-chat-tag-filter .imb-ms-trigger` → 读 `.imb-ms-panel` 的 `.imb-ms-option` → 多选 2 个具体标签 | 多选生效（chips 累加）、`allowNoTag`「无标签」选项在列、与具体标签互斥（选「无标签」→ 具体 chips 清空）、options 来自 `tagOptions`；**语义是 AND**（同一对话必须带全部所选标签，`chats.ts:173-181`），不得悄悄改成 OR |
 | ③ 生效条件可见 + 一键清除 | 选中后读 trigger 内 `.imb-ms-chip`；点 `.imb-ms-clear` | 栏内可见已选 chips；一键清回占位态「按标签筛选」，列表行数回到基线 |
 | ④ 窄宽度可用 | 中栏 300px + 800×600 等窄视口 | 搜索框与触发器同一行不换行、不挤压；`scrollWidth > innerWidth` 为 false |
 | ⑤ 无回归 | 行级 `.imb-chat-tag-select` 计数（**必须仍是 18**，基线值）+ 空态文案 + 搜索+筛选叠加 | 行级打标签一像素不动；空态仍走 `chatListEmptyMessage(isSearching, tagFilter.length)`；`tagFilterKey`/`paramsKey` 仍在 |
@@ -76,6 +76,15 @@
 **现成探针**：`/tmp/verify-004.mjs`（CDP 9224）——设视口 → 合成 click 导航「对话」→ 输出几何/计数/`!important` 审计；`--filter` 跑完整行为链（基线行数 → 开面板 → 多选 2 个具体标签 → 「无标签」互斥 → 一键清除回基线）；`--shot` 存档。CDP 教训照旧：导航必须合成 click、截图不要传 `fromSurface:false`、键盘事件带 `text` 字段。
 
 **基线实测（2026-10-19，PID 572874，`fd52679` 运行态，#004 修复前；探针已冒烟通过，这些值就是 before/after 的 before）**：`.imb-pane-header` 299×126 @(76,20)、`.imb-pane-header-top` 283×48 @(84,20)、`.imb-chat-search-stack` 计数 1、`.imb-ms.imb-chat-tag-filter` 283×34 @(84,104)、SearchInput 183×26 @(121,71)（placeholder「搜索对话」/hint Ctrl+K）、tag trigger 283×34 @(84,104)（placeholder「按标签筛选」、字号 **15px**、min-height 34px、aria-expanded false）、`sameRow` false、`.imb-vlist` 299×884 @(76,146)、firstRowY 146、rowCount 18、**行级 `.imb-chat-tag-select` 18（红线基线）**、`.imb-chat-filter-row` 0、`.imb-spend-tag-filter` 0（未开统计模块）、`!important` 规则 0、overflowX false。修复后预期：searchStackCount 0、searchRow 出现、sameRow true、header h 88、vlist y=108 h=922、触发器宽度与字号待实测报 @0。
+
+**探针实测教训（2026-10-19 冒烟跑通，全是探针坑不是应用坑；`--filter` 9/9 断言 PASS）**：
+1. **多选面板选完不关**：点一次选项后面板仍开着（`aria-expanded` 仍 true），此时再点 trigger 是**关上**它 → 之后所有选项点击静默失效，表现为「每隔一次操作失效」。探针必须先读 `.imb-ms-panel` 是否存在，只在关闭时才点 trigger。
+2. **标签筛选是 AND 不是 OR**（源码定论）：`src/main/db/chats.ts:173-181` `c.id IN (SELECT chat_id FROM chat_tags WHERE tag IN (?, ?) GROUP BY chat_id HAVING COUNT(DISTINCT tag) = ?)`，注释明写 "the chat must carry every requested tag"。所以选 2 个标签 = 同时带这两个标签的对话；当前种子数据下没有任何对话同时带「复测甲+复测乙」→ 2 标签筛选结果为 **0 行**，这是正确行为。
+3. **列表是虚拟滚动**：`rowCount` 只是**渲染出来的行数**（53 个对话只渲染 18 行），不能当筛选总数用。判断筛选结果用「每一渲染行都带目标标签」+ 0 结果时的空态文案。
+4. **0 结果态**：`.imb-vlist` 被替换为 `.imb-list-empty`，文案 `没有带这些标签的对话`（`chatListEmptyMessage(isSearching, tagCount)`，`src/renderer/components/modules/chat/chat-module/index.tsx:74-80`）。
+5. **微应用模块常驻一条隐藏空态**：`.imb-miniapp-host.imb-is-hidden` 里也挂着一个 `.imb-list-empty`（文案「从侧边栏选择一个微应用」），`document.querySelector('.imb-list-empty')` 会先命中它 → 空态断言必须用 `.imb-chat-tag-filter` 的 `closest('.imb-pane')` 限定到对话中栏。
+6. **实例是长命的**：上次跑留下的筛选状态会带到下一次（跑之前先点 `.imb-ms-clear` 复位，再测基线行数）。
+7. **测试数据种子（2026-10-19）**：`~/.imboss-ui-test` 的 53 个对话中，复测甲×2（chat 50/52）、复测乙×2（chat 51/53）、无标签×49；没有对话同时带两个标签。筛选面板 options = [无标签, #复测乙, #复测甲]。
 
 ## 状态机更新规则
 
