@@ -1,6 +1,6 @@
 # 002 · 中栏「新对话 / 招募」底部大按钮应改为标题右侧 + 号
 
-- **状态**: `fixed-verified`（@3 独立复测通过；修复实现位于工作区未暂存改动，尚未提交，固化待 Boss 决策）
+- **状态**: `fixed-verified`（@3 独立复测通过；修复已由 Boss 固化为提交 `9aaf0a9`，工作区干净，@3 已在已提交 HEAD 的构建上复核）
 - **报告人**: Boss（chat 10）
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 中（视觉噪声，与 quiet 设计语言冲突）
@@ -88,5 +88,6 @@ CDP 实测（`CDP_PORT=9224`，`scripts/private/cdp-eval.mjs`）：
 
 ### 遗留
 
-- 修复实现**仍未提交**（4 个文件 `MM`/`M` 状态：`list-pane/index.tsx`、`list-pane/index.css`、`chat-module/index.tsx`、`employees-module/index.tsx`）。任何 `stash`/`checkout` 都会静默丢失；提交与否由 Boss 决策（@0 已冻结 agent 代提建议）。提交后我可立即在新 commit 上做最终复测。
+- ~~修复实现仍未提交~~ → **已固化**：Boss 于 2026-10-19 提交 `9aaf0a9 feat(ui): pane header + actions for chat and employees, drop footer buttons`（同批 `3e5fcee` 提交私有层 WIP），工作区 `git status` 干净。测试实例 PID 499924 的构建产物（`index-CtQnmfFE.css`，07:59:50）与 `9aaf0a9` 源码一致，上述全部实测即对已提交状态成立；@3 已在同一构建上重截图复核（`evidence/002-verify-steward-chat.png`、`002-verify-steward-employees.png`）。
+- 若日后要整理成上游 PR：当前写法已是友好形态（自包含样式、0 `!important`、`actions` 可选 prop、未用会双重播报的 `IconButton`）；员工侧 + 号属纯新增（040ae10 与 WIP 均无），对话侧属恢复，commit message 已分开表述。
 - CSS 注释说明 `.imb-pane-action-btn` 必须自包含的原因（`.imb-icon-btn` 基础样式表只在 `IconButton` 组件被 import 时才进 bundle）——实测确认当前 bundle 无该基础表，自包含写法是必要的。
