@@ -28,6 +28,7 @@ import { Avatar } from "../../../avatar";
 import { Button } from "../../../button";
 import { ContextMenu, type ContextMenuState } from "../../../context-menu";
 import { EmployeeAvatar } from "../../../employee-avatar";
+import { IconPlus } from "../../../icons";
 import { Input } from "../../../input";
 import { ItemList } from "../../../item-list";
 import { ListPane } from "../../../list-pane";
@@ -775,6 +776,18 @@ export function ChatModule(): React.JSX.Element {
   const listPane = (
     <ListPane
       title={t("Chats")}
+      actions={
+        <Tooltip content={t("New Chat")} placement="bottom">
+          <button
+            type="button"
+            className="imb-icon-btn imb-pane-action-btn"
+            aria-label={t("New Chat")}
+            onClick={() => void newChat()}
+          >
+            <IconPlus className="imb-icon imb-sm" />
+          </button>
+        </Tooltip>
+      }
       search={
         <div className="imb-chat-search-stack">
           <SearchInput
@@ -792,11 +805,6 @@ export function ChatModule(): React.JSX.Element {
             onChange={setTagFilter}
           />
         </div>
-      }
-      footer={
-        <Button block onClick={() => void newChat()}>
-          {t("New Chat")}
-        </Button>
       }
     >
       <ItemList
