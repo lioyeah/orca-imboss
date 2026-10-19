@@ -57,7 +57,7 @@
 
 素材：测试实例内已有员工「UI复现测试员 / 验证编辑」（#1），可直接用；0 号为内置 Assistant。
 
-**现成探针**：`/tmp/verify-003.mjs`（CDP 9224）——自动设视口 → 合成 click 导航「员工」→ 选中第 N 个列表行 → 输出详情头/头像/info/输入框/按钮/铅笔的 rect 与 computed 值，含 `editTargets`（铅笔按钮 rect + computed padding + 图标盒）与 `hitArea`（`elementFromPoint` 网格打点实测命中区，判定 ≥24×24 用这个数，不用可见 rect）；`--hover` 测铅笔显隐，`--edit` 测点击→输入→Enter 提交，`--shot` 存档。注意 `--edit` 会真实改名，**只对非 0 号员工用**。CDP 键盘教训照旧：`Input.dispatchKeyEvent` 必须带 `text` 字段。
+**现成探针**：`/tmp/verify-003.mjs`（CDP 9224）——自动设视口 → 合成 click 导航「员工」→ 选中第 N 个列表行 → 输出详情头/头像/info/输入框/按钮/铅笔的 rect 与 computed 值，含 `editTargets`（铅笔按钮 rect + computed padding + 图标盒）与 `hitAreas`（`elementFromPoint` 网格打点实测命中区，判定 ≥24×24 用这个数，不用可见 rect）；`--hover` 测铅笔显隐，`--edit` 测点击→输入→Enter 提交，`--shot` 存档。注意 `--edit` 会真实改名，**只对非 0 号员工用**。CDP 键盘教训照旧：`Input.dispatchKeyEvent` 必须带 `text` 字段。
 
 ## #004 标签筛选并入搜索栏（`004-chat-tag-filter-into-searchbar.md`）
 
