@@ -63,14 +63,17 @@
 
 | 验收 | 复测方法 | 通过判据 |
 | --- | --- | --- |
-| ① 独立筛选行移除 | CDP：`.imb-chat-search-stack` 子元素数量与高度 | 不再出现第二个整宽行；头部高度显著低于 123px |
-| ② 能力完整保留 | 打开筛选入口，多选 2 个标签 + 「无标签」选项 | 多选生效、`allowNoTag` 可用、options 来自 `tagOptions` |
-| ③ 生效条件可见 + 一键清除 | 选中后读栏内显示；点清除 | 栏内可见已选（数量或 chips）；一键清回占位态 |
-| ④ 窄宽度可用 | 中栏 300px | 搜索框可输入，筛选入口可点 |
-| ⑤ 无回归 | 空态文案、搜索+筛选叠加、ListRow 行级 `TagSelect`（`.imb-chat-tag-select`） | 空态仍走 `chatListEmptyMessage(isSearching, tagFilter.length)`；行级打标签不受影响 |
-| ⑥ quiet 视觉 | 截图 | 与 `.imb-searchbox` 同基线、发丝线、36px 级 |
+| ① 独立筛选行移除 | CDP：`.imb-chat-search-stack` 计数（应 0）+ 新行容器（`.imb-chat-search-row` 或 trigger 的父容器）+ `.imb-pane-header` 高度 | 不再有纵向第二个整宽行；**头部 h 126 → 88**（蓝图硬断言；基线 126 见 issue「基线实测」节） |
+| ② 能力完整保留 | 点 `.imb-chat-tag-filter .imb-ms-trigger` → 读 `.imb-ms-panel` 的 `.imb-ms-option` → 多选 2 个具体标签 | 多选生效（chips 累加）、`allowNoTag`「无标签」选项在列、与具体标签互斥（选「无标签」→ 具体 chips 清空）、options 来自 `tagOptions` |
+| ③ 生效条件可见 + 一键清除 | 选中后读 trigger 内 `.imb-ms-chip`；点 `.imb-ms-clear` | 栏内可见已选 chips；一键清回占位态「按标签筛选」，列表行数回到基线 |
+| ④ 窄宽度可用 | 中栏 300px + 800×600 等窄视口 | 搜索框与触发器同一行不换行、不挤压；`scrollWidth > innerWidth` 为 false |
+| ⑤ 无回归 | 行级 `.imb-chat-tag-select` 计数（**必须仍是 18**，基线值）+ 空态文案 + 搜索+筛选叠加 | 行级打标签一像素不动；空态仍走 `chatListEmptyMessage(isSearching, tagFilter.length)`；`tagFilterKey`/`paramsKey` 仍在 |
+| ⑥ quiet 视觉 + 无 !important | 截图 + 遍历 `document.styleSheets` 中命中 `imb-chat-search|imb-chat-tag-filter|imb-chat-filter-row` 的规则 | 与 `.imb-searchbox` 同基线、发丝线；**`!important` 计数 0**（蓝图验收 ⑧） |
+| ⑦ 几何对齐（蓝图预测，实测定） | `.imb-vlist` 的 y/h、触发器宽度与字号 | 基线 y=146 h=884 → 预测 y=108 h=922；触发器宽度实测（蓝图估 ~87px）、字号 `--imb-text-sm`(13px) 而非行级 11px——与 #003 铅笔 14px 同属「待验项」，实测后报 @0 定 |
 
-红线：不得回退成 `040ae10` 的单选 chips 形态；不得改 `tagFilter` 的数组语义。
+红线：不得回退成 `040ae10` 的单选 chips 形态；不得改 `tagFilter` 的数组语义；`chat-module/index.tsx` 行级 TagSelect（`.imb-chat-tag-select`）一像素不许动；`spend-module` 的 `.imb-spend-tag-filter` 不碰。
+
+**现成探针**：`/tmp/verify-004.mjs`（CDP 9224）——设视口 → 合成 click 导航「对话」→ 输出几何/计数/`!important` 审计；`--filter` 跑完整行为链（基线行数 → 开面板 → 多选 2 个具体标签 → 「无标签」互斥 → 一键清除回基线）；`--shot` 存档。CDP 教训照旧：导航必须合成 click、截图不要传 `fromSurface:false`、键盘事件带 `text` 字段。
 
 ## 状态机更新规则
 
