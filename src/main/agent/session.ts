@@ -35,7 +35,6 @@ import { getChat } from "../db/chats";
 import { getEmployee } from "../db/employees";
 import { getSession } from "../db/sessions";
 import { getSetting } from "../db/settings";
-import { buildUpstreamCausalContext } from "../graph";
 import { readMcpServers } from "../mcp-store";
 import {
   BUILTIN_SKILL_NAMES,
@@ -97,8 +96,6 @@ interface SessionSpec {
   /** Spawning chat for a group chat; null for root chats. Immutable after
    *  `createChat` (no update path touches `from_chat_id`). */
   fromChatId: number | null;
-  /** DAG causal context extracted along in-edges from upstream ancestors & deliverables. */
-  upstreamCausalContext: string | null;
   /** Employee display name; injected into the generated non-assistant role block. */
   employeeName: string;
   /** Employee role; injected into the generated non-assistant role block. */
@@ -331,12 +328,6 @@ export class AgentSession {
       }))
       .sort((a, b) => a.path.localeCompare(b.path));
 
-    // Graph-as-Infrastructure: extract upstream causal context along in-edges
-    const upstreamContext = buildUpstreamCausalContext(
-      this.context.chatId,
-      employeeId,
-    );
-
     const spec: SessionSpec = {
       employeeId,
       isAssistant,
@@ -344,7 +335,6 @@ export class AgentSession {
       // degrades to a null `from` rather than failing the whole run.
       chatId: this.context.chatId,
       fromChatId: getChat(this.context.chatId)?.fromChatId ?? null,
-      upstreamCausalContext: upstreamContext.xml || null,
       employeeName: employee?.name ?? "",
       employeeRole: employee?.role ?? "",
       modelRef: `${model.provider}/${model.id}`,
@@ -482,7 +472,6 @@ export class AgentSession {
         employeeId: spec.employeeId,
         chatId: spec.chatId,
         fromChatId: spec.fromChatId,
-        upstreamCausalContext: spec.upstreamCausalContext,
         toolEntries,
         toolsGuidelines,
         today,

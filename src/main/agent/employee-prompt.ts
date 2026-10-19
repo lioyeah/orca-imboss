@@ -13,16 +13,15 @@ import { BuildEmployeeSystemPromptArgs } from "@shared/types";
  * `systemPromptOverride` (the Pi SDK customPrompt branch). Because the SDK
  * appends `<project_context>`, `[skills]` and a trailing
  * `Current working directory` line after the override, this function emits
- * the leading identity block, the role, persona, `<upstream_causal_context>`,
- * `[builtinSkills]`, response-language rule, the `[tools]` block and the `Today`
- * line (in that order). The exact template shape:
+ * the leading identity block, the role, persona, `[builtinSkills]`,
+ * response-language rule, the `[tools]` block and the `Today` line (in that
+ * order). The exact template shape:
  *
  * ```
  * This is your working session as employee {ID} in chat {chatId}[, the boss's chat].
  * [This task group chat was created from chat {fromChatId}, the boss's chat.  — only when fromChatId is set]
  * [role: generated for non-assistants; baked into ASSISTANT_SYSTEM_PROMPT for the assistant]
  * [employeePrompt: persona]
- * [<upstream_causal_context> — DAG in-edges provenance, deliverables, milestones]
  * [report skill: assistant aggregation/progress/summary OR employee result report]
  * [@-mention handling]
  * [never block waiting]
@@ -41,7 +40,6 @@ export function buildEmployeeSystemPrompt({
   employeeId,
   chatId,
   fromChatId,
-  upstreamCausalContext,
   toolEntries,
   toolsGuidelines,
   today,
@@ -89,17 +87,10 @@ export function buildEmployeeSystemPrompt({
     ? ASSISTANT_REPORT_PROMPT
     : EMPLOYEE_REPORT_PROMPT;
 
-  // DAG Causal Context Injection: cleanly formatted XML block from graph in-edges
-  const causalContextBlock =
-    upstreamCausalContext && upstreamCausalContext.trim().length > 0
-      ? upstreamCausalContext.trim()
-      : "";
-
   const sections = [
     identityBlock,
     roleBlock,
     persona,
-    causalContextBlock,
     reportBlock,
     MENTION_HANDLING_PROMPT,
     NEVER_BLOCK_WAITING_PROMPT,

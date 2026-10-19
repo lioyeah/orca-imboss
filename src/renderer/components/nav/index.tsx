@@ -191,23 +191,8 @@ export function Nav({ collapsed, onToggle }: NavProps): React.JSX.Element {
         aria-label="Modules"
       >
         <div className="imb-nav-brand">
-          <div className="imb-nav-brand-title">
-            <BrandLogo style={{ maxWidth: "41px" }} />
-            <span className="imb-nav-brandname">imboss</span>
-          </div>
-          <Tooltip
-            content={collapsed ? t("Expand") : t("Collapse")}
-            placement={collapsed ? "right" : "bottom"}
-          >
-            <button
-              type="button"
-              className="imb-nav-toggle"
-              aria-label={collapsed ? t("Expand") : t("Collapse")}
-              onClick={onToggle}
-            >
-              <IconCollapse className="imb-icon" />
-            </button>
-          </Tooltip>
+          <BrandLogo style={{ maxWidth: "41px" }} />
+          <span className="imb-nav-brandname">imboss</span>
         </div>
         <div className="imb-nav-items">
           {main.map((item) => (
@@ -328,6 +313,21 @@ export function Nav({ collapsed, onToggle }: NavProps): React.JSX.Element {
         </div>
         <div className="imb-nav-spacer" />
         <div className="imb-nav-items imb-nav-bottom">
+          <Tooltip
+            content={collapsed ? t("Expand") : t("Collapse")}
+            placement="right"
+            disabled={!collapsed}
+          >
+            <button
+              type="button"
+              className="imb-nav-toggle"
+              aria-label={collapsed ? t("Expand") : t("Collapse")}
+              onClick={onToggle}
+            >
+              <IconCollapse className="imb-icon" />
+              <span>{t("Collapse")}</span>
+            </button>
+          </Tooltip>
           {bottom.map((item) => (
             <NavButton key={item.module} item={item} collapsed={collapsed} />
           ))}

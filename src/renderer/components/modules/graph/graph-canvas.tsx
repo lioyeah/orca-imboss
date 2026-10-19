@@ -802,21 +802,6 @@ export function GraphCanvas({
             <feGaussianBlur stdDeviation="2.5" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
-          <marker
-            id="imb-edge-arrow"
-            viewBox="0 0 10 10"
-            refX="16"
-            refY="5"
-            markerWidth="5"
-            markerHeight="5"
-            orient="auto"
-          >
-            <path
-              d="M 0 1.5 L 8 5 L 0 8.5 z"
-              fill="currentColor"
-              className="imb-graph-arrow-head"
-            />
-          </marker>
         </defs>
 
         {showGrid && (
@@ -851,11 +836,6 @@ export function GraphCanvas({
               const isDim =
                 (focusId !== null && !isFocused) || (isSearchDim && !isFocused);
               const pathD = getOrganicPath(a, b, edge.id);
-              const isDirected =
-                edge.kind === "spawned" ||
-                edge.kind === "produces" ||
-                edge.kind === "depends_on" ||
-                edge.kind === "progress";
               return (
                 <path
                   key={edge.id}
@@ -867,7 +847,6 @@ export function GraphCanvas({
                     isDim && "imb-is-dim",
                   )}
                   filter={isFocused ? "url(#imb-graph-glow)" : undefined}
-                  markerEnd={isDirected ? "url(#imb-edge-arrow)" : undefined}
                 />
               );
             })}
@@ -1008,16 +987,6 @@ export function GraphCanvas({
                     >
                       {body.node.collapsedCount}
                     </text>
-                  )}
-
-                  {/* Upstream Causal Context Injected Indicator */}
-                  {isChat && body.node.hasUpstreamContext && (
-                    <g
-                      className="imb-graph-node-injected-wrap"
-                      transform={`translate(${body.r * 0.72}, ${-body.r * 0.72})`}
-                    >
-                      <circle r={3.6} className="imb-graph-injected-badge" />
-                    </g>
                   )}
 
                   {/* Text Label with LOD Zoom Culling */}
