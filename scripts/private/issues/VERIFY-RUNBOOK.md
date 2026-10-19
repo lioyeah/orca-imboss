@@ -75,8 +75,10 @@
 
 **现成探针**：`/tmp/verify-004.mjs`（CDP 9224）——设视口 → 合成 click 导航「对话」→ 输出几何/计数/`!important` 审计；`--filter` 跑完整行为链（基线行数 → 开面板 → 多选 2 个具体标签 → 「无标签」互斥 → 一键清除回基线）；`--shot` 存档。CDP 教训照旧：导航必须合成 click、截图不要传 `fromSurface:false`、键盘事件带 `text` 字段。
 
+**基线实测（2026-10-19，PID 572874，`fd52679` 运行态，#004 修复前；探针已冒烟通过，这些值就是 before/after 的 before）**：`.imb-pane-header` 299×126 @(76,20)、`.imb-pane-header-top` 283×48 @(84,20)、`.imb-chat-search-stack` 计数 1、`.imb-ms.imb-chat-tag-filter` 283×34 @(84,104)、SearchInput 183×26 @(121,71)（placeholder「搜索对话」/hint Ctrl+K）、tag trigger 283×34 @(84,104)（placeholder「按标签筛选」、字号 **15px**、min-height 34px、aria-expanded false）、`sameRow` false、`.imb-vlist` 299×884 @(76,146)、firstRowY 146、rowCount 18、**行级 `.imb-chat-tag-select` 18（红线基线）**、`.imb-chat-filter-row` 0、`.imb-spend-tag-filter` 0（未开统计模块）、`!important` 规则 0、overflowX false。修复后预期：searchStackCount 0、searchRow 出现、sameRow true、header h 88、vlist y=108 h=922、触发器宽度与字号待实测报 @0。
+
 ## 状态机更新规则
 
 - 复测**全部通过** → issue 头部 `- **状态**:` 改 `fixed-verified`，处理记录追加一行（日期 / 复测 commit / 结果）。
 - 有任一项不过 → 状态保持 `fixing`，在 issue 里「处理记录」写明**不过的是哪一条 + 实测值 + 截图名**，回报 @0 并 @ 对应修复人，不替对方改代码。
-- 提交：只 `git add -N` + `git commit --only` 自己改的 issue 文件与新增证据；提交后自查 `git diff --cached --name-only | wc -l` 应回到 21（老板的 WIP 条数）。
+- 提交：只 `git add -N` + `git commit --only` 自己改的 issue 文件与新增证据；提交后三项自查——`git show --stat --format='' HEAD` 只有自己的文件、`git status --porcelain` 只剩别人的、`git diff --cached --stat` 为空或与操作前条数一致（老板 21 个暂存 WIP 已于 `3e5fcee` 提交，现常态为 0）。
