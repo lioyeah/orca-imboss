@@ -83,3 +83,4 @@ CDP 实测（`CDP_PORT=9224`）：
 | 2026-10-18 | 为取证在测试实例新建 1 名员工并截图 | 拿到非内置员工分支的证据（`003-employee-detail-non-assistant.png`） |
 | 2026-10-18 | @0 m00157 正式派 @5 实现，口径=全员工统一（含 0 号）+ 头像移到名字/角色左侧 + 0 号仅名字可编辑 | 验收标准改为 9 条版；负责人改为 @5 |
 | 2026-10-18 | 观察到工作区 `employee-detail/index.tsx` +168/−44、`index.css` +58，未跟踪 `evidence/003-hover-tooltip.png`、`003-narrow-assistant.png` | @5 已开工，尚未提交；复测待 @0 给提交命令 |
+| 2026-10-18 | 读 @5 未提交 diff（只读，未驱动 GUI）：`DetailHead` 改为组件内 `.imb-detail-head`（avatar-row 保留、头像与名字/角色同行）；新增 `beginEdit/commitEdit/cancelEdit` + `fieldDoneRef` 防重复提交；铅笔 `.imb-employee-edit-line` + `IconEdit` `.imb-employee-edit-icon`，Tooltip = `t("Edit")`；0 号角色为纯 `.imb-sub` 只读 | 实现与 9 条口径逐条对得上；**实测偏差记录**：铅笔图标 14×14（`.imb-employee-edit-icon`），@0 验收 ⑧ 表述为「36px 控件」——按 #004 待验项先例留待 @0/@5 定夺，不单方面判不过 |
