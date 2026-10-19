@@ -50,11 +50,14 @@
 | ⑥ 头像更换不回退 | 点头像更换入口 | 浮层与修复前一致 |
 | ⑦ 空值回退显示 | 清空名字提交 | 空值/no-op，显示回退到 `displayName` 占位（「未命名」） |
 | ⑧ 窄宽度可用 | 右栏压缩到窄宽度（含 800×600） | 名字/角色/铅笔不折行重叠；`scrollWidth > innerWidth` 为 false |
-| ⑨ quiet 视觉 + 键盘 | 截图 + Tab 聚焦 | 实测值：铅笔 `.imb-employee-edit-icon` = 14×14、`--imb-muted`、opacity 0→1（`--imb-motion-fast`）；编辑框复用 `.imb-input` + `--imb-focus-ring`；**14px 与 @0「36px 控件」表述的偏差已记入 issue 003 处理记录，由 @0/@5 定夺**；铅笔可 Tab 聚焦、Enter/Space 进入编辑 |
+| ⑨ quiet 视觉 + 键盘 | 截图 + Tab 聚焦 | 实测值：铅笔 `.imb-employee-edit-icon` = 14×14、`--imb-muted`、opacity 0→1（`--imb-motion-fast`）；编辑框复用 `.imb-input` + `--imb-focus-ring`；铅笔可 Tab 聚焦、Enter/Space 进入编辑 |
+| ⑩ 命中区域 ≥24×24（@0 依 id 177 裁定新增） | CDP：量 `.imb-employee-edit-line` 的 computed padding + **`elementFromPoint` 网格打点**实测命中区（全局 reset 是 `* { box-sizing: border-box }`，14px 图标加 padding 不会放大命中盒，必须打点实测） | 命中区 min(w,h) ≥ 24，视觉仍 14px |
+
+**@0 裁定（id 177）**：铅笔保持 14px 视觉（老板要的是「hover 时一个可编辑的图标提示」，inline 语义，不是 #002 那种头部独立控件，36px 验收针对后者），但 14×14 纯视觉点击目标对鼠标不友好 → @5 用 padding 把可点击区域扩到 ≥24×24（WCAG 2.5.8 AA 底线）。复测时**量 computed padding 后的点击盒，不只是可见 rect**。
 
 素材：测试实例内已有员工「UI复现测试员 / 验证编辑」（#1），可直接用；0 号为内置 Assistant。
 
-**现成探针**：`/tmp/verify-003.mjs`（CDP 9224）——自动设视口 → 合成 click 导航「员工」→ 选中第 N 个列表行 → 输出详情头/头像/info/输入框/按钮/铅笔的 rect 与 computed 值；`--hover` 测铅笔显隐，`--edit` 测点击→输入→Enter 提交，`--shot` 存档。注意 `--edit` 会真实改名，**只对非 0 号员工用**。CDP 键盘教训照旧：`Input.dispatchKeyEvent` 必须带 `text` 字段。
+**现成探针**：`/tmp/verify-003.mjs`（CDP 9224）——自动设视口 → 合成 click 导航「员工」→ 选中第 N 个列表行 → 输出详情头/头像/info/输入框/按钮/铅笔的 rect 与 computed 值，含 `editTargets`（铅笔按钮 rect + computed padding + 图标盒）与 `hitArea`（`elementFromPoint` 网格打点实测命中区，判定 ≥24×24 用这个数，不用可见 rect）；`--hover` 测铅笔显隐，`--edit` 测点击→输入→Enter 提交，`--shot` 存档。注意 `--edit` 会真实改名，**只对非 0 号员工用**。CDP 键盘教训照旧：`Input.dispatchKeyEvent` 必须带 `text` 字段。
 
 ## #004 标签筛选并入搜索栏（`004-chat-tag-filter-into-searchbar.md`）
 
