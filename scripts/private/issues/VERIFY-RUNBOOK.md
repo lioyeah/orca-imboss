@@ -42,15 +42,19 @@
 
 | 验收 | 复测方法 | 通过判据 |
 | --- | --- | --- |
-| ① 有且仅有一组 | CDP：详情卡内 `imb-field-row` 不含名字/角色 input；`.imb-detail-avatar-info` 的 h2/.imb-sub 为唯一显示 | 0 号与非内置员工均如此 |
-| ② 0 号也可原地编辑 | hover 0 号名字 → 铅笔出现 → 点击 → 输入框 | 名字可编辑；角色仍只读（已裁定口径） |
-| ③ 提交/取消 | Enter 提交、失焦提交、Esc 取消各测一次；改后刷新页面复核 | 值经 `scheduleSave` / `onPatch` 落库；Esc 后还原 |
-| ④ 头像更换不回退 | 点头像更换入口 | 功能与修复前一致 |
-| ⑤ 空值回退显示 | 清空名字提交 | 回退到 `displayName` 的占位逻辑（「未命名」类） |
-| ⑥ 窄宽度可用 | 右栏压缩到窄宽度 | 名字/角色/铅笔不折行重叠 |
-| ⑦ quiet 视觉 | 截图 | 铅笔 36px 级、hover 才出现、聚焦环与 `.imb-input` 一致 |
+| ① 有且仅有一组 | CDP：`.imb-detail-head` 内 `.imb-detail-avatar-row` 的 `.imb-detail-avatar-info`（h2 + .imb-sub）为唯一显示；`.imb-field-row` 不含名字/角色 input | 0 号与非内置员工均如此；`.imb-field-row` 只剩系统提示词等原有字段 |
+| ② 头像在名字/角色左侧 | CDP 取 `.imb-detail-avatar-row` 子元素 rect：avatar-wrap 与 `.imb-detail-avatar-info` 同一行，且 avatar 的 `right` < info 的 `left` | 同一 y 区间水平相邻（m00211 显式要求） |
+| ③ hover 铅笔 + 原地编辑 | `Input.dispatchMouseEvent mouseMoved` 移到名字上 → `.imb-employee-edit-icon` 的 `opacity` 0→1；点 `.imb-employee-edit-line` → 出现 `.imb-employee-name-input`（autoFocus） | 铅笔 hover/focus 才出现；点击进入原地编辑，不开弹窗 |
+| ④ 提交/取消 | Enter、失焦各测一次；Esc 一次；改后重启实例复核落库 | 值经 `scheduleSave({...form, name/role})` 落库；Esc 还原；无双重提交（`fieldDoneRef` 守卫） |
+| ⑤ 0 号口径 | 0 号：点名字铅笔可编辑；角色位置无 `.imb-employee-edit-line`、纯 `.imb-sub` 只读 | 名字可编辑、角色无编辑入口 |
+| ⑥ 头像更换不回退 | 点头像更换入口 | 浮层与修复前一致 |
+| ⑦ 空值回退显示 | 清空名字提交 | 空值/no-op，显示回退到 `displayName` 占位（「未命名」） |
+| ⑧ 窄宽度可用 | 右栏压缩到窄宽度（含 800×600） | 名字/角色/铅笔不折行重叠；`scrollWidth > innerWidth` 为 false |
+| ⑨ quiet 视觉 + 键盘 | 截图 + Tab 聚焦 | 实测值：铅笔 `.imb-employee-edit-icon` = 14×14、`--imb-muted`、opacity 0→1（`--imb-motion-fast`）；编辑框复用 `.imb-input` + `--imb-focus-ring`；**14px 与 @0「36px 控件」表述的偏差已记入 issue 003 处理记录，由 @0/@5 定夺**；铅笔可 Tab 聚焦、Enter/Space 进入编辑 |
 
 素材：测试实例内已有员工「UI复现测试员 / 验证编辑」（#1），可直接用；0 号为内置 Assistant。
+
+**现成探针**：`/tmp/verify-003.mjs`（CDP 9224）——自动设视口 → 合成 click 导航「员工」→ 选中第 N 个列表行 → 输出详情头/头像/info/输入框/按钮/铅笔的 rect 与 computed 值；`--hover` 测铅笔显隐，`--edit` 测点击→输入→Enter 提交，`--shot` 存档。注意 `--edit` 会真实改名，**只对非 0 号员工用**。CDP 键盘教训照旧：`Input.dispatchKeyEvent` 必须带 `text` 字段。
 
 ## #004 标签筛选并入搜索栏（`004-chat-tag-filter-into-searchbar.md`）
 
