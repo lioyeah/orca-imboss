@@ -5,6 +5,76 @@
   margin-bottom: var(--imb-space-5);
 }
 
+/* Inside the merged head the head's own padding-bottom is the only gap. */
+.imb-detail-head .imb-detail-avatar-row {
+  margin-bottom: 0;
+}
+
+/* In-place editing affordance for the single name/role display: a quiet
+   pencil that fades in on hover/focus (boss: hover edit-icon hint). */
+.imb-employee-edit-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--imb-space-1);
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.imb-employee-edit-line:focus-visible {
+  outline: none;
+  box-shadow: var(--imb-focus-ring);
+}
+
+.imb-employee-edit-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* .imb-detail-avatar-info .imb-sub clips for ellipsis, but the ellipsis lives on the
+   text span — the edit line itself must stay unclipped or the 24px icon hit box is cut. */
+.imb-detail-avatar-info .imb-sub.imb-employee-edit-line {
+  overflow: visible;
+}
+
+.imb-employee-edit-line .imb-employee-edit-icon {
+  /* Hit target ≥24×24 (WCAG 2.5.8 AA): border-box 24px box with 5px padding keeps the
+     SVG visual at 14×14 centered; the -5px margin keeps the layout footprint at 14×14
+     so the name/role line rhythm (h2 32px / .imb-sub 21px) is unchanged. */
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 5px;
+  margin: -5px;
+  flex: none;
+  color: var(--imb-muted);
+  opacity: 0;
+  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-employee-edit-line:hover .imb-employee-edit-icon,
+.imb-employee-edit-line:focus-visible .imb-employee-edit-icon {
+  opacity: 1;
+}
+
+.imb-employee-name-input {
+  font-family: var(--imb-font-display);
+  font-size: var(--imb-fs-h2);
+  font-weight: 600;
+}
+
+.imb-employee-role-input {
+  font-size: var(--imb-text-sm);
+}
+
 .imb-detail-avatar-wrap {
   position: relative;
   width: 72px;

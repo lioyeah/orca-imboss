@@ -2,7 +2,6 @@ import { isThinkingLevel } from "@shared/constants/thinking";
 import { t } from "@shared/l10n";
 import type { Employee, EmployeeInput, ModelOption } from "@shared/types";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cls } from "reactutils";
 import {
   modelRef,
   thinkingLevelsFor,
@@ -10,15 +9,15 @@ import {
 } from "../../../../thinking-options";
 import { Button } from "../../../button";
 import { DetailBody } from "../../../detail-pane/detail-body";
-import { DetailHead } from "../../../detail-pane/detail-head";
 import { employeeAvatarSrc } from "../../../employee-avatar/avatar-src";
 import { Field } from "../../../field";
-import { IconCamera } from "../../../icons";
+import { IconCamera, IconEdit } from "../../../icons";
 import { Input } from "../../../input";
 import { Modal } from "../../../modal";
 import { MultiSelect, type MultiSelectOption } from "../../../multi-select";
 import { Select } from "../../../select";
 import { Textarea } from "../../../textarea";
+import { Tooltip } from "../../../tooltip";
 import { AvatarCropModal } from "../avatar-crop-modal";
 import "./index.css";
 
@@ -79,8 +78,15 @@ export function EmployeeDetail({
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [editingField, setEditingField] = useState<"name" | "role" | null>(
+    null,
+  );
+  const [fieldDraft, setFieldDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards the double commit from the blur that fires when the inline input
+  // unmounts after Enter/Escape already closed it (chat-module title pattern).
+  const fieldDoneRef = useRef(false);
 
   const scheduleSave = useCallback(
     (next: EmployeeInput): void => {
@@ -133,6 +139,37 @@ export function EmployeeDetail({
 
   const triggerPicker = (): void => fileRef.current?.click();
 
+  // In-place editing of the single name/role display: Enter or blur commits
+  // through the same debounced `scheduleSave`, Escape cancels. An empty or
+  // unchanged name is a silent no-op (house pattern); an empty role is allowed
+  // and simply displays as "—".
+  const beginEdit = (field: "name" | "role"): void => {
+    fieldDoneRef.current = false;
+    setFieldDraft(field === "name" ? (form.name ?? "") : (form.role ?? ""));
+    setEditingField(field);
+  };
+
+  const cancelEdit = (): void => {
+    fieldDoneRef.current = true;
+    setEditingField(null);
+  };
+
+  const commitEdit = (): void => {
+    if (fieldDoneRef.current) return;
+    fieldDoneRef.current = true;
+    const field = editingField;
+    setEditingField(null);
+    if (field === null) return;
+    const draft = fieldDraft;
+    if (field === "name") {
+      const next = draft.trim();
+      if (next.length === 0 || next === (form.name ?? "").trim()) return;
+      scheduleSave({ ...form, name: next });
+    } else if (draft !== (form.role ?? "")) {
+      scheduleSave({ ...form, role: draft });
+    }
+  };
+
   const displayName = (form.name ?? "").trim() || employee.name || t("Unnamed");
   // The assistant's role is immutable; show the persisted value rather than a
   // (hidden) editable field.
@@ -145,12 +182,16 @@ export function EmployeeDetail({
 
   return (
     <>
-      <DetailHead
-        eyebrow={`Employee #${employee.id}`}
-        title={displayName}
-        sub={displayRole || "—"}
-        actions={
-          isAssistant ? undefined : (
+      {/* Merged head: the pane head doubles as the single name/role display
+          (avatar left, hover-to-edit lines right), so there is exactly one
+          identity area. Reuses the shared .imb-detail-head chrome and the
+          existing .imb-detail-avatar-row layout; no shared file changes. */}
+      <div className="imb-detail-head">
+        <div className="imb-detail-head-eyebrow">
+          {`Employee #${employee.id}`}
+        </div>
+        {!isAssistant && (
+          <div className="imb-detail-head-actions">
             <Button
               variant="danger"
               size="sm"
@@ -158,10 +199,8 @@ export function EmployeeDetail({
             >
               {t("Remove")}
             </Button>
-          )
-        }
-      />
-      <DetailBody>
+          </div>
+        )}
         <div className="imb-detail-avatar-row">
           <div
             className="imb-detail-avatar-wrap"
@@ -192,8 +231,76 @@ export function EmployeeDetail({
             </div>
           </div>
           <div className="imb-detail-avatar-info">
-            <h2>{displayName}</h2>
-            <div className="imb-sub">{displayRole || "—"}</div>
+            <h2>
+              {editingField === "name" ? (
+                <Input
+                  className="imb-employee-name-input"
+                  value={fieldDraft}
+                  autoFocus
+                  aria-label={t("Name")}
+                  placeholder={t("Unnamed")}
+                  onChange={(e) => setFieldDraft(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitEdit();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelEdit();
+                    }
+                  }}
+                />
+              ) : (
+                <Tooltip placement="bottom" content={t("Edit")}>
+                  <button
+                    type="button"
+                    className="imb-employee-edit-line"
+                    onClick={() => beginEdit("name")}
+                  >
+                    <span className="imb-employee-edit-text">{displayName}</span>
+                    <IconEdit className="imb-employee-edit-icon" />
+                  </button>
+                </Tooltip>
+              )}
+            </h2>
+            {isAssistant ? (
+              <div className="imb-sub">{displayRole || "—"}</div>
+            ) : editingField === "role" ? (
+              <Input
+                className="imb-employee-role-input"
+                value={fieldDraft}
+                autoFocus
+                aria-label={t("Role")}
+                placeholder={t("e.g. Researcher")}
+                onChange={(e) => setFieldDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitEdit();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelEdit();
+                  }
+                }}
+              />
+            ) : (
+              <Tooltip placement="bottom" content={t("Edit")}>
+                <button
+                  type="button"
+                  className="imb-sub imb-employee-edit-line"
+                  onClick={() => beginEdit("role")}
+                >
+                  <span className="imb-employee-edit-text">
+                    {displayRole || "—"}
+                  </span>
+                  <IconEdit className="imb-employee-edit-icon" />
+                </button>
+              </Tooltip>
+            )}
           </div>
           <input
             ref={fileRef}
@@ -209,35 +316,8 @@ export function EmployeeDetail({
             {avatarError}
           </p>
         )}
-
-        <div
-          className={cls(
-            "imb-field-row",
-            isAssistant && "imb-field-row--single",
-          )}
-        >
-          <Field label={t("Name")} htmlFor={`emp-name-${employee.id}`}>
-            <Input
-              id={`emp-name-${employee.id}`}
-              value={form.name ?? ""}
-              placeholder={t("Unnamed")}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              onValueCommit={(name) => scheduleSave({ ...form, name })}
-            />
-          </Field>
-          {!isAssistant && (
-            <Field label={t("Role")} htmlFor={`emp-role-${employee.id}`}>
-              <Input
-                id={`emp-role-${employee.id}`}
-                value={form.role ?? ""}
-                placeholder={t("e.g. Researcher")}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-                onValueCommit={(role) => scheduleSave({ ...form, role })}
-              />
-            </Field>
-          )}
-        </div>
-
+      </div>
+      <DetailBody>
         <Field
           label={t("System prompt")}
           htmlFor={`emp-prompt-${employee.id}`}
