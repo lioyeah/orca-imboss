@@ -656,6 +656,12 @@ const api = {
         graph,
         title,
       ) as Promise<WorkflowDefinition>,
+    /** Optimize or complete a workflow using Assistant (Employee 0). */
+    copilotOptimize: (input: { prompt?: string; workflow?: WorkflowDefinition }) =>
+      ipcRenderer.invoke(
+        "graph:copilotOptimize",
+        input,
+      ) as Promise<WorkflowDefinition>,
   },
 
   backup: {
