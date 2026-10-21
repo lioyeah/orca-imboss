@@ -13,6 +13,7 @@ import {
   listWorkflows,
   saveWorkflow,
 } from "../db/workflows";
+import { optimizeWorkflowWithAI } from "../agent/workflow-copilot.ts";
 
 export function registerGraphHandlers(): void {
   // Legacy graph
@@ -49,5 +50,13 @@ export function registerGraphHandlers(): void {
     "graph:exportToWorkflow",
     (_event, graph: TaskWorkflowGraph, title?: string): WorkflowDefinition =>
       exportTaskGraphToWorkflow(graph, title),
+  );
+
+  ipcMain.handle(
+    "graph:copilotOptimize",
+    (
+      _event,
+      input: { prompt?: string; workflow?: WorkflowDefinition },
+    ): Promise<WorkflowDefinition> => optimizeWorkflowWithAI(input),
   );
 }
