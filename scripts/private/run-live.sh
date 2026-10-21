@@ -31,8 +31,17 @@ MAX_BACKUPS=20
 stop_instance() {
   echo "== Stopping running imboss/electron instances..."
   systemctl --user stop "$UNIT_NAME" 2>/dev/null || true
-  pkill -f "orca-imboss" 2>/dev/null || true
-  pkill -f "$ELECTRON_BIN.*$REPO" 2>/dev/null || true
+
+  # Safely sweep only Electron processes executing from this repo (never agy/shell)
+  for pid in $(pgrep -f "$ELECTRON_BIN" 2>/dev/null || true); do
+    if [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+      local exe
+      exe="$(readlink "/proc/$pid/exe" 2>/dev/null || true)"
+      if [[ "$exe" == "$REPO"/*/electron* ]] || [[ "$exe" == "$ELECTRON_BIN"* ]]; then
+        kill "$pid" 2>/dev/null || true
+      fi
+    fi
+  done
 
   # Clean up stale Electron singleton locks
   rm -f "$HOME/.config/orca-imboss/Singleton"* 2>/dev/null || true
@@ -44,11 +53,20 @@ status_instance() {
   if systemctl --user is-active --quiet "$UNIT_NAME" 2>/dev/null; then
     echo "== imboss live service ($UNIT_NAME) is ACTIVE:"
     systemctl --user status "$UNIT_NAME" --no-pager
-  elif pgrep -f "orca-imboss|electron.*$REPO" >/dev/null 2>&1; then
-    echo "== imboss live instance is RUNNING outside systemd:"
-    ps aux | grep -E "orca-imboss|electron.*$REPO" | grep -v grep | head -n 5
   else
-    echo "== imboss live instance is NOT running."
+    local running=0
+    for pid in $(pgrep -f "$ELECTRON_BIN" 2>/dev/null || true); do
+      local exe
+      exe="$(readlink "/proc/$pid/exe" 2>/dev/null || true)"
+      if [[ "$exe" == "$REPO"/*/electron* ]] || [[ "$exe" == "$ELECTRON_BIN"* ]]; then
+        echo "== imboss live instance (PID $pid) is RUNNING outside systemd:"
+        ps -o pid,user,args -p "$pid"
+        running=1
+      fi
+    done
+    if [ "$running" = 0 ]; then
+      echo "== imboss live instance is NOT running."
+    fi
   fi
 }
 
