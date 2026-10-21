@@ -789,7 +789,7 @@ export function ChatModule(): React.JSX.Element {
         </Tooltip>
       }
       search={
-        <div className="imb-chat-search-stack">
+        <div className="imb-chat-search-row">
           <SearchInput
             value={query}
             onValueChange={setQuery}

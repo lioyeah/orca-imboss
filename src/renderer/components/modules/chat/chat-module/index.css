@@ -74,24 +74,87 @@
   background: var(--imb-bg-2);
 }
 
-/* Search box + tag filter stacked in the pane header (filter directly under
-   the search box, above the list). */
-.imb-chat-search-stack {
+/* Search box + tag filter on one row inside the pane header's search slot.
+   The filter is the very same TagSelect as before — only its trigger is
+   restyled, so the panel, keyboard nav, click-outside and the "No tags"
+   exclusion are inherited unchanged. */
+.imb-chat-search-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--imb-space-1);
+  min-width: 0;
 }
 
-/* The tag filter mirrors the search box's box + height so the two read as a
-   matching pair. */
+.imb-chat-search-row .imb-searchbox {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Compact trigger: the row-level tag editor's visual language (see
+   .imb-chat-tag-select below) — borderless until hovered/open, so it reads
+   as part of the search bar rather than as a second box. */
 .imb-chat-tag-filter {
-  width: 100%;
+  flex: none;
+  width: auto;
+  max-width: 45%;
 }
 
 .imb-chat-tag-filter .imb-ms-trigger {
-  min-height: 34px;
-  padding: 2px 12px;
-  background: var(--imb-bg);
+  min-height: 26px;
+  padding: 2px 8px;
+  gap: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+}
+
+.imb-chat-tag-filter .imb-ms-trigger:hover:not(:disabled) {
+  border-color: var(--imb-border);
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+}
+
+.imb-chat-tag-filter .imb-ms-trigger[aria-expanded="true"] {
+  border-color: var(--imb-accent);
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+}
+
+/* The caret only ever opens the panel, which the click already does; at
+   ~300px of pane it costs ~20px the search input needs more. */
+.imb-chat-tag-filter .imb-ms-caret {
+  display: none;
+}
+
+/* Placeholder and chips stay on one line; the clear button covers overflow. */
+.imb-chat-tag-filter .imb-ms-value {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.imb-chat-tag-filter .imb-ms-chip {
+  flex: none;
+  padding: 1px 6px;
+  font-size: var(--imb-text-xs);
+}
+
+.imb-chat-tag-filter .imb-placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Clear-all: the full-width trigger reserves 38px for it; 24px is enough
+   for the 16px control once it is pulled in to right: 4px. */
+.imb-chat-tag-filter.imb-ms-has-clear .imb-ms-trigger {
+  padding-right: 24px;
+}
+
+.imb-chat-tag-filter .imb-ms-clear {
+  right: 4px;
+  width: 16px;
+  height: 16px;
 }
 
 /* Per-row tag editor: its own full-width line under the row, so several tags
