@@ -1,4 +1,4 @@
-import { isThinkingLevel } from "@shared/constants/thinking";
+import { isThinkingLevel, type ThinkingLevel } from "@shared/constants/thinking";
 import { t } from "@shared/l10n";
 import type {
   Employee,
@@ -19,7 +19,9 @@ import {
   IconCamera,
   IconClock,
   IconEdit,
+  IconMcp,
   IconPlus,
+  IconSkills,
   IconTrash,
 } from "../../../icons";
 import { Input } from "../../../input";
@@ -45,6 +47,8 @@ export interface EmployeeDetailProps {
 }
 
 const SAVE_DEBOUNCE_MS = 400;
+
+export type MaterialTier = "paper" | "pvc" | "titanium" | "platinum";
 
 function IconFlip(): React.JSX.Element {
   return (
@@ -106,6 +110,15 @@ function formatDateTimeStr(timestamp: number | null): string {
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 
+function getThinkingLevelStep(level: ThinkingLevel | null | undefined): number {
+  if (!level || level === "off") return 0;
+  if (level === "low") return 1;
+  if (level === "medium") return 2;
+  if (level === "high") return 3;
+  if (level === "max") return 4;
+  return 0;
+}
+
 export function EmployeeDetail({
   employee,
   mcpOptions,
@@ -161,6 +174,10 @@ export function EmployeeDetail({
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTearing, setIsTearing] = useState(false);
   const [summoning, setSummoning] = useState(false);
+
+  // Skill and MCP picker expansion states
+  const [addSkillOpen, setAddSkillOpen] = useState(false);
+  const [addMcpOpen, setAddMcpOpen] = useState(false);
 
   const loadExtra = useCallback(() => {
     setExtraLoading(true);
@@ -255,13 +272,18 @@ export function EmployeeDetail({
     }
   };
 
-  // Holographic sheen mouse tracking
+  // Holographic sheen mouse tracking with angle calculation
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>): void => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    const angle = Math.round((Math.atan2(dy, dx) * 180) / Math.PI + 90);
+
     e.currentTarget.style.setProperty("--sheen-x", `${x.toFixed(1)}%`);
     e.currentTarget.style.setProperty("--sheen-y", `${y.toFixed(1)}%`);
+    e.currentTarget.style.setProperty("--sheen-angle", `${angle}deg`);
   };
 
   // Dispatch / Start new task with this employee
@@ -288,6 +310,17 @@ export function EmployeeDetail({
     setTimeout(() => {
       onRemove();
     }, 650);
+  };
+
+  // Quick unequip handlers for directly listed skills and MCP tools
+  const removeSkill = (skillName: string): void => {
+    const next = (form.skills ?? []).filter((s) => s !== skillName);
+    scheduleSave({ ...form, skills: next });
+  };
+
+  const removeMcp = (mcpName: string): void => {
+    const next = (form.mcp ?? []).filter((m) => m !== mcpName);
+    scheduleSave({ ...form, mcp: next });
   };
 
   const displayName = (form.name ?? "").trim() || employee.name || t("Unnamed");
@@ -326,11 +359,47 @@ export function EmployeeDetail({
       : `${months} ${t("mo")}`;
   }, [extra?.firstActiveAt, extra?.lastActiveAt, employee.disabled, isAssistant]);
 
-  const modelShortName = useMemo(() => {
-    if (!form.modelId) return t("Default");
-    const parts = form.modelId.split("/");
-    return parts[parts.length - 1];
-  }, [form.modelId]);
+  // Card Material Tier Calculation based on completed tasks
+  const materialTier: MaterialTier = useMemo(() => {
+    const count = extra?.taskCount ?? 0;
+    if (count >= 50) return "platinum";
+    if (count >= 20) return "titanium";
+    if (count >= 5) return "pvc";
+    return "paper";
+  }, [extra?.taskCount]);
+
+  const materialTierMeta = useMemo(() => {
+    switch (materialTier) {
+      case "platinum":
+        return {
+          label: "👑 曜石黑金 · 全息衍射",
+          tierName: "Obsidian Platinum",
+          badgeStyle: "imb-tier-chip-platinum",
+        };
+      case "titanium":
+        return {
+          label: "🛡️ 钛金工牌 · 金属拉丝",
+          tierName: "Brushed Titanium",
+          badgeStyle: "imb-tier-chip-titanium",
+        };
+      case "pvc":
+        return {
+          label: "💳 PVC工牌 · 磨砂透光",
+          tierName: "Frosted PVC",
+          badgeStyle: "imb-tier-chip-pvc",
+        };
+      default:
+        return {
+          label: "📜 原浆纸卡 · 质感纤维",
+          tierName: "Kraft Paper",
+          badgeStyle: "imb-tier-chip-paper",
+        };
+    }
+  }, [materialTier]);
+
+  const thinkingStep = useMemo(() => {
+    return getThinkingLevelStep(form.thinkingLevel);
+  }, [form.thinkingLevel]);
 
   return (
     <div className="imb-employee-card-viewport">
@@ -339,17 +408,30 @@ export function EmployeeDetail({
         onMouseMove={handleCardMouseMove}
       >
         {/* FRONT OF BADGE CARD */}
-        <div className="imb-employee-card-face imb-employee-card-front">
+        <div
+          className={`imb-employee-card-face imb-employee-card-front imb-tier-${materialTier}`}
+        >
+          {/* Real Prismatic Holographic Diffraction Layer */}
+          <div className="imb-card-sheen" />
+
           {/* Lanyard punch slot */}
           <div className="imb-card-lanyard-slot" />
 
           {/* Badge Top Header */}
           <div className="imb-card-top-bar">
-            <div className="imb-card-id-chip">
-              <span className="imb-card-chip-graphic" />
-              <span className="imb-card-id-code">
-                {isAssistant ? "EXEC-CDO #000" : `ID-BADGE #${String(employee.id).padStart(3, "0")}`}
-              </span>
+            <div className="imb-card-id-chip-group">
+              <div className="imb-card-id-chip">
+                <span className="imb-card-chip-graphic" />
+                <span className="imb-card-id-code">
+                  {isAssistant
+                    ? "EXEC-CDO #000"
+                    : `ID-BADGE #${String(employee.id).padStart(3, "0")}`}
+                </span>
+              </div>
+              {/* Dynamic Material Tier Badge */}
+              <div className={`imb-card-tier-chip ${materialTierMeta.badgeStyle}`} title={materialTierMeta.tierName}>
+                {materialTierMeta.label}
+              </div>
             </div>
 
             <div className="imb-card-top-actions">
@@ -552,10 +634,10 @@ export function EmployeeDetail({
             </p>
           )}
 
-          {/* Performance HUD Strip */}
+          {/* Performance HUD Strip (Unified Pure Accomplishment Metrics) */}
           <div className="imb-employee-hud-bar">
             <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Tasks")}</span>
+              <span className="imb-hud-label">{t("Tasks Completed")}</span>
               <span className="imb-hud-val">
                 {extra?.taskCount ?? 0}
                 <span className="imb-hud-unit">{t("sessions")}</span>
@@ -563,7 +645,7 @@ export function EmployeeDetail({
             </div>
             <div className="imb-hud-divider" />
             <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Messages")}</span>
+              <span className="imb-hud-label">{t("Messages Sent")}</span>
               <span className="imb-hud-val">
                 {extra?.messageCount ?? 0}
                 <span className="imb-hud-unit">{t("replies")}</span>
@@ -571,16 +653,17 @@ export function EmployeeDetail({
             </div>
             <div className="imb-hud-divider" />
             <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Model")}</span>
-              <span className="imb-hud-val imb-hud-val-pill" title={form.modelId || t("Default")}>
-                {modelShortName}
+              <span className="imb-hud-label">{t("Equipped Skills")}</span>
+              <span className="imb-hud-val">
+                {form.skills?.length ?? 0}
+                <span className="imb-hud-unit">{t("skills")}</span>
               </span>
             </div>
             <div className="imb-hud-divider" />
             <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Thinking")}</span>
-              <span className="imb-hud-val imb-hud-val-pill">
-                {form.thinkingLevel || t("Default")}
+              <span className="imb-hud-label">{t("Total Tenure")}</span>
+              <span className="imb-hud-val imb-hud-val-accent">
+                {tenureStr}
               </span>
             </div>
           </div>
@@ -605,7 +688,7 @@ export function EmployeeDetail({
                 placeholder={t(
                   "Define this employee's responsibilities, skills, and output standards…",
                 )}
-                minHeight={160}
+                minHeight={140}
                 onChange={(e) =>
                   setForm({ ...form, systemPrompt: e.target.value })
                 }
@@ -615,106 +698,222 @@ export function EmployeeDetail({
               />
             </div>
 
-            {/* Skills & MCP Capabilities Section */}
-            <div className="imb-card-dual-grid">
-              {!isAssistant && (
-                <div className="imb-card-section">
-                  <div className="imb-card-section-head">
-                    <span className="imb-section-title">
-                      {t("Linked MCP Tools")}
+            {/* UNIFIED COMPUTE & INTELLIGENCE SPECS BENTO */}
+            <div className="imb-card-section imb-compute-bento">
+              <div className="imb-card-section-head">
+                <span className="imb-section-title">
+                  🧠 {t("Compute & Intelligence Specifications")}
+                </span>
+              </div>
+              <div className="imb-compute-grid">
+                <div className="imb-compute-col">
+                  <label
+                    htmlFor={`emp-model-${employee.id}`}
+                    className="imb-compute-label"
+                  >
+                    {t("Model")}
+                  </label>
+                  <Select
+                    id={`emp-model-${employee.id}`}
+                    value={form.modelId ?? ""}
+                    options={[
+                      { value: "", label: t("Default") },
+                      ...models.map((model) => ({
+                        value: modelRef(model),
+                        label: modelRef(model),
+                      })),
+                    ]}
+                    placeholder={t("Default")}
+                    onChange={(modelId) =>
+                      scheduleSave({ ...form, modelId: modelId || null })
+                    }
+                  />
+                </div>
+
+                <div className="imb-compute-col">
+                  <div className="imb-compute-label-row">
+                    <label
+                      htmlFor={`emp-thinking-${employee.id}`}
+                      className="imb-compute-label"
+                    >
+                      {t("Thinking Level")}
+                    </label>
+                    <span className="imb-thinking-gauge-tag">
+                      {form.thinkingLevel || t("Default")}
                     </span>
                   </div>
+                  <Select
+                    id={`emp-thinking-${employee.id}`}
+                    value={form.thinkingLevel ?? ""}
+                    options={[
+                      { value: "", label: t("Default") },
+                      ...thinkingSelectOptions(
+                        thinkingLevelsFor(
+                          models,
+                          form.modelId ?? "",
+                          defaultModel,
+                        ),
+                        form.thinkingLevel ?? "",
+                      ),
+                    ]}
+                    onChange={(level) =>
+                      scheduleSave({
+                        ...form,
+                        thinkingLevel: isThinkingLevel(level) ? level : null,
+                      })
+                    }
+                  />
+                  {/* 5-Step Visual Thinking Gauge */}
+                  <div className="imb-thinking-meter" title={`Level: ${thinkingStep}/4`}>
+                    {[0, 1, 2, 3, 4].map((step) => (
+                      <div
+                        key={step}
+                        className={`imb-meter-step ${thinkingStep >= step ? "is-active" : ""}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* DIRECTLY LISTED EQUIPPED SKILLS SHELF */}
+            <div className="imb-card-section imb-equipped-shelf">
+              <div className="imb-shelf-header">
+                <span className="imb-section-title">
+                  <IconSkills className="imb-shelf-icon" />
+                  {t("Equipped Skills")} ({form.skills?.length ?? 0})
+                </span>
+                <button
+                  type="button"
+                  className="imb-shelf-toggle-btn"
+                  onClick={() => setAddSkillOpen((v) => !v)}
+                >
+                  <IconPlus className="imb-sm" />
+                  {addSkillOpen ? t("Close") : t("Manage Skills")}
+                </button>
+              </div>
+
+              <div className="imb-shelf-pills-wrap">
+                {!form.skills || form.skills.length === 0 ? (
+                  <div className="imb-shelf-empty">
+                    {t("No skills equipped. Click Manage Skills to add.")}
+                  </div>
+                ) : (
+                  form.skills.map((skill) => (
+                    <span key={skill} className="imb-skill-pill">
+                      <span className="imb-skill-pill-text">{skill}</span>
+                      <button
+                        type="button"
+                        className="imb-skill-pill-remove"
+                        aria-label={`Remove ${skill}`}
+                        title={t("Unequip")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSkill(skill);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
+              {addSkillOpen && (
+                <div className="imb-shelf-picker">
                   <MultiSelect
-                    value={form.mcp ?? []}
-                    options={mcpOptions}
-                    placeholder={t("Select MCP")}
-                    emptyHint={t("No MCP configured")}
-                    onChange={(mcp) => scheduleSave({ ...form, mcp })}
+                    value={form.skills ?? []}
+                    options={skillOptions}
+                    placeholder={t("Select skills")}
+                    emptyHint={t("No skills installed")}
+                    onChange={(skills) => scheduleSave({ ...form, skills })}
                   />
                 </div>
               )}
-
-              <div className="imb-card-section">
-                <div className="imb-card-section-head">
-                  <span className="imb-section-title">{t("Skill Set")}</span>
-                </div>
-                <MultiSelect
-                  value={form.skills ?? []}
-                  options={skillOptions}
-                  placeholder={t("Select skills")}
-                  emptyHint={t("No skills installed")}
-                  onChange={(skills) => scheduleSave({ ...form, skills })}
-                />
-              </div>
             </div>
 
-            {/* Compute & Intelligence Specs */}
-            <div className="imb-card-dual-grid">
-              <div className="imb-card-section">
-                <div className="imb-card-section-head">
-                  <span className="imb-section-title">{t("Model")}</span>
-                </div>
-                <Select
-                  id={`emp-model-${employee.id}`}
-                  value={form.modelId ?? ""}
-                  options={[
-                    { value: "", label: t("Default") },
-                    ...models.map((model) => ({
-                      value: modelRef(model),
-                      label: modelRef(model),
-                    })),
-                  ]}
-                  placeholder={t("Default")}
-                  onChange={(modelId) =>
-                    scheduleSave({ ...form, modelId: modelId || null })
-                  }
-                />
-              </div>
-
-              <div className="imb-card-section">
-                <div className="imb-card-section-head">
+            {/* DIRECTLY LISTED LINKED MCP TOOLS SHELF */}
+            {!isAssistant && (
+              <div className="imb-card-section imb-equipped-shelf">
+                <div className="imb-shelf-header">
                   <span className="imb-section-title">
-                    {t("Thinking Level")}
+                    <IconMcp className="imb-shelf-icon" />
+                    {t("Linked MCP Tools")} ({form.mcp?.length ?? 0})
                   </span>
+                  <button
+                    type="button"
+                    className="imb-shelf-toggle-btn"
+                    onClick={() => setAddMcpOpen((v) => !v)}
+                  >
+                    <IconPlus className="imb-sm" />
+                    {addMcpOpen ? t("Close") : t("Manage MCP")}
+                  </button>
                 </div>
-                <Select
-                  id={`emp-thinking-${employee.id}`}
-                  value={form.thinkingLevel ?? ""}
-                  options={[
-                    { value: "", label: t("Default") },
-                    ...thinkingSelectOptions(
-                      thinkingLevelsFor(
-                        models,
-                        form.modelId ?? "",
-                        defaultModel,
-                      ),
-                      form.thinkingLevel ?? "",
-                    ),
-                  ]}
-                  onChange={(level) =>
-                    scheduleSave({
-                      ...form,
-                      thinkingLevel: isThinkingLevel(level) ? level : null,
-                    })
-                  }
-                />
+
+                <div className="imb-shelf-pills-wrap">
+                  {!form.mcp || form.mcp.length === 0 ? (
+                    <div className="imb-shelf-empty">
+                      {t("No MCP tools connected. Click Manage MCP to link.")}
+                    </div>
+                  ) : (
+                    form.mcp.map((mcp) => (
+                      <span key={mcp} className="imb-skill-pill imb-mcp-pill">
+                        <span className="imb-skill-pill-text">{mcp}</span>
+                        <button
+                          type="button"
+                          className="imb-skill-pill-remove"
+                          aria-label={`Remove ${mcp}`}
+                          title={t("Unlink")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeMcp(mcp);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {addMcpOpen && (
+                  <div className="imb-shelf-picker">
+                    <MultiSelect
+                      value={form.mcp ?? []}
+                      options={mcpOptions}
+                      placeholder={t("Select MCP")}
+                      emptyHint={t("No MCP configured")}
+                      onChange={(mcp) => scheduleSave({ ...form, mcp })}
+                    />
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
 
         {/* BACK OF BADGE CARD (Task History Timeline) */}
-        <div className="imb-employee-card-face imb-employee-card-back">
+        <div
+          className={`imb-employee-card-face imb-employee-card-back imb-tier-${materialTier}`}
+        >
+          {/* Real Prismatic Holographic Diffraction Layer */}
+          <div className="imb-card-sheen" />
+
           {/* Lanyard punch slot */}
           <div className="imb-card-lanyard-slot" />
 
           {/* Back Top Header */}
           <div className="imb-card-top-bar">
-            <div className="imb-card-id-chip">
-              <span className="imb-card-chip-graphic" />
-              <span className="imb-card-id-code">
-                {t("CAREER LOGS & TASKS")} · #{String(employee.id).padStart(3, "0")}
-              </span>
+            <div className="imb-card-id-chip-group">
+              <div className="imb-card-id-chip">
+                <span className="imb-card-chip-graphic" />
+                <span className="imb-card-id-code">
+                  {t("CAREER LOGS & TASKS")} · #{String(employee.id).padStart(3, "0")}
+                </span>
+              </div>
+              <div className={`imb-card-tier-chip ${materialTierMeta.badgeStyle}`}>
+                {materialTierMeta.label}
+              </div>
             </div>
 
             <div className="imb-card-top-actions">
