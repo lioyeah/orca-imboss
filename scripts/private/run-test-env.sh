@@ -216,8 +216,9 @@ echo "   CDP    http://127.0.0.1:$TEST_PORT"
 echo "   log    $TEST_LOG"
 
 # nohup keeps the instance alive after this script exits, so a later turn (or a
-# CDP driver) can attach to it. HOME is exported per-process, never globally.
-nohup env HOME="$TEST_HOME" "$ELECTRON_BIN" "$REPO" $EXTRA_ARGS \
+# CDP driver) can attach to it. HOME and XDG_CONFIG_HOME are exported per-process,
+# never globally, ensuring the single-instance lock is completely isolated.
+nohup env HOME="$TEST_HOME" XDG_CONFIG_HOME="$TEST_HOME/.config" "$ELECTRON_BIN" "$REPO" $EXTRA_ARGS \
   --remote-debugging-port="$TEST_PORT" >"$TEST_LOG" 2>&1 &
 TEST_PID=$!
 echo "$TEST_PID" >"$PIDFILE"
