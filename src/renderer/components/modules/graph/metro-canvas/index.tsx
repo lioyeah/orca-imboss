@@ -519,48 +519,100 @@ export function MetroCanvas({
         </div>
       </div>
 
-      {/* Simulation Ticker Banner (Bottom Floating Commentary) */}
+      {/* Simulation Ticker Banner (Dynamic Island / Floating Media Player) */}
       {isSimulating && (
         <div className="metro-sim-ticker">
-          <span className="metro-sim-badge">
-            T+{simIndex + 1} / {sortedNodes.length}
-          </span>
-          <span className="metro-sim-text">{simCommentary}</span>
-          <div className="metro-sim-ctrls">
+          <div className="metro-sim-status-chip">
+            <span className="metro-sim-pulse-dot" />
+            <span>
+              STEP {simIndex + 1}/{sortedNodes.length}
+            </span>
+          </div>
+
+          <div className="metro-sim-commentary-wrap" title={simCommentary}>
+            <span className="metro-sim-commentary-text">{simCommentary}</span>
+          </div>
+
+          <div className="metro-sim-divider" />
+
+          <div className="metro-sim-player-ctrls">
             <button
               type="button"
-              className="metro-sim-ctrl-btn"
+              className={cls("metro-player-btn primary", simPlaying && "playing")}
               onClick={() => setSimPlaying(!simPlaying)}
+              title={simPlaying ? "暂停推演" : "继续播放"}
             >
-              {simPlaying ? "⏸ 暂停" : "▶ 继续"}
+              {simPlaying ? (
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                  <path d="M8 5.5v13l11-6.5Z" />
+                </svg>
+              )}
             </button>
+
             <button
               type="button"
-              className="metro-sim-ctrl-btn"
+              className="metro-player-btn"
               onClick={() => {
                 setSimIndex((curr) =>
                   Math.min(curr + 1, sortedNodes.length - 1),
                 );
               }}
+              title="单步步进"
             >
-              步进 ▶|
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                <path d="M5 5v14l10-7Z" />
+                <rect x="16" y="5" width="3" height="14" rx="1" />
+              </svg>
             </button>
+
             <button
               type="button"
-              className="metro-sim-ctrl-btn"
+              className="metro-player-btn"
               onClick={() => {
                 setSimIndex(0);
                 setSimPlaying(true);
               }}
+              title="从头重播"
             >
-              ↺ 重播
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <polyline points="3 3 3 8 8 8" />
+              </svg>
             </button>
+
+            <div className="metro-player-subdivider" />
+
             <button
               type="button"
-              className="metro-sim-ctrl-btn exit"
+              className="metro-player-btn exit"
               onClick={handleStopSimulation}
+              title="退出推演"
             >
-              退出推演
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
         </div>

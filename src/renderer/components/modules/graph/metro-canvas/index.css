@@ -394,7 +394,7 @@
   background: rgba(var(--imb-accent-rgb, 59, 130, 246), 0.1);
 }
 
-/* Simulation Ticker (Bottom Center Floating Banner) */
+/* Simulation Ticker Banner (Refined Media Player Pill / Dynamic Island) */
 .metro-sim-ticker {
   position: absolute;
   bottom: 24px;
@@ -403,13 +403,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: color-mix(in oklab, var(--imb-surface) 96%, transparent);
-  backdrop-filter: blur(14px);
+  height: 44px;
+  padding: 0 8px 0 12px;
+  background: color-mix(in oklab, var(--imb-surface) 90%, var(--imb-bg));
+  backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--imb-border);
-  border-radius: 30px;
-  padding: 6px 14px 6px 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
-  z-index: 25;
+  border-radius: 999px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  z-index: 30;
+  white-space: nowrap;
   animation: metro-ticker-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -424,55 +426,115 @@
   }
 }
 
-.metro-sim-badge {
-  background: var(--imb-accent);
-  color: #ffffff;
+.metro-sim-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--imb-accent) 15%, transparent);
+  color: var(--imb-accent);
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 12px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.metro-sim-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--imb-text-primary);
-  max-width: 420px;
+.metro-sim-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--imb-accent);
+  box-shadow: 0 0 6px var(--imb-accent);
+  animation: metro-dot-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes metro-dot-pulse {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+.metro-sim-commentary-wrap {
+  max-width: 460px;
+  min-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.metro-sim-ctrls {
+.metro-sim-commentary-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--imb-text-primary);
+  white-space: nowrap;
+}
+
+.metro-sim-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--imb-border);
+  flex-shrink: 0;
+}
+
+.metro-sim-player-ctrls {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: 6px;
-  border-left: 1px solid var(--imb-border);
-  padding-left: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.metro-sim-ctrl-btn {
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 6px;
-  border: 1px solid var(--imb-border);
-  background: var(--imb-surface);
+.metro-player-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--imb-text-secondary);
-  font-size: 11px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+  padding: 0;
 }
 
-.metro-sim-ctrl-btn:hover {
-  background: var(--imb-bg);
+.metro-player-btn:hover {
+  background: color-mix(in oklab, var(--imb-surface-hover, var(--imb-bg)) 80%, transparent);
   color: var(--imb-text-primary);
+  border-color: var(--imb-border);
 }
 
-.metro-sim-ctrl-btn.exit:hover {
-  background: rgba(239, 68, 68, 0.1);
+.metro-player-btn.primary {
+  background: var(--imb-accent);
+  color: #ffffff;
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--imb-accent) 40%, transparent);
+}
+
+.metro-player-btn.primary:hover {
+  opacity: 0.92;
+  box-shadow: 0 3px 10px color-mix(in oklab, var(--imb-accent) 55%, transparent);
+}
+
+.metro-player-subdivider {
+  width: 1px;
+  height: 14px;
+  background: var(--imb-border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.metro-player-btn.exit:hover {
+  background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.3);
 }

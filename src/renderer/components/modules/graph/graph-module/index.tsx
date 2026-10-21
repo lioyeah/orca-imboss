@@ -11,7 +11,9 @@ import { appStore } from "../../../../app-store";
 import { ModuleView } from "../../../app-shell";
 import {
   IconCheck,
+  IconChevronDown,
   IconClock,
+  IconCollapse,
   IconEdit,
   IconGraph,
   IconOpen,
@@ -357,146 +359,183 @@ export function GraphModule(): React.JSX.Element {
     <ModuleView
       content={
         <div className="imb-graph-module-root">
-          {/* Top Header & Toolbar */}
+          {/* Top Header & Toolbar (Refined Linear-style Unified Single Bar) */}
           <div className="metro-graph-header">
-        <div className="metro-header-left">
-          {/* Mode Switcher Pill */}
-          <div className="metro-mode-toggle">
-            <button
-              type="button"
-              className={cls("metro-toggle-btn", mode === "live" && "active")}
-              onClick={() => {
-                setMode("live");
-                setSelectedNodeId(null);
-              }}
-            >
-              <IconGraph className="metro-btn-icon" />
-              任务监控 (Live Tasks)
-            </button>
-            <button
-              type="button"
-              className={cls("metro-toggle-btn", mode === "studio" && "active")}
-              onClick={() => {
-                setMode("studio");
-                setSelectedNodeId(null);
-              }}
-            >
-              <IconEdit className="metro-btn-icon" />
-              工作流编排 (Workflow Studio)
-            </button>
-          </div>
-
-          {/* Context Selector */}
-          {mode === "live" ? (
-            <div className="metro-context-selector">
-              <span className="metro-selector-label">当前任务树:</span>
-              <select
-                className="metro-select"
-                value={selectedChatId ?? ""}
-                onChange={(e) => setSelectedChatId(Number(e.target.value))}
-              >
-                {chatSummaries.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="metro-action-chip"
-                title="将自动生成的任务树存为工作流模板"
-                onClick={handleExportAsTemplate}
-              >
-                另存为工作流模板
-              </button>
-            </div>
-          ) : (
-            <div className="metro-context-selector">
-              <span className="metro-selector-label">工作流方案:</span>
-              <select
-                className="metro-select"
-                value={currentWorkflow?.id ?? ""}
-                onChange={(e) => {
-                  const target = workflows.find((w) => w.id === e.target.value);
-                  if (target) setCurrentWorkflow(target);
-                }}
-              >
-                {workflows.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.title}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="metro-action-chip"
-                onClick={handleCreateNewWorkflow}
-              >
-                <IconPlus className="metro-btn-icon" /> 新建流
-              </button>
-              <button
-                type="button"
-                className="metro-action-chip ai-copilot"
-                title="由 0 号员工（助手）根据目标或当前草稿，自动补全员工分工、介入离场与审批 Gate"
-                onClick={() => setShowCopilotModal(true)}
-              >
-                ✦ 助手完善流
-              </button>
-              <button
-                type="button"
-                className="metro-action-chip"
-                onClick={handleSaveCurrentWorkflow}
-              >
-                <IconCheck className="metro-btn-icon" /> 保存
-              </button>
-              <button
-                type="button"
-                className="metro-action-chip primary"
-                onClick={() => {
-                  showToast("已启动任务流调度！正在创建群组并派遣员工...");
-                }}
-              >
-                <IconPlay className="metro-btn-icon" /> 运行工作流
-              </button>
-              {currentWorkflow && (
+            {/* Left: Mode Segmented Pill + Divider + Title Dropdown */}
+            <div className="metro-header-left">
+              <div className="metro-segmented-control">
                 <button
                   type="button"
-                  className="metro-action-chip danger"
-                  title="删除该工作流"
-                  onClick={handleDeleteCurrentWorkflow}
+                  className={cls("metro-segment-btn", mode === "live" && "active")}
+                  onClick={() => {
+                    setMode("live");
+                    setSelectedNodeId(null);
+                  }}
                 >
-                  <IconTrash className="metro-btn-icon" />
+                  <IconGraph className="metro-segment-icon" />
+                  <span>任务监控</span>
                 </button>
+                <button
+                  type="button"
+                  className={cls("metro-segment-btn", mode === "studio" && "active")}
+                  onClick={() => {
+                    setMode("studio");
+                    setSelectedNodeId(null);
+                  }}
+                >
+                  <IconEdit className="metro-segment-icon" />
+                  <span>流程编排</span>
+                </button>
+              </div>
+
+              <div className="metro-header-divider" />
+
+              {/* Document Title Picker Dropdown */}
+              {mode === "live" ? (
+                <div className="metro-title-picker-wrap">
+                  <select
+                    className="metro-title-select"
+                    value={selectedChatId ?? ""}
+                    onChange={(e) => setSelectedChatId(Number(e.target.value))}
+                  >
+                    {chatSummaries.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="metro-title-picker-display">
+                    <span className="metro-title-text">
+                      {chatSummaries.find((c) => c.id === selectedChatId)?.title || "当前任务群"}
+                    </span>
+                    <IconChevronDown className="metro-title-chevron" />
+                  </div>
+                </div>
+              ) : (
+                <div className="metro-title-picker-wrap">
+                  <select
+                    className="metro-title-select"
+                    value={currentWorkflow?.id ?? ""}
+                    onChange={(e) => {
+                      const target = workflows.find((w) => w.id === e.target.value);
+                      if (target) setCurrentWorkflow(target);
+                    }}
+                  >
+                    {workflows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.title}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="metro-title-picker-display">
+                    <span className="metro-title-text">
+                      {currentWorkflow?.title || "未命名方案"}
+                    </span>
+                    <IconChevronDown className="metro-title-chevron" />
+                  </div>
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Metrics & Drawer Toggle */}
-        <div className="metro-header-right">
-          <div className="metro-metric-group">
-            <span className="metro-metric-item">
-              步骤 <strong>{metrics.total}</strong>
-            </span>
-            <span className="metro-metric-item success">
-              已完成 <strong>{metrics.completed}</strong>
-            </span>
-            {metrics.running > 0 && (
-              <span className="metro-metric-item running">
-                进行中 <strong>{metrics.running}</strong>
-              </span>
-            )}
+            {/* Center: Clean Status / Metrics Pill */}
+            <div className="metro-header-center">
+              <div className="metro-stats-pill">
+                <span className="metro-stat-dot" />
+                <span className="metro-stat-num">{metrics.total}</span>
+                <span className="metro-stat-label">步骤</span>
+                <span className="metro-stat-sep">·</span>
+                <span className="metro-stat-num text-success">{metrics.completed}</span>
+                <span className="metro-stat-label">完成</span>
+                {metrics.running > 0 && (
+                  <>
+                    <span className="metro-stat-sep">·</span>
+                    <span className="metro-stat-num text-running">{metrics.running}</span>
+                    <span className="metro-stat-label">运行中</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Actions Cluster & Drawer Trigger */}
+            <div className="metro-header-right">
+              {mode === "live" ? (
+                <button
+                  type="button"
+                  className="metro-tool-btn primary-ghost"
+                  onClick={handleExportAsTemplate}
+                  title="将当前任务群的执行树转存为工作流模板"
+                >
+                  <span>另存为模板</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="metro-tool-btn copilot"
+                    onClick={() => setShowCopilotModal(true)}
+                    title="由 0 号员工（助手）基于目标优化工作流"
+                  >
+                    <span className="copilot-sparkle">✦</span>
+                    <span>助手完善流</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="metro-tool-btn ghost"
+                    onClick={handleCreateNewWorkflow}
+                    title="新建空白工作流"
+                  >
+                    <IconPlus className="btn-icon" />
+                    <span>新建</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="metro-tool-btn ghost"
+                    onClick={handleSaveCurrentWorkflow}
+                    title="保存当前工作流更改"
+                  >
+                    <IconCheck className="btn-icon" />
+                    <span>保存</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="metro-tool-btn run-btn"
+                    onClick={() => {
+                      showToast("已启动任务流调度！正在创建群组并派遣员工...");
+                    }}
+                    title="在工作区运行此工作流"
+                  >
+                    <IconPlay className="btn-icon" />
+                    <span>运行</span>
+                  </button>
+
+                  {currentWorkflow && (
+                    <button
+                      type="button"
+                      className="metro-tool-btn icon-only danger"
+                      title="删除该工作流模板"
+                      onClick={handleDeleteCurrentWorkflow}
+                    >
+                      <IconTrash className="btn-icon" />
+                    </button>
+                  )}
+                </>
+              )}
+
+              <div className="metro-header-divider" />
+
+              <button
+                type="button"
+                className={cls("metro-tool-btn icon-only drawer-toggle", showInspector && "active")}
+                onClick={() => setShowInspector(!showInspector)}
+                title="切换属性详情抽屉"
+              >
+                <IconCollapse className={cls("btn-icon", !showInspector && "rotate-180")} />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            className={cls("metro-drawer-btn", showInspector && "active")}
-            onClick={() => setShowInspector(!showInspector)}
-            title="切换侧边属性详情抽屉"
-          >
-            属性详情
-          </button>
-        </div>
-      </div>
 
       {/* Main Content Area */}
       <div className="metro-graph-body">
