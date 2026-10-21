@@ -19,6 +19,7 @@ import type {
   EmployeeImportPreview,
   EmployeeImportResult,
   EmployeeInput,
+  EmployeeProfileExtra,
   EmployeeSession,
   GraphPayload,
   InstalledSkill,
@@ -246,6 +247,8 @@ const api = {
     /** Discard a staged package the user declined. */
     importCancel: (token: string) =>
       ipcRenderer.invoke("employees:importCancel", token) as Promise<void>,
+    profileExtra: (id: number) =>
+      ipcRenderer.invoke("employees:profileExtra", id) as Promise<EmployeeProfileExtra>,
     /** Fired when main creates/updates/deletes an employee (e.g. the agent's
      *  `imb_set_employees`), so the renderer cache can re-fetch. */
     onChanged: (cb: (payload: { ids: number[] }) => void) =>

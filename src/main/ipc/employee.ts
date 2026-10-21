@@ -156,4 +156,9 @@ export function registerEmployeeHandlers(): void {
   ipcMain.handle("employees:importCancel", (_event, token: unknown) => {
     cancelEmployeeImport(assertString(token, "import token"));
   });
+
+  ipcMain.handle("employees:profileExtra", (_event, id: unknown) => {
+    const safeId = assertInteger(id, "employee id");
+    return dbEmployees.getEmployeeProfileExtra(safeId);
+  });
 }

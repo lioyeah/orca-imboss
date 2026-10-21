@@ -109,3 +109,22 @@ export interface BuildEmployeeSystemPromptArgs {
   /** Current date in `yyyy-MM-dd`. */
   today: string;
 }
+
+/** One historical task/conversation this employee participated in. */
+export interface EmployeeTaskEntry {
+  chatId: number;
+  title: string;
+  createdAt: number;
+  lastMessageAt: number;
+  messageCount: number;
+}
+
+/** Extended profile statistics and task history for the employee card. */
+export interface EmployeeProfileExtra {
+  taskCount: number;
+  messageCount: number;
+  firstActiveAt: number | null;
+  lastActiveAt: number | null;
+  tasks: EmployeeTaskEntry[];
+}
+
