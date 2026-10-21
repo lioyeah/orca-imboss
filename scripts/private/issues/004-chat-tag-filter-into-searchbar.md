@@ -1,6 +1,6 @@
 # 004 · 标签筛选应并入搜索栏（去掉独立的第二行筛选控件）
 
-- **状态**: `verified`（已核实，等待修复）
+- **状态**: `fixed-verified`（PP1 实现落地，CDP 自动化探针 9/9 行为断言全过，头部 126px → 88px，列表扩容 +38px，定案关闭）
 - **报告人**: Boss（chat 10）
 - **负责人**: UI 修复负责人（@4）
 - **严重程度**: 中（中栏头部占两行，视觉冗余）
@@ -121,3 +121,4 @@ CSS 在 `src/renderer/components/modules/chat/chat-module/index.css:79-95`：`.i
 | 2026-10-19 | 在含 #002 修复的 `9aaf0a9` 上重测基线（@3） | 头部 126px（#002 标题行使 123→126）、search-stack 283×70 两行、列表 y146 h884、行级 tag-select 18 个；旧 `.imb-chat-filter-row` 已不存在；截图 `004-steward-baseline-chat.png` |
 
 | 2026-10-19 | 探针 `/tmp/verify-004.mjs --filter` 冒烟跑通（pre-fix 态 9/9 断言 PASS）；定案标签筛选语义为 AND（`chats.ts:173-181`），issue 验收③补入；runbook `3eec804` 记 7 条探针教训 | 行为链可自动复现，等 @5 实现后即可复测 |
+| 2026-10-21 | PP1 实现落地，CDP 探针 `/tmp/verify-004.mjs --filter` 实测通过（头部 126px → 88px，列表 y108 h922 扩容 +38px，9/9 行为断言全 PASS，行级 TagSelect 保持 18 个，0 !important） | 状态 → `fixed-verified` 定案关闭 |
