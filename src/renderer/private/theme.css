@@ -24,12 +24,12 @@
   /* Self-check: this reads back as 1 when the private layer is loaded. */
   --imb-private-layer: 1;
 
-  /* Surfaces — a light stone canvas, near-white panes, hairline seams. */
-  --imb-bg: #f2f2f0;
-  --imb-surface: #fbfbfa;
+  /* Surfaces — Collect UI layered stone canvas, near-white panes, hairline seams. */
+  --imb-bg: #f3f3f1;
+  --imb-surface: #ffffff;
   --imb-fg: #1b1d1c;
   --imb-muted: #6e7573;
-  --imb-border: #e5e6e4;
+  --imb-border: rgba(20, 28, 24, 0.08);
 
   /* One accent: a calm pine green, balanced for both themes (~4.3:1 against
      white and against the dark canvas), so it can carry white text on the
@@ -75,9 +75,9 @@
   --imb-radius-lg: 14px;
   --imb-elev-ring: 0 0 0 1px var(--imb-border);
   --imb-elev-raised:
-    0 1px 2px rgba(20, 28, 24, 0.04),
-    0 4px 12px -2px rgba(20, 28, 24, 0.06),
-    0 10px 24px -4px rgba(20, 28, 24, 0.04);
+    0 1px 2px rgba(20, 28, 24, 0.03),
+    0 4px 16px -2px rgba(20, 28, 24, 0.05),
+    0 12px 32px -4px rgba(20, 28, 24, 0.03);
 
   --imb-motion-fast: 120ms;
   --imb-motion-base: 200ms;
@@ -136,11 +136,11 @@
 /* Dark theme: the OS prefers dark and the user has not forced light. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme-mode="light"]) {
-    --imb-bg: #141615;
-    --imb-surface: #1c1e1d;
-    --imb-fg: #e9ebe9;
-    --imb-muted: #9aa29e;
-    --imb-border: #2b2f2d;
+    --imb-bg: #121413;
+    --imb-surface: #1a1d1c;
+    --imb-fg: #eef0ee;
+    --imb-muted: #9ba39f;
+    --imb-border: rgba(255, 255, 255, 0.07);
 
     --imb-accent: #45a37b;
     --imb-accent-on: #10201a;
@@ -150,9 +150,9 @@
     --imb-warn: #d9a13f;
     --imb-danger: #d9706a;
 
-    --imb-bubble-self: #22302a;
-    --imb-bubble-text: #dde7e1;
-    --imb-private-bubble-other: #262a28;
+    --imb-bubble-self: #203328;
+    --imb-bubble-text: #e1ede6;
+    --imb-private-bubble-other: #222624;
     --imb-private-accent-text: color-mix(
       in oklab,
       var(--imb-accent) 55%,
@@ -161,23 +161,23 @@
 
     /* Collect UI dark elevation: multi-stop ambient depth with specular rim */
     --imb-elev-raised:
-      0 0 0 1px rgba(255, 255, 255, 0.05),
-      0 2px 6px rgba(0, 0, 0, 0.4),
-      0 8px 24px -4px rgba(0, 0, 0, 0.5);
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 2px 8px rgba(0, 0, 0, 0.35),
+      0 12px 32px -4px rgba(0, 0, 0, 0.55);
     --imb-private-elev-overlay:
-      0 0 0 1px rgba(255, 255, 255, 0.08),
-      0 8px 24px -4px rgba(0, 0, 0, 0.6),
-      0 20px 48px -6px rgba(0, 0, 0, 0.7);
+      0 0 0 1px rgba(255, 255, 255, 0.09),
+      0 8px 24px -2px rgba(0, 0, 0, 0.65),
+      0 24px 54px -6px rgba(0, 0, 0, 0.75);
   }
 }
 
 /* Dark theme: forced in Settings › Appearance. */
 :root[data-theme-mode="dark"] {
-  --imb-bg: #141615;
-  --imb-surface: #1c1e1d;
-  --imb-fg: #e9ebe9;
-  --imb-muted: #9aa29e;
-  --imb-border: #2b2f2d;
+  --imb-bg: #121413;
+  --imb-surface: #1a1d1c;
+  --imb-fg: #eef0ee;
+  --imb-muted: #9ba39f;
+  --imb-border: rgba(255, 255, 255, 0.07);
 
   --imb-accent: #45a37b;
   --imb-accent-on: #10201a;
@@ -187,9 +187,9 @@
   --imb-warn: #d9a13f;
   --imb-danger: #d9706a;
 
-  --imb-bubble-self: #22302a;
-  --imb-bubble-text: #dde7e1;
-  --imb-private-bubble-other: #262a28;
+  --imb-bubble-self: #203328;
+  --imb-bubble-text: #e1ede6;
+  --imb-private-bubble-other: #222624;
   --imb-private-accent-text: color-mix(
     in oklab,
     var(--imb-accent) 55%,
@@ -198,11 +198,11 @@
 
   /* Collect UI dark elevation: multi-stop ambient depth with specular rim */
   --imb-elev-raised:
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 2px 6px rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.5);
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.35),
+    0 12px 32px -4px rgba(0, 0, 0, 0.55);
   --imb-private-elev-overlay:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6),
-    0 20px 48px -6px rgba(0, 0, 0, 0.7);
+    0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 8px 24px -2px rgba(0, 0, 0, 0.65),
+    0 24px 54px -6px rgba(0, 0, 0, 0.75);
 }
