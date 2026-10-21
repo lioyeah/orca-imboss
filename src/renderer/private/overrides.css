@@ -162,21 +162,19 @@
 
 .imb-select-panel,
 .imb-ms-panel,
-.imb-mention-popup {
-  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
-  box-shadow: var(--imb-private-elev-overlay);
-  backdrop-filter: blur(12px);
-}
-
-.imb-ctx-menu.imb-open {
-  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
-  box-shadow: var(--imb-private-elev-overlay);
-  backdrop-filter: blur(12px);
-}
-
+.imb-mention-popup,
+.imb-attach-popup,
+.imb-ctx-menu.imb-open,
 .imb-popover {
-  box-shadow: var(--imb-private-elev-overlay);
-  backdrop-filter: blur(12px);
+  animation: imb-dropdown-enter var(--imb-motion-fast) var(--imb-ease-standard);
+  background: color-mix(in srgb, var(--imb-surface) 86%, transparent) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid color-mix(in oklab, var(--imb-fg) 10%, transparent);
+  border-radius: var(--imb-radius-md);
+  box-shadow:
+    var(--imb-private-elev-overlay),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 .imb-tooltip {
@@ -307,7 +305,27 @@
   padding-top: var(--imb-space-3);
 }
 
-/* The chat list row and the gap under its second line. */
+/* The chat list row: floating card layout with subtle indent & accent indicator. */
+.imb-item-list-row {
+  padding: 1px 6px;
+  box-sizing: border-box;
+}
+
+.imb-list-row-wrap {
+  border-radius: var(--imb-radius-md);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    border-color var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-list-row-wrap:hover:not(.imb-is-active):not(.imb-is-selected) {
+  background: var(--imb-fg-soft);
+  border-color: color-mix(in oklab, var(--imb-fg) 5%, transparent);
+}
+
 .imb-list-row {
   min-height: var(--imb-private-h-row);
   padding: 10px 12px;
@@ -332,6 +350,18 @@
 .imb-list-row-wrap.imb-is-active,
 .imb-list-row-wrap.imb-is-selected {
   background: var(--imb-private-tint-current) !important;
+  border-color: color-mix(in oklab, var(--imb-accent) 24%, transparent);
+}
+
+.imb-list-row-wrap.imb-is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: var(--imb-radius-pill);
+  background: var(--imb-accent);
 }
 
 /* --- The conversation: air, and a line you can follow ---------------- */
@@ -523,4 +553,163 @@
 .imb-ask-option input:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--imb-accent) 24%, transparent);
+}
+
+/* --- Round 5 (Craft Pass): AskCard, ProgressCard, Markdown & Composer --- */
+
+/* 1. Ask Card (提问卡片) 现代交互卡片化 */
+.imb-ask-card {
+  border-radius: var(--imb-radius-lg);
+  border: 1px solid var(--imb-border);
+  background: var(--imb-surface);
+  box-shadow: var(--imb-elev-raised);
+}
+
+.imb-ask-card-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--imb-fg);
+}
+
+.imb-ask-options {
+  gap: 8px;
+}
+
+.imb-ask-option {
+  padding: 8px 12px;
+  border-radius: var(--imb-radius-md);
+  border: 1px solid var(--imb-border);
+  background: color-mix(in oklab, var(--imb-bg) 65%, var(--imb-surface));
+  transition:
+    border-color var(--imb-motion-fast) var(--imb-ease-standard),
+    background-color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-ask-option:hover:not(.imb-ask-card-submitted .imb-ask-option) {
+  background: var(--imb-surface);
+  border-color: color-mix(in oklab, var(--imb-accent) 45%, var(--imb-border));
+  transform: translateY(-0.5px);
+}
+
+.imb-ask-option:has(input:checked) {
+  background: color-mix(in oklab, var(--imb-accent) 8%, var(--imb-surface));
+  border-color: var(--imb-accent);
+  box-shadow: 0 0 0 1px var(--imb-accent);
+}
+
+.imb-ask-submit {
+  border-radius: var(--imb-radius-md);
+  font-weight: 500;
+  transition:
+    background-color var(--imb-motion-fast) var(--imb-ease-standard),
+    transform var(--imb-motion-fast) var(--imb-ease-standard),
+    box-shadow var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-ask-submit:hover:not(:disabled) {
+  background: var(--imb-accent-hover);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 8px -2px color-mix(in oklab, var(--imb-accent) 40%, transparent);
+}
+
+.imb-ask-submit:active:not(:disabled) {
+  background: var(--imb-accent-active);
+  transform: translateY(0) scale(0.98);
+}
+
+/* 2. Progress Card (任务进度卡片) 细致排版与状态胶囊 */
+.imb-progress-card {
+  border-radius: var(--imb-radius-lg);
+  border: 1px solid var(--imb-border);
+  background: var(--imb-surface);
+  box-shadow: var(--imb-elev-raised);
+}
+
+.imb-progress-row {
+  padding: 6px 8px;
+  border-radius: var(--imb-radius-sm);
+  transition: background-color var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-progress-row:hover {
+  background: var(--imb-fg-soft);
+}
+
+.imb-progress-tag {
+  padding: 2px 8px;
+  border-radius: var(--imb-radius-pill);
+  font-weight: 500;
+  border: 1px solid var(--imb-border);
+  background: var(--imb-bg);
+}
+
+.imb-progress-tag.imb-done {
+  background: color-mix(in oklab, var(--imb-success) 12%, transparent);
+  border-color: color-mix(in oklab, var(--imb-success) 28%, transparent);
+  color: var(--imb-success);
+}
+
+.imb-progress-tag.imb-busy {
+  background: color-mix(in oklab, var(--imb-accent) 12%, transparent);
+  border-color: color-mix(in oklab, var(--imb-accent) 30%, transparent);
+  color: var(--imb-accent);
+}
+
+/* 3. Markdown 排版美化 (代码块、引用、表格) */
+.imb-markdown pre {
+  border-radius: var(--imb-radius-md);
+  border: 1px solid color-mix(in oklab, var(--imb-fg) 12%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.imb-markdown blockquote {
+  border-left: 3px solid var(--imb-accent);
+  background: color-mix(in oklab, var(--imb-accent) 4%, transparent);
+  border-radius: 0 var(--imb-radius-sm) var(--imb-radius-sm) 0;
+  padding: 6px 12px;
+  margin: var(--imb-space-2) 0;
+}
+
+.imb-markdown table {
+  border-radius: var(--imb-radius-md);
+  border: 1px solid var(--imb-border);
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.imb-markdown th {
+  background: color-mix(in oklab, var(--imb-fg) 5%, var(--imb-surface));
+  font-weight: 600;
+  border-bottom: 1px solid var(--imb-border);
+}
+
+.imb-markdown td {
+  border-top: 1px solid var(--imb-border);
+}
+
+.imb-markdown tr:first-child td {
+  border-top: none;
+}
+
+.imb-markdown tbody tr:hover {
+  background: color-mix(in oklab, var(--imb-fg) 3%, transparent);
+}
+
+/* 4. Composer (输入区域) 微质感 */
+.imb-chat-input-wrap {
+  background: color-mix(in srgb, var(--imb-surface) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.imb-chat-input-card {
+  border-radius: var(--imb-radius-lg);
+  border: 1px solid var(--imb-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.imb-send-btn-circle {
+  box-shadow: 0 2px 6px -1px color-mix(in oklab, var(--imb-accent) 40%, transparent);
 }
