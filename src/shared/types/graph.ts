@@ -141,3 +141,75 @@ export interface GraphPayload {
   /** Latest updatedAt/createdAt across all nodes in epoch ms. */
   maxTime?: number;
 }
+
+/** Node type in the unified Metro-Rail Task Graph and Workflow Editor. */
+export type TaskFlowNodeType =
+  | "root"
+  | "task"
+  | "employee_join"
+  | "employee_leave"
+  | "approval_gate"
+  | "merge";
+
+/** Execution status of a task flow node. */
+export type TaskFlowNodeStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "interrupted"
+  | "skipped"
+  | "waiting_approval";
+
+/** A node on the Metro-Rail Branching Canvas. */
+export interface TaskFlowNode {
+  id: string;
+  lane: number;
+  order: number;
+  type: TaskFlowNodeType;
+  title: string;
+  subtitle?: string | null;
+  employeeId?: number | null;
+  employeeName?: string | null;
+  employeeRole?: string | null;
+  employeeAvatar?: string | null;
+  status: TaskFlowNodeStatus;
+  badge?: number | string | null;
+  thumbnail?: string | null;
+  chatId?: number | null;
+  messageId?: number | null;
+  promptTemplate?: string | null;
+  outputSnippet?: string | null;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+/** Edge connecting two nodes on the Metro-Rail Canvas. */
+export interface TaskFlowEdge {
+  id: string;
+  from: string;
+  to: string;
+  kind?: "sequence" | "branch" | "merge" | "handoff";
+}
+
+/** Complete Task Workflow Graph payload for rendering and execution. */
+export interface TaskWorkflowGraph {
+  nodes: TaskFlowNode[];
+  edges: TaskFlowEdge[];
+  mode: "live" | "studio";
+  activeTaskId?: string | null;
+  chatId?: number | null;
+  chatTitle?: string | null;
+  generatedAt: number;
+}
+
+/** Reusable user-defined workflow definition. */
+export interface WorkflowDefinition {
+  id: string;
+  title: string;
+  description?: string;
+  nodes: TaskFlowNode[];
+  edges: TaskFlowEdge[];
+  createdAt: number;
+  updatedAt: number;
+}
+

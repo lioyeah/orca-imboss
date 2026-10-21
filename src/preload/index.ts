@@ -15,6 +15,8 @@ import type {
   EmployeeSession,
   GraphPayload,
   InstalledSkill,
+  TaskWorkflowGraph,
+  WorkflowDefinition,
   IntegrationConfigPatch,
   IntegrationPlatform,
   IntegrationQrState,
@@ -528,6 +530,28 @@ const api = {
   graph: {
     /** The whole workspace graph (chats, employees, tags and their links). */
     get: () => ipcRenderer.invoke("graph:get") as Promise<GraphPayload>,
+    /** Task relationship and execution status DAG. */
+    getTasks: (targetChatId?: number) =>
+      ipcRenderer.invoke("graph:getTasks", targetChatId) as Promise<TaskWorkflowGraph>,
+    /** List all user-defined workflows. */
+    listWorkflows: () =>
+      ipcRenderer.invoke("graph:listWorkflows") as Promise<WorkflowDefinition[]>,
+    /** Get a specific user workflow by id. */
+    getWorkflow: (id: string) =>
+      ipcRenderer.invoke("graph:getWorkflow", id) as Promise<WorkflowDefinition | null>,
+    /** Save/update a user-defined workflow. */
+    saveWorkflow: (wf: WorkflowDefinition) =>
+      ipcRenderer.invoke("graph:saveWorkflow", wf) as Promise<WorkflowDefinition>,
+    /** Delete a user-defined workflow. */
+    deleteWorkflow: (id: string) =>
+      ipcRenderer.invoke("graph:deleteWorkflow", id) as Promise<boolean>,
+    /** Export a live task graph into a reusable workflow template. */
+    exportToWorkflow: (graph: TaskWorkflowGraph, title?: string) =>
+      ipcRenderer.invoke(
+        "graph:exportToWorkflow",
+        graph,
+        title,
+      ) as Promise<WorkflowDefinition>,
   },
 
   backup: {
