@@ -48,6 +48,11 @@ export function GraphModule(): React.JSX.Element {
   const [showInspector, setShowInspector] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Workflow Copilot (Employee 0 Optimization) State
+  const [showCopilotModal, setShowCopilotModal] = useState(false);
+  const [copilotPrompt, setCopilotPrompt] = useState("");
+  const [isCopilotRunning, setIsCopilotRunning] = useState(false);
+
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3200);
@@ -233,6 +238,31 @@ export function GraphModule(): React.JSX.Element {
     showToast("工作流已删除");
   }, [currentWorkflow, workflows, showToast]);
 
+  // Copilot AI Optimization
+  const handleCopilotOptimize = useCallback(async () => {
+    setIsCopilotRunning(true);
+    try {
+      const optimized = await imb.graph.copilotOptimize({
+        prompt: copilotPrompt.trim() || undefined,
+        workflow: currentWorkflow ?? undefined,
+      });
+      await imb.graph.saveWorkflow(optimized);
+      setWorkflows((prev) => [
+        optimized,
+        ...prev.filter((w) => w.id !== optimized.id),
+      ]);
+      setCurrentWorkflow(optimized);
+      setSelectedNodeId(optimized.nodes[0]?.id ?? null);
+      setShowCopilotModal(false);
+      setCopilotPrompt("");
+      showToast("✦ 0号员工已完成流架构优化并载入画布！");
+    } catch (err: unknown) {
+      showToast(`优化失败: ${String(err)}`);
+    } finally {
+      setIsCopilotRunning(false);
+    }
+  }, [copilotPrompt, currentWorkflow, showToast]);
+
   // Studio: Add Node (sequential or branch)
   const handleAddNode = useCallback(
     (fromNodeId: string, asBranch: boolean) => {
@@ -403,6 +433,14 @@ export function GraphModule(): React.JSX.Element {
                 onClick={handleCreateNewWorkflow}
               >
                 <IconPlus className="metro-btn-icon" /> 新建流
+              </button>
+              <button
+                type="button"
+                className="metro-action-chip ai-copilot"
+                title="由 0 号员工（助手）根据目标或当前草稿，自动补全员工分工、介入离场与审批 Gate"
+                onClick={() => setShowCopilotModal(true)}
+              >
+                ✦ 助手完善流
               </button>
               <button
                 type="button"
@@ -733,7 +771,62 @@ export function GraphModule(): React.JSX.Element {
         )}
       </div>
 
-          {/* Floating Toast Notification */}
+          {/* 0号员工 Copilot 优化弹窗 */}
+      {showCopilotModal && (
+        <div
+          className="metro-copilot-modal-backdrop"
+          onClick={() => setShowCopilotModal(false)}
+        >
+          <div
+            className="metro-copilot-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="metro-copilot-head">
+              <h3>✦ 0 号员工流架构协创器</h3>
+              <button
+                type="button"
+                className="metro-close-btn"
+                onClick={() => setShowCopilotModal(false)}
+              >
+                <IconX />
+              </button>
+            </div>
+            <div className="metro-copilot-body">
+              <p>
+                告诉 0 号员工你的预期目标，它将读取工作区内全体员工的专长与技能，自动规划出包含
+                <strong> 员工介入、精细 Prompt、阶段性离场（节约 Token）与人工审批 Gate </strong>
+                的完整 Metro-Rail 敏捷流。
+              </p>
+              <textarea
+                className="metro-copilot-input"
+                rows={4}
+                placeholder="例如：对近半年三家主流竞品进行功能差异分析，编写数据对比爬虫，并完成一份包含图表的最终汇报..."
+                value={copilotPrompt}
+                onChange={(e) => setCopilotPrompt(e.target.value)}
+              />
+            </div>
+            <div className="metro-copilot-foot">
+              <button
+                type="button"
+                className="metro-copilot-btn"
+                onClick={() => setShowCopilotModal(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="metro-copilot-btn primary"
+                disabled={isCopilotRunning}
+                onClick={handleCopilotOptimize}
+              >
+                {isCopilotRunning ? "0号员工正在规划中..." : "一键优化并生成流"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification */}
           {toastMessage && (
             <div className="metro-floating-toast">
               <span>{toastMessage}</span>

@@ -141,6 +141,137 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.metro-action-chip.ai-copilot {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.15));
+  border-color: rgba(168, 85, 247, 0.4);
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.metro-action-chip.ai-copilot:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(168, 85, 247, 0.25));
+  border-color: #a855f7;
+}
+
+/* Copilot Modal Dialog */
+.metro-copilot-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: metro-fade-in 0.15s ease;
+}
+
+@keyframes metro-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.metro-copilot-modal {
+  width: 480px;
+  background: var(--imb-surface);
+  border: 1px solid var(--imb-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.metro-copilot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--imb-border);
+}
+
+.metro-copilot-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--imb-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metro-copilot-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metro-copilot-body p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--imb-text-muted);
+  line-height: 1.5;
+}
+
+.metro-copilot-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--imb-border);
+  background: var(--imb-bg);
+  color: var(--imb-text-primary);
+  font-size: 13px;
+  resize: vertical;
+  line-height: 1.5;
+  outline: none;
+}
+
+.metro-copilot-input:focus {
+  border-color: #a855f7;
+  background: var(--imb-surface);
+}
+
+.metro-copilot-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  background: var(--imb-bg);
+  border-top: 1px solid var(--imb-border);
+}
+
+.metro-copilot-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--imb-border);
+  background: var(--imb-surface);
+  color: var(--imb-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.metro-copilot-btn.primary {
+  background: linear-gradient(135deg, #6366f1, #9333ea);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+}
+
+.metro-copilot-btn.primary:hover {
+  opacity: 0.94;
+}
+
 /* Right Section Metrics */
 .metro-header-right {
   display: flex;

@@ -48,6 +48,19 @@
   stroke-width: 3.5px;
 }
 
+.metro-rail-line.ghost {
+  stroke-dasharray: 5 4;
+  opacity: 0.5;
+}
+
+.metro-rail-line.simulating {
+  stroke: var(--imb-accent);
+  stroke-width: 3.5px;
+  stroke-dasharray: none;
+  opacity: 1;
+  filter: drop-shadow(0 0 3px rgba(var(--imb-accent-rgb, 59, 130, 246), 0.5));
+}
+
 .metro-rail-line.dimmed {
   opacity: 0.25;
 }
@@ -162,6 +175,21 @@
   border-color: var(--imb-accent);
   box-shadow: 0 0 0 2px rgba(var(--imb-accent-rgb, 59, 130, 246), 0.2),
               0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.metro-card.ghost {
+  border-style: dashed;
+  opacity: 0.82;
+  background-color: color-mix(in oklab, var(--imb-surface) 90%, transparent);
+}
+
+.metro-card.sim-active {
+  border-color: var(--imb-accent);
+  border-style: solid;
+  opacity: 1;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 0 2px rgba(var(--imb-accent-rgb, 59, 130, 246), 0.35),
+              0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
 .metro-card.dimmed {
@@ -351,4 +379,100 @@
 .metro-hud-btn:hover {
   background: var(--imb-bg);
   color: var(--imb-text-primary);
+}
+
+.metro-hud-btn.sim-btn {
+  width: auto;
+  padding: 0 10px;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--imb-accent);
+}
+
+.metro-hud-btn.sim-btn:hover {
+  background: rgba(var(--imb-accent-rgb, 59, 130, 246), 0.1);
+}
+
+/* Simulation Ticker (Bottom Center Floating Banner) */
+.metro-sim-ticker {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in oklab, var(--imb-surface) 96%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--imb-border);
+  border-radius: 30px;
+  padding: 6px 14px 6px 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  z-index: 25;
+  animation: metro-ticker-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes metro-ticker-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 15px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.metro-sim-badge {
+  background: var(--imb-accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  letter-spacing: 0.3px;
+}
+
+.metro-sim-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--imb-text-primary);
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metro-sim-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  border-left: 1px solid var(--imb-border);
+  padding-left: 8px;
+}
+
+.metro-sim-ctrl-btn {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--imb-border);
+  background: var(--imb-surface);
+  color: var(--imb-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.metro-sim-ctrl-btn:hover {
+  background: var(--imb-bg);
+  color: var(--imb-text-primary);
+}
+
+.metro-sim-ctrl-btn.exit:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
 }

@@ -2,7 +2,7 @@ import type {
   TaskFlowNode,
   TaskWorkflowGraph,
 } from "@shared/types";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cls } from "reactutils";
 import "./index.css";
 
@@ -58,12 +58,20 @@ export function MetroCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
 
+  // Time-Travel Simulation / Preview State
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simIndex, setSimIndex] = useState(0);
+  const [simPlaying, setSimPlaying] = useState(false);
+
+  // Sorted nodes by chronological order
+  const sortedNodes = useMemo(() => {
+    return [...graph.nodes].sort((a, b) => a.order - b.order);
+  }, [graph.nodes]);
+
   // Compute Layout Positions
   const layout = useMemo(() => {
     const posMap = new Map<string, { x: number; y: number }>();
-    const sorted = [...graph.nodes].sort((a, b) => a.order - b.order);
-
-    sorted.forEach((node, idx) => {
+    sortedNodes.forEach((node, idx) => {
       const x = PADDING_X + node.lane * LANE_WIDTH;
       const y = PADDING_Y + idx * ROW_HEIGHT;
       posMap.set(node.id, { x, y });
@@ -71,10 +79,10 @@ export function MetroCanvas({
 
     const maxLane = Math.max(1, ...graph.nodes.map((n) => n.lane));
     const width = PADDING_X + (maxLane + 1) * LANE_WIDTH + 320;
-    const height = PADDING_Y + (sorted.length + 2) * ROW_HEIGHT + 100;
+    const height = PADDING_Y + (sortedNodes.length + 2) * ROW_HEIGHT + 100;
 
     return { posMap, width, height };
-  }, [graph.nodes]);
+  }, [graph.nodes, sortedNodes]);
 
   // Path tracing for focus/dimming
   const activePathNodeIds = useMemo(() => {
@@ -105,6 +113,57 @@ export function MetroCanvas({
     return set;
   }, [selectedId, graph.edges]);
 
+  // Simulation timer stepping
+  useEffect(() => {
+    if (!isSimulating || !simPlaying || sortedNodes.length === 0) return;
+    const interval = setInterval(() => {
+      setSimIndex((curr) => {
+        if (curr >= sortedNodes.length - 1) {
+          setSimPlaying(false);
+          return curr;
+        }
+        return curr + 1;
+      });
+    }, 2400);
+    return () => clearInterval(interval);
+  }, [isSimulating, simPlaying, sortedNodes]);
+
+  // Simulation commentary text
+  const currentSimNode = sortedNodes[simIndex];
+  const simCommentary = useMemo(() => {
+    if (!currentSimNode) return "";
+    const name = currentSimNode.employeeName || "助手 (Assistant)";
+    const role = currentSimNode.employeeRole || "协作者";
+    switch (currentSimNode.type) {
+      case "root":
+        return `🎯 接收老板目标指令：「${currentSimNode.title}」`;
+      case "employee_join":
+        return `👋 调配员工 ${name} (${role}) 接入任务群，加载对应 MCP 与技能环境`;
+      case "task":
+        return `⚡ 员工 ${name} 正在执行任务：「${currentSimNode.title}」...`;
+      case "employee_leave":
+        return `🛡️ 员工 ${name} 阶段成果达成，退出会话以保护后续上下文并节省 Token`;
+      case "approval_gate":
+        return `⏳ 流程到达审批卡点【${currentSimNode.title}】，挂起等待人工确认`;
+      case "merge":
+        return `📦 各分支成果收敛归档，向老板交付最终报告`;
+      default:
+        return `流转推进: ${currentSimNode.title}`;
+    }
+  }, [currentSimNode]);
+
+  const handleStartSimulation = useCallback(() => {
+    setIsSimulating(true);
+    setSimIndex(0);
+    setSimPlaying(true);
+  }, []);
+
+  const handleStopSimulation = useCallback(() => {
+    setIsSimulating(false);
+    setSimPlaying(false);
+    setSimIndex(0);
+  }, []);
+
   // Mouse wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -121,7 +180,6 @@ export function MetroCanvas({
   // Pan interaction
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    // Only pan if clicked directly on canvas container or svg background
     const target = e.target as HTMLElement;
     if (
       target.classList.contains("metro-canvas-container") ||
@@ -190,6 +248,21 @@ export function MetroCanvas({
             const p2 = layout.posMap.get(edge.to);
             if (!p1 || !p2) return null;
 
+            const targetNode = graph.nodes.find((n) => n.id === edge.to);
+            const fromNode = graph.nodes.find((n) => n.id === edge.from);
+
+            // Simulation state on rail
+            const isSimReached =
+              isSimulating &&
+              fromNode !== undefined &&
+              targetNode !== undefined &&
+              fromNode.order <= simIndex &&
+              targetNode.order <= simIndex;
+
+            // Ghost status: if target is pending and not reached by simulation
+            const isGhost =
+              targetNode?.status === "pending" && !isSimReached;
+
             const isEdgeActive =
               activePathNodeIds !== null &&
               activePathNodeIds.has(edge.from) &&
@@ -204,6 +277,8 @@ export function MetroCanvas({
                 d={d}
                 className={cls(
                   "metro-rail-line",
+                  isSimReached && "simulating",
+                  isGhost && "ghost",
                   isEdgeActive && "active",
                   isEdgeDimmed && "dimmed",
                 )}
@@ -217,9 +292,12 @@ export function MetroCanvas({
             if (!pos) return null;
 
             const isSelected = node.id === selectedId;
+            const isCurrentSim = isSimulating && node.id === currentSimNode?.id;
+            const isSimPast = isSimulating && node.order <= simIndex;
+            const isRunning = node.status === "running";
+
             const isNodeActive =
               activePathNodeIds === null || activePathNodeIds.has(node.id);
-            const isRunning = node.status === "running";
 
             return (
               <g key={`track_${node.id}`}>
@@ -231,16 +309,16 @@ export function MetroCanvas({
                   y2={pos.y}
                   className={cls(
                     "metro-card-connector",
-                    (isSelected || isRunning) && "active",
+                    (isSelected || isRunning || isCurrentSim) && "active",
                   )}
                 />
 
-                {/* Pulsing Focus Halo for Running / Selected Node */}
-                {(isRunning || isSelected) && (
+                {/* Pulsing Focus Halo for Running / Selected / Current Sim Node */}
+                {(isRunning || isSelected || isCurrentSim) && (
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={14}
+                    r={15}
                     className="metro-dot-halo"
                   />
                 )}
@@ -249,10 +327,14 @@ export function MetroCanvas({
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={isRunning || isSelected ? 8 : 6.5}
+                  r={isRunning || isSelected || isCurrentSim ? 8 : 6.5}
                   className={cls(
                     "metro-dot",
-                    `status-${node.status}`,
+                    isCurrentSim
+                      ? "status-running"
+                      : isSimPast
+                        ? "status-completed"
+                        : `status-${node.status}`,
                     !isNodeActive && "dimmed",
                   )}
                   onClick={(e) => {
@@ -261,7 +343,7 @@ export function MetroCanvas({
                   }}
                 />
 
-                {/* Optional Badge on Track Node (like the red '2' in reference image) */}
+                {/* Optional Badge on Track Node */}
                 {node.badge !== null && node.badge !== undefined && (
                   <g
                     transform={`translate(${pos.x + 6}, ${pos.y - 6})`}
@@ -283,10 +365,13 @@ export function MetroCanvas({
             if (!pos) return null;
 
             const isSelected = node.id === selectedId;
+            const isCurrentSim = isSimulating && node.id === currentSimNode?.id;
+            const isSimPast = isSimulating && node.order <= simIndex;
             const isNodeActive =
               activePathNodeIds === null || activePathNodeIds.has(node.id);
 
-            // Card X is anchored 18px to the right of the rail node
+            const isGhost = node.status === "pending" && !isSimPast;
+
             const cardX = pos.x + 18;
             const cardY = pos.y - 24;
 
@@ -296,6 +381,8 @@ export function MetroCanvas({
                 className={cls(
                   "metro-card",
                   isSelected && "selected",
+                  isCurrentSim && "sim-active",
+                  isGhost && "ghost",
                   !isNodeActive && "dimmed",
                 )}
                 style={{
@@ -307,7 +394,7 @@ export function MetroCanvas({
                   onSelectNode(node);
                 }}
               >
-                {/* 1. Thumbnail Slot (Image produced or attachment preview) */}
+                {/* 1. Thumbnail Slot */}
                 {node.thumbnail ? (
                   <div className="metro-card-thumb">
                     <img src={node.thumbnail} alt="thumbnail" />
@@ -336,37 +423,54 @@ export function MetroCanvas({
                 )}
 
                 {/* 4. Status Indicator */}
-                {node.status === "running" && (
+                {isCurrentSim ? (
                   <span className="metro-card-status-chip status-running">
-                    ● 进行中
+                    ● 推演中
                   </span>
-                )}
-                {node.status === "completed" && (
+                ) : isSimPast ? (
                   <span className="metro-card-status-chip status-completed">
-                    ✓ 完成
+                    ✓ 达标
                   </span>
-                )}
-                {node.status === "waiting_approval" && (
-                  <span
-                    className="metro-card-status-chip status-waiting_approval"
-                    onClick={(e) => {
-                      if (onApproveGate) {
-                        e.stopPropagation();
-                        onApproveGate(node.id);
-                      }
-                    }}
-                  >
-                    ⏳ 待审批 {onApproveGate && "▶"}
-                  </span>
-                )}
-                {node.status === "interrupted" && (
-                  <span className="metro-card-status-chip status-interrupted">
-                    ✕ 已中断
-                  </span>
+                ) : (
+                  <>
+                    {node.status === "running" && (
+                      <span className="metro-card-status-chip status-running">
+                        ● 进行中
+                      </span>
+                    )}
+                    {node.status === "completed" && (
+                      <span className="metro-card-status-chip status-completed">
+                        ✓ 完成
+                      </span>
+                    )}
+                    {node.status === "waiting_approval" && (
+                      <span
+                        className="metro-card-status-chip status-waiting_approval"
+                        onClick={(e) => {
+                          if (onApproveGate) {
+                            e.stopPropagation();
+                            onApproveGate(node.id);
+                          }
+                        }}
+                      >
+                        ⏳ 待审批 {onApproveGate && "▶"}
+                      </span>
+                    )}
+                    {node.status === "interrupted" && (
+                      <span className="metro-card-status-chip status-interrupted">
+                        ✕ 已中断
+                      </span>
+                    )}
+                    {node.status === "pending" && (
+                      <span className="metro-card-status-chip status-pending">
+                        ○ 预期
+                      </span>
+                    )}
+                  </>
                 )}
 
-                {/* 5. Studio Mode Action Buttons (Insert / Branch / Delete) */}
-                {mode === "studio" && (
+                {/* 5. Studio Mode Action Buttons */}
+                {mode === "studio" && !isSimulating && (
                   <div className="metro-node-actions">
                     {onAddNode && (
                       <button
@@ -415,8 +519,73 @@ export function MetroCanvas({
         </div>
       </div>
 
+      {/* Simulation Ticker Banner (Bottom Floating Commentary) */}
+      {isSimulating && (
+        <div className="metro-sim-ticker">
+          <span className="metro-sim-badge">
+            T+{simIndex + 1} / {sortedNodes.length}
+          </span>
+          <span className="metro-sim-text">{simCommentary}</span>
+          <div className="metro-sim-ctrls">
+            <button
+              type="button"
+              className="metro-sim-ctrl-btn"
+              onClick={() => setSimPlaying(!simPlaying)}
+            >
+              {simPlaying ? "⏸ 暂停" : "▶ 继续"}
+            </button>
+            <button
+              type="button"
+              className="metro-sim-ctrl-btn"
+              onClick={() => {
+                setSimIndex((curr) =>
+                  Math.min(curr + 1, sortedNodes.length - 1),
+                );
+              }}
+            >
+              步进 ▶|
+            </button>
+            <button
+              type="button"
+              className="metro-sim-ctrl-btn"
+              onClick={() => {
+                setSimIndex(0);
+                setSimPlaying(true);
+              }}
+            >
+              ↺ 重播
+            </button>
+            <button
+              type="button"
+              className="metro-sim-ctrl-btn exit"
+              onClick={handleStopSimulation}
+            >
+              退出推演
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Floating HUD Controls */}
       <div className="metro-hud-controls">
+        {!isSimulating ? (
+          <button
+            type="button"
+            className="metro-hud-btn sim-btn"
+            title="时序动态推演预览"
+            onClick={handleStartSimulation}
+          >
+            ▶ 推演演示
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="metro-hud-btn sim-btn"
+            onClick={handleStopSimulation}
+          >
+            ⏹ 停止推演
+          </button>
+        )}
         <button
           type="button"
           className="metro-hud-btn"
