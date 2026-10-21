@@ -386,26 +386,26 @@ export function EmployeeDetail({
     switch (materialTier) {
       case "platinum":
         return {
-          label: "👑 曜石黑金 · 全息衍射",
-          tierName: "Obsidian Platinum",
+          label: "👑 午夜曜石 · 首席",
+          tierName: "Midnight Obsidian",
           badgeStyle: "imb-tier-chip-platinum",
         };
       case "titanium":
         return {
-          label: "🛡️ 钛金工牌 · 金属拉丝",
-          tierName: "Brushed Titanium",
+          label: "🛡️ 喷砂钛金 · 资深",
+          tierName: "Bead-blasted Titanium",
           badgeStyle: "imb-tier-chip-titanium",
         };
       case "pvc":
         return {
-          label: "💳 PVC工牌 · 磨砂透光",
+          label: "💳 雾面透光 · 进阶",
           tierName: "Frosted PVC",
           badgeStyle: "imb-tier-chip-pvc",
         };
       default:
         return {
-          label: "📜 原浆纸卡 · 质感纤维",
-          tierName: "Kraft Paper",
+          label: "📜 原浆质感 · 新锐",
+          tierName: "Kraft Alabaster",
           badgeStyle: "imb-tier-chip-paper",
         };
     }
