@@ -101,6 +101,79 @@
   gap: var(--imb-space-2);
 }
 
+/* Search box + tag filter on one row inside the pane header's search slot. */
+.imb-chat-search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--imb-space-1);
+  min-width: 0;
+}
+
+.imb-chat-search-row .imb-searchbox {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.imb-chat-tag-filter {
+  flex: none;
+  width: auto;
+  max-width: 45%;
+}
+
+.imb-chat-tag-filter .imb-ms-trigger {
+  min-height: 26px;
+  padding: 2px 8px;
+  gap: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+}
+
+.imb-chat-tag-filter .imb-ms-trigger:hover:not(:disabled) {
+  border-color: var(--imb-border);
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+}
+
+.imb-chat-tag-filter .imb-ms-trigger[aria-expanded="true"] {
+  border-color: var(--imb-accent);
+  background: var(--imb-surface);
+  color: var(--imb-fg);
+}
+
+.imb-chat-tag-filter .imb-ms-caret {
+  display: none;
+}
+
+.imb-chat-tag-filter .imb-ms-value {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.imb-chat-tag-filter .imb-ms-chip {
+  flex: none;
+  padding: 1px 6px;
+  font-size: var(--imb-text-xs);
+}
+
+.imb-chat-tag-filter .imb-placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.imb-chat-tag-filter.imb-ms-has-clear .imb-ms-trigger {
+  padding-right: 24px;
+}
+
+.imb-chat-tag-filter .imb-ms-clear {
+  right: 4px;
+  width: 16px;
+  height: 16px;
+}
+}
+
 /* Per-row tag editor: its own full-width line under the row, so several tags
    have the row's full horizontal space. Low-emphasis until hovered / open. */
 .imb-chat-tag-select {
