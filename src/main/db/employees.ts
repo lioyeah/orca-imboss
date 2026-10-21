@@ -8,7 +8,9 @@ import type {
   Employee,
   EmployeeDeleteResult,
   EmployeeInput,
+  EmployeeProfileExtra,
   EmployeeRow,
+  EmployeeTaskEntry,
   EmployeeUpsertInput,
   PageQuery,
   PageResult,
@@ -445,4 +447,123 @@ export function listEmployeeIdentities(): EmployeeIdentity[] {
     .prepare("SELECT id, name, role FROM employees ORDER BY id ASC")
     .all() as EmployeeIdentity[];
 }
+
+/**
+ * Extended profile statistics and task history for the employee card.
+ * Dynamically computed from messages, chats, and sessions.
+ */
+export function getEmployeeProfileExtra(
+  employeeId: number,
+): EmployeeProfileExtra {
+  const db = getDB();
+
+  const msgStats = db
+    .prepare(
+      `SELECT 
+         COUNT(*) as message_count,
+         MIN(created_at) as first_msg_at,
+         MAX(created_at) as last_msg_at
+       FROM messages 
+       WHERE sender_employee_id = ?`,
+    )
+    .get(employeeId) as
+    | {
+        message_count: number;
+        first_msg_at: number | null;
+        last_msg_at: number | null;
+      }
+    | undefined;
+
+  const chatRows = db
+    .prepare(
+      `SELECT id, title, participants, created_at, last_message_at 
+       FROM chats 
+       ORDER BY last_message_at DESC, created_at DESC`,
+    )
+    .all() as Array<{
+    id: number;
+    title: string;
+    participants: string;
+    created_at: number;
+    last_message_at: number;
+  }>;
+
+  const msgChatIds = new Set(
+    (
+      db
+        .prepare(
+          "SELECT DISTINCT chat_id FROM messages WHERE sender_employee_id = ?",
+        )
+        .all(employeeId) as Array<{ chat_id: number }>
+    ).map((r) => r.chat_id),
+  );
+
+  const sessionChatIds = new Set(
+    (
+      db
+        .prepare("SELECT chat_id FROM sessions WHERE employee_id = ?")
+        .all(employeeId) as Array<{ chat_id: number }>
+    ).map((r) => r.chat_id),
+  );
+
+  const tasks: EmployeeTaskEntry[] = [];
+  let earliestChatAt: number | null = null;
+  let latestChatAt: number | null = null;
+
+  for (const chat of chatRows) {
+    const pList = parseNumberArray(chat.participants);
+    const isParticipant =
+      pList.includes(employeeId) ||
+      msgChatIds.has(chat.id) ||
+      sessionChatIds.has(chat.id);
+
+    if (isParticipant) {
+      if (earliestChatAt === null || chat.created_at < earliestChatAt) {
+        earliestChatAt = chat.created_at;
+      }
+      const chatLastAt = chat.last_message_at || chat.created_at;
+      if (latestChatAt === null || chatLastAt > latestChatAt) {
+        latestChatAt = chatLastAt;
+      }
+
+      const countRow = db
+        .prepare(
+          "SELECT COUNT(*) as cnt FROM messages WHERE chat_id = ? AND sender_employee_id = ?",
+        )
+        .get(chat.id, employeeId) as { cnt: number } | undefined;
+
+      tasks.push({
+        chatId: chat.id,
+        title: chat.title || `Chat #${chat.id}`,
+        createdAt: chat.created_at,
+        lastMessageAt: chatLastAt,
+        messageCount: countRow?.cnt ?? 0,
+      });
+    }
+  }
+
+  const firstMsgAt = msgStats?.first_msg_at ?? null;
+  const lastMsgAt = msgStats?.last_msg_at ?? null;
+
+  const firstActiveAt = firstMsgAt
+    ? earliestChatAt
+      ? Math.min(firstMsgAt, earliestChatAt)
+      : firstMsgAt
+    : earliestChatAt;
+
+  const lastActiveAt = lastMsgAt
+    ? latestChatAt
+      ? Math.max(lastMsgAt, latestChatAt)
+      : lastMsgAt
+    : latestChatAt;
+
+  return {
+    taskCount: tasks.length,
+    messageCount: msgStats?.message_count ?? 0,
+    firstActiveAt,
+    lastActiveAt,
+    tasks,
+  };
+}
+
 

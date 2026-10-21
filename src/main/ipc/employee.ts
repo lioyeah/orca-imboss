@@ -73,4 +73,9 @@ export function registerEmployeeHandlers(): void {
       return employee;
     },
   );
+
+  ipcMain.handle("employees:profileExtra", (_event, id: unknown) => {
+    const safeId = assertInteger(id, "employee id");
+    return dbEmployees.getEmployeeProfileExtra(safeId);
+  });
 }

@@ -12,6 +12,7 @@ import type {
   Employee,
   EmployeeDeleteResult,
   EmployeeInput,
+  EmployeeProfileExtra,
   EmployeeSession,
   GraphPayload,
   InstalledSkill,
@@ -185,6 +186,8 @@ const api = {
         ext,
         data,
       ) as Promise<Employee | null>,
+    profileExtra: (id: number) =>
+      ipcRenderer.invoke("employees:profileExtra", id) as Promise<EmployeeProfileExtra>,
     /** Fired when main creates/updates/deletes an employee (e.g. the agent's
      *  `imb_set_employees`), so the renderer cache can re-fetch. */
     onChanged: (cb: (payload: { ids: number[] }) => void) =>
