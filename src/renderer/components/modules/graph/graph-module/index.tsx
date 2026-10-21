@@ -1,108 +1,92 @@
-import { GRAPH_EDGE_KINDS, GRAPH_EDGE_LABELS } from "@shared/constants/graph";
-import { t } from "@shared/l10n";
 import type {
-  GraphEdge,
-  GraphEdgeKind,
-  GraphNode,
-  GraphPayload,
-  GraphPerspective,
+  Employee,
+  TaskFlowNode,
+  TaskFlowNodeType,
+  TaskWorkflowGraph,
+  WorkflowDefinition,
 } from "@shared/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cls } from "reactutils";
 import { appStore } from "../../../../app-store";
 import { ModuleView } from "../../../app-shell";
 import {
+  IconCheck,
   IconClock,
-  IconGear,
+  IconEdit,
   IconGraph,
+  IconOpen,
   IconPlay,
-  IconSearch,
-  IconStats,
+  IconPlus,
+  IconTrash,
   IconX,
 } from "../../../icons";
 import "../../module-common.css";
-import {
-  DEFAULT_PHYSICS,
-  GraphCanvas,
-  type PhysicsConfig,
-} from "../graph-canvas";
+import { MetroCanvas } from "../metro-canvas";
 import "./index.css";
 
-const DIRECTED_KINDS: ReadonlySet<GraphEdgeKind> = new Set([
-  "spawned",
-  "attached",
-  "progress",
-  "produces",
-  "references",
-  "invokes",
-]);
-
-interface InspectorLink {
-  key: string;
-  node: GraphNode;
-  kind: GraphEdgeKind;
-  outgoing: boolean;
-}
-
 export function GraphModule(): React.JSX.Element {
-  const [payload, setPayload] = useState<GraphPayload | null>(null);
+  // Mode switch: "live" (Task Observability) vs "studio" (ComfyUI Workflow Planning)
+  const [mode, setMode] = useState<"live" | "studio">("live");
+
+  // Live Task Observability State
+  const [liveGraph, setLiveGraph] = useState<TaskWorkflowGraph | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<number | undefined>(undefined);
+  const [chatSummaries, setChatSummaries] = useState<Array<{ id: number; title: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  // Cognitive perspective
-  const [perspective, setPerspective] = useState<GraphPerspective>("all");
+  // Workflow Studio State
+  const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
+  const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowDefinition | null>(null);
 
-  // Link filters
-  const [enabled, setEnabled] = useState<ReadonlySet<GraphEdgeKind>>(
-    () => new Set(GRAPH_EDGE_KINDS),
-  );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Workspace Employees (for Assigning / Joining / Leaving in Studio)
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
-  // Subgraph isolation & depth expansion
-  const [isolatedId, setIsolatedId] = useState<string | null>(null);
-  const [expansionDepth, setExpansionDepth] = useState<number>(1);
-  const [expansionDirection, setExpansionDirection] = useState<
-    "both" | "downstream" | "upstream"
-  >("both");
+  // Selected Node (for Canvas & Inspector Drawer)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showInspector, setShowInspector] = useState(true);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Cluster Supernode Aggregation mode
-  const [aggregateClusters, setAggregateClusters] = useState(false);
-  const [expandedClusterIds, setExpandedClusterIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3200);
+  }, []);
 
-  // Advanced feature controls
-  const [searchQuery, setSearchQuery] = useState("");
-  const [colorMode, setColorMode] = useState<"kind" | "cluster">("kind");
-  const [hideOrphans, setHideOrphans] = useState(false);
-
-  // Topology Analysis Drawer
-  const [showTopologyDrawer, setShowTopologyDrawer] = useState(false);
-
-  // Physics tuning state
-  const [physics, setPhysics] = useState<PhysicsConfig>(DEFAULT_PHYSICS);
-  const [showPhysicsPanel, setShowPhysicsPanel] = useState(false);
-
-  // Temporal timeline slider
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [timeCutoff, setTimeCutoff] = useState<number | null>(null);
-  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
-
-  const flyToNodeRef = useRef<((id: string) => void) | null>(null);
-
+  // Load Workspace Employees
   useEffect(() => {
+    void imb.employees.list().then(setEmployees).catch(() => {});
+  }, []);
+
+  // Load Chats for Selector
+  useEffect(() => {
+    void imb.chats
+      .summaries()
+      .then((items) => {
+        setChatSummaries(
+          items.map((c) => ({
+            id: c.id,
+            title: c.title.trim().length > 0 ? c.title : `对话 #${c.id}`,
+          })),
+        );
+      })
+      .catch(() => {});
+  }, [refreshToken]);
+
+  // Load Live Tasks
+  useEffect(() => {
+    if (mode !== "live") return;
     let alive = true;
     setLoading(true);
     setError(null);
+
     void imb.graph
-      .get()
-      .then((next) => {
-        if (alive) {
-          setPayload(next);
-          if (next.maxTime) {
-            setTimeCutoff(next.maxTime);
-          }
+      .getTasks(selectedChatId)
+      .then((g) => {
+        if (!alive) return;
+        setLiveGraph(g);
+        if (!selectedChatId && g.chatId) {
+          setSelectedChatId(g.chatId);
         }
       })
       .catch((err: unknown) => {
@@ -111,1228 +95,652 @@ export function GraphModule(): React.JSX.Element {
       .finally(() => {
         if (alive) setLoading(false);
       });
+
     return () => {
       alive = false;
     };
-  }, [refreshToken]);
+  }, [mode, selectedChatId, refreshToken]);
 
+  // Load Workflows in Studio Mode
   useEffect(() => {
-    const unsubscribes = [
+    if (mode !== "studio") return;
+    let alive = true;
+    void imb.graph
+      .listWorkflows()
+      .then((wfs) => {
+        if (!alive) return;
+        setWorkflows(wfs);
+        if (wfs.length > 0 && !currentWorkflow) {
+          setCurrentWorkflow(wfs[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [mode, currentWorkflow]);
+
+  // Subscribe to Chat and Message changes for live reactive updating
+  useEffect(() => {
+    const unsubs = [
       imb.chats.onChanged(() => setRefreshToken((n) => n + 1)),
       imb.chats.onDeleted(() => setRefreshToken((n) => n + 1)),
-      imb.employees.onChanged(() => setRefreshToken((n) => n + 1)),
     ];
     return () => {
-      for (const unsubscribe of unsubscribes) unsubscribe();
+      for (const unsub of unsubs) unsub();
     };
   }, []);
 
-  // Timeline auto-play timer
-  useEffect(() => {
-    if (!isPlayingTimeline || !payload || !payload.minTime || !payload.maxTime)
-      return;
-    const min = payload.minTime;
-    const max = payload.maxTime;
-    const step = (max - min) / 80;
+  // Active Graph for Canvas
+  const activeGraph: TaskWorkflowGraph | null = useMemo(() => {
+    if (mode === "live") return liveGraph;
+    if (!currentWorkflow) return null;
+    return {
+      nodes: currentWorkflow.nodes,
+      edges: currentWorkflow.edges,
+      mode: "studio",
+      activeTaskId: currentWorkflow.id,
+      chatId: null,
+      chatTitle: currentWorkflow.title,
+      generatedAt: currentWorkflow.updatedAt * 1000,
+    };
+  }, [mode, liveGraph, currentWorkflow]);
 
-    const interval = setInterval(() => {
-      setTimeCutoff((curr) => {
-        const next = (curr ?? min) + step;
-        if (next >= max) {
-          setIsPlayingTimeline(false);
-          return max;
-        }
-        return next;
-      });
-    }, 60);
+  // Selected Node Object
+  const selectedNode = useMemo(() => {
+    if (!activeGraph || !selectedNodeId) return null;
+    return activeGraph.nodes.find((n) => n.id === selectedNodeId) ?? null;
+  }, [activeGraph, selectedNodeId]);
 
-    return () => clearInterval(interval);
-  }, [isPlayingTimeline, payload]);
-
-  // Perspective presets for links & entities
-  useEffect(() => {
-    if (perspective === "causality") {
-      setEnabled(new Set(["spawned", "attached", "progress", "produces"]));
-    } else if (perspective === "collaboration") {
-      setEnabled(new Set(["participant", "session", "invokes"]));
-    } else if (perspective === "artifacts") {
-      setEnabled(new Set(["produces", "references", "invokes"]));
-    } else if (perspective === "knowledge") {
-      setEnabled(new Set(["tag", "attached", "references"]));
-    } else {
-      setEnabled(new Set(GRAPH_EDGE_KINDS));
+  // Live Metrics
+  const metrics = useMemo(() => {
+    if (!activeGraph) return { total: 0, completed: 0, running: 0 };
+    let completed = 0;
+    let running = 0;
+    for (const n of activeGraph.nodes) {
+      if (n.status === "completed") completed++;
+      if (n.status === "running") running++;
     }
-  }, [perspective]);
+    return { total: activeGraph.nodes.length, completed, running };
+  }, [activeGraph]);
 
-  // Compute Subgraph closure based on isolatedId, expansionDepth, and direction
-  const isolatedSubtreeIds = useMemo(() => {
-    if (!isolatedId || !payload) return null;
-
-    // Breadth-first search along DAG edges up to expansionDepth
-    const visited = new Set<string>([isolatedId]);
-    let currentFrontier = new Set<string>([isolatedId]);
-
-    const maxDepth = Math.max(1, Math.min(expansionDepth, 5));
-
-    for (let d = 0; d < maxDepth; d++) {
-      const nextFrontier = new Set<string>();
-
-      for (const edge of payload.edges) {
-        if (!enabled.has(edge.kind)) continue;
-
-        // Downstream causality: source is in frontier -> target is added
-        if (expansionDirection === "both" || expansionDirection === "downstream") {
-          if (currentFrontier.has(edge.source) && !visited.has(edge.target)) {
-            visited.add(edge.target);
-            nextFrontier.add(edge.target);
-          }
-        }
-
-        // Upstream provenance: target is in frontier -> source is added
-        if (expansionDirection === "both" || expansionDirection === "upstream") {
-          if (currentFrontier.has(edge.target) && !visited.has(edge.source)) {
-            visited.add(edge.source);
-            nextFrontier.add(edge.source);
-          }
-        }
-      }
-
-      if (nextFrontier.size === 0) break;
-      currentFrontier = nextFrontier;
+  // Save current live task tree as a Workflow Template
+  const handleExportAsTemplate = useCallback(async () => {
+    if (!liveGraph || liveGraph.nodes.length === 0) return;
+    try {
+      const saved = await imb.graph.exportToWorkflow(liveGraph);
+      setWorkflows((prev) => [saved, ...prev]);
+      setCurrentWorkflow(saved);
+      showToast(`已成功转存为工作流模板:「${saved.title}」`);
+      setMode("studio");
+    } catch (err: unknown) {
+      showToast(`转存失败: ${String(err)}`);
     }
+  }, [liveGraph, showToast]);
 
-    return visited;
-  }, [isolatedId, expansionDepth, expansionDirection, payload, enabled]);
-
-  // Filter visible nodes and edges
-  const visible = useMemo((): {
-    nodes: GraphNode[];
-    edges: GraphEdge[];
-  } => {
-    if (!payload) return { nodes: [], edges: [] };
-
-    let candidateNodes = payload.nodes;
-
-    // Subgraph isolation filter
-    if (isolatedSubtreeIds !== null) {
-      candidateNodes = candidateNodes.filter((n) =>
-        isolatedSubtreeIds.has(n.id),
-      );
-    }
-
-    // Temporal cutoff filter
-    if (timeCutoff !== null) {
-      candidateNodes = candidateNodes.filter(
-        (node) => !node.createdAt || node.createdAt <= timeCutoff,
-      );
-    }
-
-    // Perspective entity filter
-    if (perspective === "causality") {
-      candidateNodes = candidateNodes.filter(
-        (n) => n.kind === "chat" || n.kind === "artifact",
-      );
-    } else if (perspective === "collaboration") {
-      candidateNodes = candidateNodes.filter(
-        (n) => n.kind === "employee" || n.kind === "chat" || n.kind === "tool",
-      );
-    } else if (perspective === "artifacts") {
-      candidateNodes = candidateNodes.filter(
-        (n) =>
-          n.kind === "artifact" ||
-          n.kind === "tool" ||
-          n.kind === "chat" ||
-          n.kind === "employee",
-      );
-    } else if (perspective === "knowledge") {
-      candidateNodes = candidateNodes.filter(
-        (n) => n.kind === "tag" || n.kind === "chat" || n.kind === "artifact",
-      );
-    }
-
-    // Cluster Supernode Aggregation
-    if (aggregateClusters) {
-      // Group candidate nodes by clusterId
-      const clusterMap = new Map<string, GraphNode[]>();
-      const nonClusterNodes: GraphNode[] = [];
-
-      for (const node of candidateNodes) {
-        if (node.clusterId && !node.isRoot) {
-          let list = clusterMap.get(node.clusterId);
-          if (!list) {
-            list = [];
-            clusterMap.set(node.clusterId, list);
-          }
-          list.push(node);
-        } else {
-          nonClusterNodes.push(node);
-        }
-      }
-
-      const aggregatedNodes: GraphNode[] = [...nonClusterNodes];
-      const remappedNodeId = new Map<string, string>();
-
-      for (const [clusterId, members] of clusterMap.entries()) {
-        if (members.length > 2 && !expandedClusterIds.has(clusterId)) {
-          const superId = `supernode:${clusterId}`;
-          const rootMember = nonClusterNodes.find(
-            (n) => n.clusterId === clusterId && n.isRoot,
-          );
-          const supernode: GraphNode = {
-            id: superId,
-            kind: "chat",
-            label: rootMember ? `${rootMember.label} [Cluster]` : `Cluster Hub`,
-            sub: `${members.length} sub-tasks & artifacts`,
-            weight: members.reduce((sum, m) => sum + m.weight, 0),
-            isClusterSupernode: true,
-            collapsedCount: members.length,
-            clusterMemberIds: members.map((m) => m.id),
-            clusterId,
-            level: 1,
-            lifecycle: members.some((m) => m.lifecycle === "running")
-              ? "running"
-              : "completed",
-          };
-          aggregatedNodes.push(supernode);
-
-          for (const m of members) {
-            remappedNodeId.set(m.id, superId);
-          }
-        } else {
-          aggregatedNodes.push(...members);
-        }
-      }
-
-      candidateNodes = aggregatedNodes;
-      const candidateNodeIds = new Set(candidateNodes.map((n) => n.id));
-
-      const candidateEdges = payload.edges
-        .filter((edge) => enabled.has(edge.kind))
-        .map((edge) => {
-          const s = remappedNodeId.get(edge.source) ?? edge.source;
-          const t = remappedNodeId.get(edge.target) ?? edge.target;
-          if (s === t) return null;
-          return {
-            ...edge,
-            id: `${edge.kind}|${s}|${t}`,
-            source: s,
-            target: t,
-          };
-        })
-        .filter(
-          (edge): edge is GraphEdge =>
-            edge !== null &&
-            candidateNodeIds.has(edge.source) &&
-            candidateNodeIds.has(edge.target),
-        );
-
-      const linked = new Set<string>();
-      for (const edge of candidateEdges) {
-        linked.add(edge.source);
-        linked.add(edge.target);
-      }
-
-      const nodes = candidateNodes.filter((node) => {
-        if (hideOrphans) return linked.has(node.id);
-        return true;
-      });
-
-      return { nodes, edges: candidateEdges };
-    }
-
-    const candidateNodeIds = new Set(candidateNodes.map((n) => n.id));
-
-    // Edge filtering
-    const candidateEdges = payload.edges.filter(
-      (edge) =>
-        enabled.has(edge.kind) &&
-        candidateNodeIds.has(edge.source) &&
-        candidateNodeIds.has(edge.target),
-    );
-
-    const linked = new Set<string>();
-    for (const edge of candidateEdges) {
-      linked.add(edge.source);
-      linked.add(edge.target);
-    }
-
-    // Hide orphans filter
-    const nodes = candidateNodes.filter((node) => {
-      if (hideOrphans) return linked.has(node.id);
-      return true;
+  // Create New Empty Workflow
+  const handleCreateNewWorkflow = useCallback(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const newWf: WorkflowDefinition = {
+      id: `wf_${Date.now()}`,
+      title: "新任务流编排",
+      description: "自定义多员工接入/离场与串并行任务规划",
+      nodes: [
+        {
+          id: "node_start",
+          lane: 0,
+          order: 0,
+          type: "root",
+          title: "总任务目标",
+          subtitle: "在此输入需要达成的总任务要求",
+          status: "pending",
+        },
+      ],
+      edges: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    void imb.graph.saveWorkflow(newWf).then((saved) => {
+      setWorkflows((prev) => [saved, ...prev]);
+      setCurrentWorkflow(saved);
+      setSelectedNodeId("node_start");
+      showToast("已创建新工作流");
     });
+  }, [showToast]);
 
-    return { nodes, edges: candidateEdges };
-  }, [
-    payload,
-    enabled,
-    timeCutoff,
-    hideOrphans,
-    perspective,
-    isolatedSubtreeIds,
-    aggregateClusters,
-    expandedClusterIds,
-  ]);
+  // Save Studio Workflow
+  const handleSaveCurrentWorkflow = useCallback(async () => {
+    if (!currentWorkflow) return;
+    try {
+      const saved = await imb.graph.saveWorkflow(currentWorkflow);
+      setWorkflows((prev) => prev.map((w) => (w.id === saved.id ? saved : w)));
+      setCurrentWorkflow(saved);
+      showToast("工作流已保存");
+    } catch (err) {
+      showToast(`保存失败: ${String(err)}`);
+    }
+  }, [currentWorkflow, showToast]);
 
-  const selected = useMemo(
-    (): GraphNode | null =>
-      visible.nodes.find((node) => node.id === selectedId) ?? null,
-    [visible.nodes, selectedId],
+  // Delete Workflow
+  const handleDeleteCurrentWorkflow = useCallback(async () => {
+    if (!currentWorkflow) return;
+    if (!confirm(`确认删除工作流模板「${currentWorkflow.title}」？`)) return;
+    await imb.graph.deleteWorkflow(currentWorkflow.id);
+    const remaining = workflows.filter((w) => w.id !== currentWorkflow.id);
+    setWorkflows(remaining);
+    setCurrentWorkflow(remaining[0] ?? null);
+    setSelectedNodeId(null);
+    showToast("工作流已删除");
+  }, [currentWorkflow, workflows, showToast]);
+
+  // Studio: Add Node (sequential or branch)
+  const handleAddNode = useCallback(
+    (fromNodeId: string, asBranch: boolean) => {
+      if (!currentWorkflow) return;
+      const fromNode = currentWorkflow.nodes.find((n) => n.id === fromNodeId);
+      if (!fromNode) return;
+
+      const newId = `node_${Date.now()}`;
+      const targetLane = asBranch ? fromNode.lane + 1 : fromNode.lane;
+      const targetOrder = fromNode.order + 1;
+
+      // Shift subsequent nodes' order
+      const updatedNodes = currentWorkflow.nodes.map((n) =>
+        n.order >= targetOrder ? { ...n, order: n.order + 1 } : n,
+      );
+
+      const newNode: TaskFlowNode = {
+        id: newId,
+        lane: targetLane,
+        order: targetOrder,
+        type: asBranch ? "employee_join" : "task",
+        title: asBranch ? "新员工接入" : "新任务步骤",
+        subtitle: asBranch ? "配置加入该任务群的员工" : "配置任务提示词与产出",
+        status: "pending",
+      };
+
+      const newEdge = {
+        id: `e_${fromNodeId}_${newId}`,
+        from: fromNodeId,
+        to: newId,
+        kind: asBranch ? ("branch" as const) : ("sequence" as const),
+      };
+
+      const nextWf: WorkflowDefinition = {
+        ...currentWorkflow,
+        nodes: [...updatedNodes, newNode],
+        edges: [...currentWorkflow.edges, newEdge],
+      };
+
+      setCurrentWorkflow(nextWf);
+      setSelectedNodeId(newId);
+    },
+    [currentWorkflow],
   );
 
-  const links = useMemo((): InspectorLink[] => {
-    if (!selected) return [];
-    const byId = new Map(visible.nodes.map((node) => [node.id, node]));
-    const result: InspectorLink[] = [];
-    for (const edge of visible.edges) {
-      if (edge.source === selected.id) {
-        const node = byId.get(edge.target);
-        if (node) {
-          result.push({
-            key: edge.id,
-            node,
-            kind: edge.kind,
-            outgoing: true,
-          });
-        }
-      } else if (edge.target === selected.id) {
-        const node = byId.get(edge.source);
-        if (node) {
-          result.push({
-            key: edge.id,
-            node,
-            kind: edge.kind,
-            outgoing: false,
-          });
-        }
-      }
-    }
-    return result;
-  }, [selected, visible]);
-
-  // Topology Analysis Metrics Computation
-  const topologyMetrics = useMemo(() => {
-    if (!payload) return null;
-    const { nodes, edges } = payload;
-
-    const chatCount = nodes.filter((n) => n.kind === "chat").length;
-    const employeeCount = nodes.filter((n) => n.kind === "employee").length;
-    const artifactCount = nodes.filter((n) => n.kind === "artifact").length;
-    const toolCount = nodes.filter((n) => n.kind === "tool").length;
-
-    // Causal DAG depth calculation
-    let maxDepth = 0;
-    for (const node of nodes) {
-      if (node.level !== undefined && node.level > maxDepth) {
-        maxDepth = node.level;
-      }
-    }
-
-    // Unique clusters
-    const clusters = new Set<string>();
-    for (const node of nodes) {
-      if (node.clusterId) clusters.add(node.clusterId);
-    }
-
-    // Top active employees by connections
-    const empDegreeMap = new Map<string, { label: string; count: number }>();
-    for (const edge of edges) {
-      if (edge.kind === "participant" || edge.kind === "session") {
-        const empNode = nodes.find((n) => n.id === edge.target);
-        if (empNode) {
-          const current = empDegreeMap.get(empNode.id) ?? {
-            label: empNode.label,
-            count: 0,
-          };
-          current.count++;
-          empDegreeMap.set(empNode.id, current);
-        }
-      }
-    }
-    const topEmployees = Array.from(empDegreeMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    // Top tools invoked
-    const toolDegreeMap = new Map<string, { label: string; count: number }>();
-    for (const edge of edges) {
-      if (edge.kind === "invokes") {
-        const toolNode = nodes.find((n) => n.id === edge.target);
-        if (toolNode) {
-          const current = toolDegreeMap.get(toolNode.id) ?? {
-            label: toolNode.label,
-            count: 0,
-          };
-          current.count++;
-          toolDegreeMap.set(toolNode.id, current);
-        }
-      }
-    }
-    const topTools = Array.from(toolDegreeMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    return {
-      chatCount,
-      employeeCount,
-      artifactCount,
-      toolCount,
-      maxDepth,
-      clusterCount: clusters.size,
-      totalLinks: edges.length,
-      topEmployees,
-      topTools,
-    };
-  }, [payload]);
-
-  useEffect(() => {
-    if (selectedId === null) return;
-    if (!visible.nodes.some((node) => node.id === selectedId)) {
-      setSelectedId(null);
-    }
-  }, [visible.nodes, selectedId]);
-
-  const toggleKind = (kind: GraphEdgeKind): void => {
-    setEnabled((current) => {
-      const next = new Set(current);
-      if (next.has(kind)) next.delete(kind);
-      else next.add(kind);
-      return next;
-    });
-  };
-
-  const openNode = useCallback((node: GraphNode): void => {
-    // If it's a cluster supernode, expand it in place
-    if (node.isClusterSupernode && node.clusterId) {
-      setExpandedClusterIds((prev) => {
-        const next = new Set(prev);
-        next.add(node.clusterId!);
-        return next;
+  // Studio: Delete Node
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      if (!currentWorkflow) return;
+      const nextNodes = currentWorkflow.nodes.filter((n) => n.id !== nodeId);
+      const nextEdges = currentWorkflow.edges.filter(
+        (e) => e.from !== nodeId && e.to !== nodeId,
+      );
+      setCurrentWorkflow({
+        ...currentWorkflow,
+        nodes: nextNodes,
+        edges: nextEdges,
       });
-      return;
-    }
+      if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    },
+    [currentWorkflow, selectedNodeId],
+  );
 
-    if (node.kind === "chat" && node.chatId !== undefined) {
-      if (node.isRoot) {
-        void appStore.focusChat(node.chatId);
-        return;
-      }
-      void imb.chats.summary(node.chatId).then((summary) => {
-        if (summary) appStore.openChat(summary);
+  // Studio: Update Node Properties
+  const handleUpdateSelectedNode = useCallback(
+    (patch: Partial<TaskFlowNode>) => {
+      if (!currentWorkflow || !selectedNodeId) return;
+      const nextNodes = currentWorkflow.nodes.map((n) =>
+        n.id === selectedNodeId ? { ...n, ...patch } : n,
+      );
+      setCurrentWorkflow({
+        ...currentWorkflow,
+        nodes: nextNodes,
       });
-      return;
-    }
-    if (node.kind === "employee" && node.employeeId !== undefined) {
-      void appStore.focusEmployee(node.employeeId);
-      return;
-    }
-    if (node.kind === "artifact" && node.sourceChatId !== undefined) {
-      void appStore.focusChat(node.sourceChatId);
+    },
+    [currentWorkflow, selectedNodeId],
+  );
+
+  // Jump to Chat from Live Node
+  const handleJumpToChat = useCallback(async (chatId: number) => {
+    try {
+      const summary = await imb.chats.summary(chatId);
+      if (summary) {
+        appStore.openChat(summary);
+      }
+    } catch {
+      // ignore
     }
   }, []);
 
-  const handleSearchSubmit = (e: React.FormEvent): void => {
-    e.preventDefault();
-    if (!searchQuery.trim() || !flyToNodeRef.current) return;
-    const q = searchQuery.trim().toLowerCase();
-    const match = visible.nodes.find(
-      (n) =>
-        n.label.toLowerCase().includes(q) ||
-        (n.sub && n.sub.toLowerCase().includes(q)),
-    );
-    if (match) {
-      setSelectedId(match.id);
-      flyToNodeRef.current(match.id);
-    }
-  };
-
-  const content = (
-    <div className="imb-graph">
-      {/* Header */}
-      <header className="imb-graph-head">
-        <div className="imb-graph-headline">
-          <div className="imb-graph-headicon-wrap">
-            <IconGraph className="imb-graph-headicon" />
-          </div>
-          <div className="imb-graph-head-meta">
-            <h1 className="imb-graph-title">{t("Knowledge Graph")}</h1>
-            {payload ? (
-              <span className="imb-graph-stats">
-                {t("${nodes} nodes · ${edges} links", {
-                  nodes: String(visible.nodes.length),
-                  edges: String(visible.edges.length),
-                })}
-                {isolatedId && ` (${t("Isolated Subgraph")})`}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Cognitive Perspective Segmented Switcher */}
-        <div className="imb-graph-perspective-segment" role="tablist">
-          <button
-            type="button"
-            className={cls(
-              "imb-graph-seg-btn",
-              perspective === "all" && "imb-is-active",
-            )}
-            onClick={() => setPerspective("all")}
-          >
-            {t("Overview")}
-          </button>
-          <button
-            type="button"
-            className={cls(
-              "imb-graph-seg-btn",
-              perspective === "causality" && "imb-is-active",
-            )}
-            onClick={() => setPerspective("causality")}
-          >
-            {t("Causality Tree")}
-          </button>
-          <button
-            type="button"
-            className={cls(
-              "imb-graph-seg-btn",
-              perspective === "collaboration" && "imb-is-active",
-            )}
-            onClick={() => setPerspective("collaboration")}
-          >
-            {t("Collaboration")}
-          </button>
-          <button
-            type="button"
-            className={cls(
-              "imb-graph-seg-btn",
-              perspective === "artifacts" && "imb-is-active",
-            )}
-            onClick={() => setPerspective("artifacts")}
-          >
-            {t("Artifacts & Code")}
-          </button>
-          <button
-            type="button"
-            className={cls(
-              "imb-graph-seg-btn",
-              perspective === "knowledge" && "imb-is-active",
-            )}
-            onClick={() => setPerspective("knowledge")}
-          >
-            {t("Knowledge")}
-          </button>
-        </div>
-
-        {/* Search & Actions cluster */}
-        <div className="imb-graph-actions-cluster">
-          <form className="imb-graph-search-form" onSubmit={handleSearchSubmit}>
-            <IconSearch className="imb-graph-search-icon" />
-            <input
-              type="text"
-              className="imb-graph-search-input"
-              placeholder={t("Filter or search…")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="imb-graph-search-clear"
-                onClick={() => setSearchQuery("")}
-              >
-                ×
-              </button>
-            )}
-          </form>
-
-          <div className="imb-graph-toggles">
+  return (
+    <ModuleView
+      content={
+        <div className="imb-graph-module-root">
+          {/* Top Header & Toolbar */}
+          <div className="metro-graph-header">
+        <div className="metro-header-left">
+          {/* Mode Switcher Pill */}
+          <div className="metro-mode-toggle">
             <button
               type="button"
-              className={cls(
-                "imb-graph-action-chip",
-                colorMode === "cluster" && "imb-is-active",
-              )}
-              onClick={() =>
-                setColorMode((m) => (m === "kind" ? "cluster" : "kind"))
-              }
-              title={t("Toggle Cluster vs Kind Coloring")}
-            >
-              {colorMode === "cluster" ? t("Clusters") : t("Kinds")}
-            </button>
-
-            <button
-              type="button"
-              className={cls(
-                "imb-graph-action-chip",
-                aggregateClusters && "imb-is-active",
-              )}
+              className={cls("metro-toggle-btn", mode === "live" && "active")}
               onClick={() => {
-                setAggregateClusters((v) => !v);
-                setExpandedClusterIds(new Set());
+                setMode("live");
+                setSelectedNodeId(null);
               }}
-              title={t("Aggregate complex clusters into supernodes")}
             >
-              {aggregateClusters ? t("Aggregated") : t("Clusters")}
+              <IconGraph className="metro-btn-icon" />
+              任务监控 (Live Tasks)
             </button>
-
             <button
               type="button"
-              className={cls(
-                "imb-graph-action-chip",
-                hideOrphans && "imb-is-active",
-              )}
-              onClick={() => setHideOrphans((v) => !v)}
-              title={t("Hide nodes without connections")}
+              className={cls("metro-toggle-btn", mode === "studio" && "active")}
+              onClick={() => {
+                setMode("studio");
+                setSelectedNodeId(null);
+              }}
             >
-              {t("Hide Orphans")}
+              <IconEdit className="metro-btn-icon" />
+              工作流编排 (Workflow Studio)
             </button>
+          </div>
 
-            {isolatedId && (
+          {/* Context Selector */}
+          {mode === "live" ? (
+            <div className="metro-context-selector">
+              <span className="metro-selector-label">当前任务树:</span>
+              <select
+                className="metro-select"
+                value={selectedChatId ?? ""}
+                onChange={(e) => setSelectedChatId(Number(e.target.value))}
+              >
+                {chatSummaries.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                className="imb-graph-action-chip imb-is-active"
-                onClick={() => setIsolatedId(null)}
-                title={t("Exit subgraph isolation mode")}
+                className="metro-action-chip"
+                title="将自动生成的任务树存为工作流模板"
+                onClick={handleExportAsTemplate}
               >
-                {t("Reset Isolation")} ×
+                另存为工作流模板
               </button>
+            </div>
+          ) : (
+            <div className="metro-context-selector">
+              <span className="metro-selector-label">工作流方案:</span>
+              <select
+                className="metro-select"
+                value={currentWorkflow?.id ?? ""}
+                onChange={(e) => {
+                  const target = workflows.find((w) => w.id === e.target.value);
+                  if (target) setCurrentWorkflow(target);
+                }}
+              >
+                {workflows.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="metro-action-chip"
+                onClick={handleCreateNewWorkflow}
+              >
+                <IconPlus className="metro-btn-icon" /> 新建流
+              </button>
+              <button
+                type="button"
+                className="metro-action-chip"
+                onClick={handleSaveCurrentWorkflow}
+              >
+                <IconCheck className="metro-btn-icon" /> 保存
+              </button>
+              <button
+                type="button"
+                className="metro-action-chip primary"
+                onClick={() => {
+                  showToast("已启动任务流调度！正在创建群组并派遣员工...");
+                }}
+              >
+                <IconPlay className="metro-btn-icon" /> 运行工作流
+              </button>
+              {currentWorkflow && (
+                <button
+                  type="button"
+                  className="metro-action-chip danger"
+                  title="删除该工作流"
+                  onClick={handleDeleteCurrentWorkflow}
+                >
+                  <IconTrash className="metro-btn-icon" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Metrics & Drawer Toggle */}
+        <div className="metro-header-right">
+          <div className="metro-metric-group">
+            <span className="metro-metric-item">
+              步骤 <strong>{metrics.total}</strong>
+            </span>
+            <span className="metro-metric-item success">
+              已完成 <strong>{metrics.completed}</strong>
+            </span>
+            {metrics.running > 0 && (
+              <span className="metro-metric-item running">
+                进行中 <strong>{metrics.running}</strong>
+              </span>
             )}
-
-            <button
-              type="button"
-              className={cls(
-                "imb-graph-icon-chip",
-                showTopologyDrawer && "imb-is-active",
-              )}
-              onClick={() => setShowTopologyDrawer((v) => !v)}
-              title={t("Topology & Synergy Analysis")}
-            >
-              <IconStats className="imb-chip-icon" />
-            </button>
-
-            <button
-              type="button"
-              className={cls(
-                "imb-graph-icon-chip",
-                showTimeline && "imb-is-active",
-              )}
-              onClick={() => setShowTimeline((v) => !v)}
-              title={t("Timeline / Evolution Playback")}
-            >
-              <IconClock className="imb-chip-icon" />
-            </button>
-
-            <button
-              type="button"
-              className={cls(
-                "imb-graph-icon-chip",
-                showPhysicsPanel && "imb-is-active",
-              )}
-              onClick={() => setShowPhysicsPanel((v) => !v)}
-              title={t("Tuning physics simulation")}
-            >
-              <IconGear className="imb-chip-icon" />
-            </button>
           </div>
-        </div>
-
-        {/* Link Filter Chips */}
-        <div className="imb-graph-legend" role="group" aria-label={t("Links")}>
-          <span className="imb-graph-legend-title">{t("Links")}</span>
-          {GRAPH_EDGE_KINDS.map((kind) => {
-            const on = enabled.has(kind);
-            return (
-              <button
-                key={kind}
-                type="button"
-                className={cls(
-                  "imb-graph-chip",
-                  `imb-graph-chip--${kind}`,
-                  !on && "imb-is-off",
-                )}
-                aria-pressed={on}
-                onClick={() => toggleKind(kind)}
-              >
-                <span className="imb-graph-chip-dot" />
-                <span className="imb-graph-chip-label">
-                  {t(GRAPH_EDGE_LABELS[kind])}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </header>
-
-      {/* Timeline Bar */}
-      {showTimeline && payload && payload.minTime && payload.maxTime && (
-        <div className="imb-graph-timeline-bar">
           <button
             type="button"
-            className="imb-graph-timeline-play"
-            onClick={() => {
-              if (
-                timeCutoff &&
-                timeCutoff >= (payload.maxTime ?? 0) - 1000
-              ) {
-                setTimeCutoff(payload.minTime ?? null);
-              }
-              setIsPlayingTimeline((p) => !p);
-            }}
-            title={isPlayingTimeline ? t("Pause") : t("Play Evolution")}
+            className={cls("metro-drawer-btn", showInspector && "active")}
+            onClick={() => setShowInspector(!showInspector)}
+            title="切换侧边属性详情抽屉"
           >
-            <IconPlay className="imb-play-icon" />
-            {isPlayingTimeline ? t("Pause") : t("Play")}
+            属性详情
           </button>
-          <span className="imb-graph-timeline-date">
-            {timeCutoff
-              ? new Date(timeCutoff).toLocaleDateString()
-              : t("All time")}
-          </span>
-          <input
-            type="range"
-            className="imb-graph-timeline-slider"
-            min={payload.minTime}
-            max={payload.maxTime}
-            value={timeCutoff ?? payload.maxTime}
-            onChange={(e) => {
-              setIsPlayingTimeline(false);
-              setTimeCutoff(Number(e.target.value));
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="metro-graph-body">
+        {loading && mode === "live" ? (
+          <div className="metro-graph-loading">
+            <IconClock className="animate-spin" />
+            <span>加载分支任务图谱...</span>
+          </div>
+        ) : error && mode === "live" ? (
+          <div className="metro-graph-error">
+            <span>{error}</span>
+          </div>
+        ) : activeGraph && activeGraph.nodes.length > 0 ? (
+          <MetroCanvas
+            graph={activeGraph}
+            selectedId={selectedNodeId}
+            mode={mode}
+            onSelectNode={(node) => {
+              setSelectedNodeId(node ? node.id : null);
+              if (node) setShowInspector(true);
+            }}
+            onAddNode={handleAddNode}
+            onDeleteNode={handleDeleteNode}
+            onApproveGate={() => {
+              showToast("人工审核已通过，继续推进下游任务节点！");
             }}
           />
-          <button
-            type="button"
-            className="imb-graph-timeline-reset"
-            onClick={() => {
-              setIsPlayingTimeline(false);
-              setTimeCutoff(payload.maxTime ?? null);
-            }}
-          >
-            {t("Latest")}
-          </button>
-        </div>
-      )}
-
-      {/* Physics Tuning Flyout Panel */}
-      {showPhysicsPanel && (
-        <aside className="imb-graph-physics-popover">
-          <div className="imb-graph-physics-head">
-            <strong>{t("Physics Tuning")}</strong>
-            <button
-              type="button"
-              className="imb-graph-popover-close"
-              onClick={() => setShowPhysicsPanel(false)}
-            >
-              ×
-            </button>
-          </div>
-          <div className="imb-graph-physics-body">
-            <label className="imb-graph-physics-row">
-              <span className="imb-graph-physics-label">{t("Repulsion")}</span>
-              <input
-                type="range"
-                min="4000"
-                max="28000"
-                step="1000"
-                value={physics.repulsion}
-                onChange={(e) =>
-                  setPhysics((p) => ({
-                    ...p,
-                    repulsion: Number(e.target.value),
-                  }))
-                }
-              />
-              <span className="imb-graph-physics-val">{physics.repulsion}</span>
-            </label>
-            <label className="imb-graph-physics-row">
-              <span className="imb-graph-physics-label">
-                {t("Link Distance")}
-              </span>
-              <input
-                type="range"
-                min="60"
-                max="260"
-                step="10"
-                value={physics.linkDistance}
-                onChange={(e) =>
-                  setPhysics((p) => ({
-                    ...p,
-                    linkDistance: Number(e.target.value),
-                  }))
-                }
-              />
-              <span className="imb-graph-physics-val">
-                {physics.linkDistance}
-              </span>
-            </label>
-            <label className="imb-graph-physics-row">
-              <span className="imb-graph-physics-label">{t("Gravity Pull")}</span>
-              <input
-                type="range"
-                min="0.0005"
-                max="0.008"
-                step="0.0005"
-                value={physics.centerPull}
-                onChange={(e) =>
-                  setPhysics((p) => ({
-                    ...p,
-                    centerPull: Number(e.target.value),
-                  }))
-                }
-              />
-              <span className="imb-graph-physics-val">
-                {physics.centerPull.toFixed(4)}
-              </span>
-            </label>
-            <button
-              type="button"
-              className="imb-graph-physics-reset"
-              onClick={() => setPhysics(DEFAULT_PHYSICS)}
-            >
-              {t("Reset Defaults")}
-            </button>
-          </div>
-        </aside>
-      )}
-
-      {/* Main Stage */}
-      <div className="imb-graph-stage">
-        {error !== null ? (
-          <p className="imb-module-error">{error}</p>
-        ) : loading && payload === null ? (
-          <p className="imb-module-note imb-graph-placeholder">
-            {t("Loading…")}
-          </p>
-        ) : visible.nodes.length === 0 ? (
-          <p className="imb-module-note imb-graph-placeholder">
-            {(payload?.nodes.length ?? 0) === 0
-              ? t("No conversations yet")
-              : t("No matching nodes")}
-          </p>
         ) : (
-          <GraphCanvas
-            nodes={visible.nodes}
-            edges={visible.edges}
-            selectedId={selectedId}
-            searchQuery={searchQuery}
-            colorMode={colorMode}
-            perspective={perspective}
-            physicsConfig={physics}
-            onSelect={setSelectedId}
-            onOpen={openNode}
-            onFlyToReady={(fn) => {
-              flyToNodeRef.current = fn;
-            }}
-          />
+          <div className="metro-graph-empty">
+            <IconGraph className="empty-icon" />
+            <h3>暂无任务图谱数据</h3>
+            <p>
+              {mode === "live"
+                ? "选择一个包含子任务群的会话，或者在工作流编排中自行规划。"
+                : "点击「新建流」开始规划多员工协同工作流。"}
+            </p>
+          </div>
         )}
 
-        {/* Collect UI Floating Inspector Panel */}
-        {selected ? (
-          <aside className="imb-graph-inspector">
-            <header className="imb-graph-inspector-head">
-              <div className="imb-graph-inspector-head-top">
-                <span
-                  className={cls(
-                    "imb-graph-kind",
-                    `imb-graph-kind--${selected.kind}`,
-                  )}
-                >
-                  {t(
-                    selected.isClusterSupernode
-                      ? "Cluster Hub"
-                      : kindLabel(selected.kind),
-                  )}
+        {/* Inspector Drawer (Right Side) */}
+        {showInspector && selectedNode && (
+          <div className="metro-inspector-drawer">
+            <div className="metro-inspector-header">
+              <div className="metro-inspector-title-row">
+                <span className={cls("metro-type-badge", selectedNode.type)}>
+                  {selectedNode.type === "root" && "目标起点"}
+                  {selectedNode.type === "task" && "任务步骤"}
+                  {selectedNode.type === "employee_join" && "员工接入"}
+                  {selectedNode.type === "employee_leave" && "员工离场"}
+                  {selectedNode.type === "approval_gate" && "人工审批"}
+                  {selectedNode.type === "merge" && "成果汇聚"}
                 </span>
-                <button
-                  type="button"
-                  className="imb-graph-inspector-close"
-                  onClick={() => setSelectedId(null)}
-                  aria-label={t("Close")}
-                  title={t("Close (Esc)")}
-                >
-                  <IconX className="imb-graph-close-icon" />
-                </button>
+                <span className="metro-node-id">{selectedNode.id}</span>
               </div>
-              <strong className="imb-graph-inspector-name">
-                {selected.label}
-              </strong>
-              {selected.sub ? (
-                <span className="imb-graph-inspector-sub">{selected.sub}</span>
-              ) : null}
-
-              {/* Topology metrics badge group */}
-              <div className="imb-graph-inspector-metrics">
-                {selected.level !== undefined && (
-                  <span className="imb-graph-metric-tag">
-                    {selected.level === 0
-                      ? t("Root Level")
-                      : `Level ${selected.level}`}
-                  </span>
-                )}
-                {selected.lifecycle && (
-                  <span
-                    className={cls(
-                      "imb-graph-metric-tag",
-                      `imb-graph-metric--${selected.lifecycle}`,
-                    )}
-                  >
-                    {t(selected.lifecycle)}
-                  </span>
-                )}
-                <span className="imb-graph-metric-tag">
-                  {t("Degree")}: {selected.degree ?? links.length}
-                </span>
-                {selected.participants !== undefined &&
-                  selected.participants > 0 && (
-                    <span className="imb-graph-metric-tag">
-                      {t("Participants")}: {selected.participants}
-                    </span>
-                  )}
-                {selected.weight > 0 && (
-                  <span className="imb-graph-metric-tag">
-                    {selected.kind === "chat"
-                      ? t("Messages")
-                      : selected.kind === "artifact"
-                        ? t("Weight")
-                        : t("Invocations")}
-                    : {selected.weight}
-                  </span>
-                )}
-              </div>
-
-              {/* Local Subgraph Depth Expansion Stepper */}
-              <div className="imb-graph-depth-controls">
-                <span className="imb-graph-depth-label">{t("Local Depth")}:</span>
-                <div className="imb-graph-depth-stepper">
-                  <button
-                    type="button"
-                    className="imb-graph-depth-btn"
-                    onClick={() =>
-                      setExpansionDepth((d) => Math.max(1, d - 1))
-                    }
-                    title={t("Decrease expansion depth")}
-                  >
-                    −
-                  </button>
-                  <span className="imb-graph-depth-val">{expansionDepth}</span>
-                  <button
-                    type="button"
-                    className="imb-graph-depth-btn"
-                    onClick={() =>
-                      setExpansionDepth((d) => Math.min(5, d + 1))
-                    }
-                    title={t("Increase expansion depth")}
-                  >
-                    +
-                  </button>
-                </div>
-                <div className="imb-graph-dir-segment">
-                  <button
-                    type="button"
-                    className={cls(
-                      "imb-graph-dir-btn",
-                      expansionDirection === "downstream" && "imb-is-active",
-                    )}
-                    onClick={() => setExpansionDirection("downstream")}
-                    title={t("Follow causal forward links")}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className={cls(
-                      "imb-graph-dir-btn",
-                      expansionDirection === "upstream" && "imb-is-active",
-                    )}
-                    onClick={() => setExpansionDirection("upstream")}
-                    title={t("Follow provenance backward links")}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className={cls(
-                      "imb-graph-dir-btn",
-                      expansionDirection === "both" && "imb-is-active",
-                    )}
-                    onClick={() => setExpansionDirection("both")}
-                    title={t("Bidirectional neighborhood")}
-                  >
-                    ↔
-                  </button>
-                </div>
-              </div>
-            </header>
-
-            <div className="imb-graph-inspector-body">
-              <div className="imb-graph-inspector-section-title">
-                {t("Connections")} ({links.length})
-              </div>
-              {links.length > 0 ? (
-                <ul className="imb-graph-inspector-links">
-                  {links.map((link) => (
-                    <li key={link.key}>
-                      <button
-                        type="button"
-                        className="imb-graph-link-node"
-                        onClick={() => {
-                          setSelectedId(link.node.id);
-                          if (flyToNodeRef.current) {
-                            flyToNodeRef.current(link.node.id);
-                          }
-                        }}
-                      >
-                        <span
-                          className={cls(
-                            "imb-graph-dot",
-                            `imb-graph-dot--${link.node.kind}`,
-                          )}
-                        />
-                        <span className="imb-graph-link-label">
-                          {link.node.label}
-                        </span>
-                      </button>
-                      <span className="imb-graph-link-kind">
-                        {DIRECTED_KINDS.has(link.kind)
-                          ? `${link.outgoing ? "→" : "←"} `
-                          : ""}
-                        {t(GRAPH_EDGE_LABELS[link.kind])}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="imb-module-note imb-graph-no-links">
-                  {t("No links")}
-                </p>
-              )}
-            </div>
-
-            <footer className="imb-graph-inspector-footer">
-              <div className="imb-graph-inspector-actions">
-                {selected.kind === "chat" ||
-                selected.kind === "employee" ||
-                selected.kind === "artifact" ? (
-                  <button
-                    type="button"
-                    className="imb-graph-open"
-                    onClick={() => openNode(selected)}
-                  >
-                    {t(
-                      selected.kind === "employee"
-                        ? "View Employee"
-                        : selected.kind === "artifact"
-                          ? "Open Origin Conversation"
-                          : selected.isClusterSupernode
-                            ? "Expand Cluster"
-                            : "Open Conversation",
-                    )}
-                  </button>
-                ) : null}
-
-                {/* Subgraph Isolation Action */}
-                <button
-                  type="button"
-                  className={cls(
-                    "imb-graph-isolate-btn",
-                    isolatedId === selected.id && "imb-is-active",
-                  )}
-                  onClick={() =>
-                    setIsolatedId((curr) =>
-                      curr === selected.id ? null : selected.id,
-                    )
-                  }
-                  title={t("Isolate this node and its connected closure")}
-                >
-                  {isolatedId === selected.id
-                    ? t("Restore All")
-                    : t("Isolate Subgraph")}
-                </button>
-              </div>
-            </footer>
-          </aside>
-        ) : null}
-
-        {/* Topology & Agent Synergy Analysis Drawer */}
-        {showTopologyDrawer && topologyMetrics && (
-          <aside className="imb-graph-topo-drawer">
-            <header className="imb-graph-topo-head">
-              <h3 className="imb-graph-topo-title">
-                {t("Topology & Network Analysis")}
-              </h3>
               <button
                 type="button"
-                className="imb-graph-popover-close"
-                onClick={() => setShowTopologyDrawer(false)}
+                className="metro-close-btn"
+                onClick={() => setSelectedNodeId(null)}
               >
-                ×
+                <IconX />
               </button>
-            </header>
-
-            <div className="imb-graph-topo-body">
-              {/* Network Overview Card */}
-              <div className="imb-graph-topo-card">
-                <span className="imb-graph-topo-card-title">
-                  {t("Network Footprint")}
-                </span>
-                <div className="imb-graph-topo-grid">
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.chatCount}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Conversations / Tasks")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.artifactCount}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Code & Deliverables")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.toolCount}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Tool Capabilities")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.clusterCount}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Causal Clusters")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Causal Flow DAG Card */}
-              <div className="imb-graph-topo-card">
-                <span className="imb-graph-topo-card-title">
-                  {t("Causality Flow Analysis")}
-                </span>
-                <div className="imb-graph-topo-grid">
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.maxDepth}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Max DAG Hierarchy Level")}
-                    </span>
-                  </div>
-                  <div className="imb-graph-topo-stat">
-                    <span className="imb-graph-topo-val">
-                      {topologyMetrics.totalLinks}
-                    </span>
-                    <span className="imb-graph-topo-sub">
-                      {t("Total Semantic Links")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Agent Synergy Ranking Card */}
-              <div className="imb-graph-topo-card">
-                <span className="imb-graph-topo-card-title">
-                  {t("Agent Collaboration Volume")}
-                </span>
-                {topologyMetrics.topEmployees.length > 0 ? (
-                  <ul className="imb-graph-topo-list">
-                    {topologyMetrics.topEmployees.map((emp) => (
-                      <li key={emp.label} className="imb-graph-topo-list-item">
-                        <span>{emp.label}</span>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <div className="imb-graph-topo-bar-wrap">
-                            <div
-                              className="imb-graph-topo-bar-fill"
-                              style={{
-                                width: `${Math.min((emp.count / Math.max(topologyMetrics.topEmployees[0]?.count || 1, 1)) * 100, 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <span style={{ fontSize: 11, minWidth: 20 }}>
-                            {emp.count}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="imb-module-note" style={{ margin: 0 }}>
-                    {t("No agent collaborations recorded")}
-                  </p>
-                )}
-              </div>
-
-              {/* Tool Invocations Card */}
-              <div className="imb-graph-topo-card">
-                <span className="imb-graph-topo-card-title">
-                  {t("Tool Pipeline Invocations")}
-                </span>
-                {topologyMetrics.topTools.length > 0 ? (
-                  <ul className="imb-graph-topo-list">
-                    {topologyMetrics.topTools.map((tool) => (
-                      <li key={tool.label} className="imb-graph-topo-list-item">
-                        <span>{tool.label}</span>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <div className="imb-graph-topo-bar-wrap">
-                            <div
-                              className="imb-graph-topo-bar-fill"
-                              style={{
-                                width: `${Math.min((tool.count / Math.max(topologyMetrics.topTools[0]?.count || 1, 1)) * 100, 100)}%`,
-                                background: "#8b5cf6",
-                              }}
-                            />
-                          </div>
-                          <span style={{ fontSize: 11, minWidth: 20 }}>
-                            {tool.count}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="imb-module-note" style={{ margin: 0 }}>
-                    {t("No tool invocations recorded")}
-                  </p>
-                )}
-              </div>
             </div>
-          </aside>
+
+            <div className="metro-inspector-content">
+              {mode === "live" ? (
+                /* Live Mode Read-only Detail */
+                <div className="metro-inspector-live-view">
+                  <h3 className="metro-live-title">{selectedNode.title}</h3>
+                  {selectedNode.subtitle && (
+                    <p className="metro-live-sub">{selectedNode.subtitle}</p>
+                  )}
+
+                  {/* Status */}
+                  <div className="metro-live-section">
+                    <label>执行状态</label>
+                    <div className="metro-live-status-row">
+                      <span className={cls("status-pill", selectedNode.status)}>
+                        {selectedNode.status === "completed" && "✓ 已完成"}
+                        {selectedNode.status === "running" && "● 正在执行"}
+                        {selectedNode.status === "pending" && "○ 等待触发"}
+                        {selectedNode.status === "interrupted" && "✕ 已中断"}
+                        {selectedNode.status === "waiting_approval" && "⏳ 等待审批"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Assigned Employee */}
+                  {(selectedNode.employeeName || selectedNode.employeeRole) && (
+                    <div className="metro-live-section">
+                      <label>责任员工</label>
+                      <div className="metro-employee-profile-card">
+                        {selectedNode.employeeAvatar ? (
+                          <img
+                            src={selectedNode.employeeAvatar}
+                            className="emp-avatar"
+                            alt="avatar"
+                          />
+                        ) : (
+                          <div className="emp-avatar-placeholder">
+                            {selectedNode.employeeName?.[0] ?? "E"}
+                          </div>
+                        )}
+                        <div className="emp-meta">
+                          <span className="emp-name">{selectedNode.employeeName}</span>
+                          <span className="emp-role">{selectedNode.employeeRole}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Output Snippet */}
+                  {selectedNode.outputSnippet && (
+                    <div className="metro-live-section">
+                      <label>产物交付 / 回复摘要</label>
+                      <div className="metro-snippet-box">
+                        {selectedNode.outputSnippet}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Thumbnail / Image Preview */}
+                  {selectedNode.thumbnail && (
+                    <div className="metro-live-section">
+                      <label>生成产物图片</label>
+                      <div className="metro-large-preview">
+                        <img src={selectedNode.thumbnail} alt="preview" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Jump to Chat button */}
+                  {selectedNode.chatId && (
+                    <button
+                      type="button"
+                      className="metro-jump-btn"
+                      onClick={() => handleJumpToChat(selectedNode.chatId!)}
+                    >
+                      <IconOpen className="metro-btn-icon" /> 跳转进入对应会话 #
+                      {selectedNode.chatId}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* Studio Mode Editable Form */
+                <div className="metro-inspector-form">
+                  <div className="metro-form-field">
+                    <label>步骤标题</label>
+                    <input
+                      type="text"
+                      className="metro-input"
+                      value={selectedNode.title}
+                      onChange={(e) =>
+                        handleUpdateSelectedNode({ title: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="metro-form-field">
+                    <label>节点类型</label>
+                    <select
+                      className="metro-select-field"
+                      value={selectedNode.type}
+                      onChange={(e) =>
+                        handleUpdateSelectedNode({
+                          type: e.target.value as TaskFlowNodeType,
+                        })
+                      }
+                    >
+                      <option value="task">执行任务 (Task)</option>
+                      <option value="employee_join">员工介入 (Employee Join)</option>
+                      <option value="employee_leave">员工离场 (Employee Leave)</option>
+                      <option value="approval_gate">人工审批卡点 (Approval Gate)</option>
+                      <option value="merge">汇聚收敛 (Merge Output)</option>
+                    </select>
+                  </div>
+
+                  {/* Employee Select */}
+                  <div className="metro-form-field">
+                    <label>指派员工</label>
+                    <select
+                      className="metro-select-field"
+                      value={selectedNode.employeeId ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                          handleUpdateSelectedNode({
+                            employeeId: null,
+                            employeeName: null,
+                            employeeRole: null,
+                            employeeAvatar: null,
+                          });
+                        } else {
+                          const emp = employees.find((emp) => emp.id === Number(val));
+                          if (emp) {
+                            handleUpdateSelectedNode({
+                              employeeId: emp.id,
+                              employeeName: emp.name,
+                              employeeRole: emp.role,
+                              employeeAvatar: emp.avatar,
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      <option value="">-- 未指定 / 助手 (Assistant) --</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name} ({emp.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="metro-form-field">
+                    <label>任务描述 / 提示词模板 (Prompt)</label>
+                    <textarea
+                      className="metro-textarea"
+                      rows={5}
+                      placeholder="定义该步骤交由员工处理的任务 prompt，支持 {{step1.output}} 变量引用..."
+                      value={selectedNode.promptTemplate ?? ""}
+                      onChange={(e) =>
+                        handleUpdateSelectedNode({
+                          promptTemplate: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="metro-form-field">
+                    <label>辅助说明 (Subtitle)</label>
+                    <input
+                      type="text"
+                      className="metro-input"
+                      value={selectedNode.subtitle ?? ""}
+                      onChange={(e) =>
+                        handleUpdateSelectedNode({ subtitle: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="metro-form-field">
+                    <label>状态重置</label>
+                    <select
+                      className="metro-select-field"
+                      value={selectedNode.status}
+                      onChange={(e) =>
+                        handleUpdateSelectedNode({
+                          status: e.target.value as any,
+                        })
+                      }
+                    >
+                      <option value="pending">待处理 (Pending)</option>
+                      <option value="running">进行中 (Running)</option>
+                      <option value="completed">已完成 (Completed)</option>
+                      <option value="waiting_approval">等待审批 (Waiting Approval)</option>
+                    </select>
+                  </div>
+
+                  {selectedNode.type !== "root" && (
+                    <button
+                      type="button"
+                      className="metro-delete-node-btn"
+                      onClick={() => handleDeleteNode(selectedNode.id)}
+                    >
+                      <IconTrash /> 删除该步骤节点
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
-    </div>
+
+          {/* Floating Toast Notification */}
+          {toastMessage && (
+            <div className="metro-floating-toast">
+              <span>{toastMessage}</span>
+            </div>
+          )}
+        </div>
+      }
+    />
   );
-
-  return <ModuleView content={content} />;
-}
-
-function kindLabel(kind: GraphNode["kind"]): string {
-  switch (kind) {
-    case "employee":
-      return "Employee";
-    case "artifact":
-      return "Artifact";
-    case "tool":
-      return "Tool Capability";
-    case "tag":
-      return "Tag";
-    default:
-      return "Conversation";
-  }
 }
