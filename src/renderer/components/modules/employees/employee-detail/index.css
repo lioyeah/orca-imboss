@@ -1,121 +1,94 @@
 /* ==========================================================================
-   Employee ID Badge Card (Linear / Raycast / Collect UI Aesthetic)
-   Subtle, Mature, Rhythmic & Tactile
+   Employee Detail Viewport & De-nested Natural Layout
+   (Executive Badge Widget + Natural Sections + Stepped Slider + History Drawer)
    ========================================================================== */
 
-.imb-employee-card-viewport {
-  perspective: 1400px;
+.imb-employee-detail-viewport {
   width: 100%;
-  max-width: 800px;
+  max-width: 840px;
   margin: 0 auto;
   padding: var(--imb-space-4) var(--imb-space-6) var(--imb-space-8);
   box-sizing: border-box;
 }
 
-.imb-employee-card-flipper {
-  position: relative;
-  width: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.65s cubic-bezier(0.34, 1.35, 0.64, 1);
-}
-
-.imb-employee-card-flipper.is-flipped {
-  transform: rotateY(180deg);
-}
-
 /* ==========================================================================
-   Card Faces (Front & Back Base)
+   TOP EXECUTIVE BADGE WIDGET (Compact, Sleek, Tactile)
    ========================================================================== */
 
-.imb-employee-card-face {
+.imb-employee-widget {
   position: relative;
   width: 100%;
   box-sizing: border-box;
-  border-radius: var(--imb-radius-xl, 16px);
-  padding: 24px 28px 28px;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  border-radius: var(--imb-radius-lg, 14px);
+  padding: 16px 20px 14px;
+  margin-bottom: var(--imb-space-4);
+  box-shadow: var(--imb-elev-raised);
   overflow: hidden;
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* ==========================================================================
-   4 Mature Card Material Tiers (Understated, Calm, Professional)
-   ========================================================================== */
-
-/* Tier 1: 原浆纸质 (Kraft Alabaster, 0-4 tasks) */
-.imb-tier-paper {
+/* Widget 4-Tier Materials (Understated, Mature) */
+.imb-employee-widget.imb-tier-paper {
   background: #faf9f6;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-
-:root[data-theme="dark"] .imb-tier-paper {
+:root[data-theme="dark"] .imb-employee-widget.imb-tier-paper {
   background: #181918;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Tier 2: 雾面透光 PVC (Frosted Acrylic, 5-19 tasks) */
-.imb-tier-pvc {
+.imb-employee-widget.imb-tier-pvc {
   background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
   border: 1px solid rgba(14, 165, 233, 0.25);
-  box-shadow: 0 4px 24px rgba(14, 165, 233, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 3px 18px rgba(14, 165, 233, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-
-:root[data-theme="dark"] .imb-tier-pvc {
+:root[data-theme="dark"] .imb-employee-widget.imb-tier-pvc {
   background: linear-gradient(180deg, #181c22 0%, #12151a 100%);
   border: 1px solid rgba(56, 189, 248, 0.2);
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* Tier 3: 喷砂钛金 (Bead-blasted Titanium, 20-49 tasks) */
-.imb-tier-titanium {
+.imb-employee-widget.imb-tier-titanium {
   background: linear-gradient(180deg, #f2f4f8 0%, #e6eaf0 100%);
   border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 3px 18px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-
-:root[data-theme="dark"] .imb-tier-titanium {
+:root[data-theme="dark"] .imb-employee-widget.imb-tier-titanium {
   background: linear-gradient(180deg, #1c2027 0%, #16181e 100%);
   border: 1px solid rgba(148, 163, 184, 0.22);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-/* Tier 4: 午夜曜石 (Midnight Obsidian, 50+ tasks) */
-.imb-tier-platinum {
+.imb-employee-widget.imb-tier-platinum {
   background: linear-gradient(180deg, #ffffff 0%, #f8f7f4 100%);
   border: 1px solid rgba(202, 165, 85, 0.38);
-  box-shadow: 0 8px 32px rgba(180, 140, 50, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 24px rgba(180, 140, 50, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
 }
-
-:root[data-theme="dark"] .imb-tier-platinum {
+:root[data-theme="dark"] .imb-employee-widget.imb-tier-platinum {
   background: linear-gradient(180deg, #181614 0%, #100f0d 100%);
   border: 1px solid rgba(212, 175, 55, 0.32);
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 220, 120, 0.12);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 220, 120, 0.12);
 }
 
-/* ==========================================================================
-   Silky Spotlight Sheen (Understated, No Loud Rainbow)
-   ========================================================================== */
-
-.imb-card-sheen {
+/* Silky Spotlight Sheen */
+.imb-widget-sheen {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  z-index: 4;
+  z-index: 2;
   opacity: 0;
   transition: opacity 0.4s ease;
   background: radial-gradient(
     circle 440px at var(--sheen-x, 50%) var(--sheen-y, 30%),
     rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.03) 40%,
+    rgba(255, 255, 255, 0.02) 40%,
     transparent 70%
   );
 }
-
-:root[data-theme="dark"] .imb-card-sheen {
+:root[data-theme="dark"] .imb-widget-sheen {
   background: radial-gradient(
     circle 440px at var(--sheen-x, 50%) var(--sheen-y, 30%),
     rgba(255, 255, 255, 0.07) 0%,
@@ -123,60 +96,47 @@
     transparent 75%
   );
 }
-
-.imb-employee-card-viewport:hover .imb-card-sheen {
+.imb-employee-widget:hover .imb-widget-sheen {
   opacity: 1;
 }
 
-/* ==========================================================================
-   Minimal Integrated Lanyard Slot
-   ========================================================================== */
-
-.imb-card-lanyard-slot {
-  width: 52px;
-  height: 6px;
-  margin: 0 auto 16px;
+/* Minimal Integrated Slot */
+.imb-widget-lanyard-slot {
+  width: 44px;
+  height: 5px;
+  margin: -4px auto 10px;
   border-radius: var(--imb-radius-pill);
   background: var(--imb-surface-sunken);
   border: 1px solid var(--imb-private-border-hairline);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* ==========================================================================
-   Badge Top Bar & Tier Badges
-   ========================================================================== */
-
-.imb-card-top-bar {
+/* Widget Top Bar */
+.imb-widget-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--imb-space-4);
-  padding-bottom: var(--imb-space-3);
+  margin-bottom: var(--imb-space-3);
+  padding-bottom: var(--imb-space-2);
   border-bottom: 1px dashed var(--imb-private-border-hairline);
 }
 
-.imb-card-id-chip-group {
+.imb-widget-chip-group {
   display: flex;
   align-items: center;
   gap: var(--imb-space-2);
 }
 
-.imb-card-id-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--imb-space-2);
-}
-
-.imb-card-chip-graphic {
+.imb-widget-chip-graphic {
   display: inline-block;
-  width: 12px;
-  height: 9px;
+  width: 11px;
+  height: 8px;
   border-radius: 2px;
   background: linear-gradient(135deg, #c5a850, #ebd58b, #9e8125);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
-.imb-card-id-code {
+.imb-widget-id-code {
   font-family: var(--imb-font-mono);
   font-size: var(--imb-text-xs);
   letter-spacing: 0.06em;
@@ -184,13 +144,11 @@
   color: var(--imb-muted);
 }
 
-/* Refined Material Tier Chips */
-.imb-card-tier-chip {
+.imb-widget-tier-badge {
   font-size: 11px;
   font-weight: 500;
   padding: 2px 8px;
   border-radius: var(--imb-radius-pill);
-  letter-spacing: 0.02em;
 }
 
 .imb-tier-chip-paper {
@@ -198,7 +156,6 @@
   color: #8c6a38;
   border: 1px solid rgba(180, 150, 100, 0.25);
 }
-
 :root[data-theme="dark"] .imb-tier-chip-paper {
   background: rgba(180, 150, 100, 0.15);
   color: #d4b483;
@@ -210,7 +167,6 @@
   color: #0284c7;
   border: 1px solid rgba(14, 165, 233, 0.25);
 }
-
 :root[data-theme="dark"] .imb-tier-chip-pvc {
   background: rgba(56, 189, 248, 0.12);
   color: #38bdf8;
@@ -222,7 +178,6 @@
   color: #475569;
   border: 1px solid rgba(148, 163, 184, 0.3);
 }
-
 :root[data-theme="dark"] .imb-tier-chip-titanium {
   background: rgba(148, 163, 184, 0.14);
   color: #cbd5e1;
@@ -234,94 +189,79 @@
   color: #926a18;
   border: 1px solid rgba(202, 165, 85, 0.35);
 }
-
 :root[data-theme="dark"] .imb-tier-chip-platinum {
   background: rgba(212, 175, 55, 0.16);
   color: #f3d078;
   border: 1px solid rgba(212, 175, 55, 0.35);
 }
 
-.imb-card-top-actions {
+.imb-widget-actions {
   display: flex;
   align-items: center;
   gap: var(--imb-space-2);
 }
 
-.imb-card-action-btn {
+.imb-widget-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--imb-space-1);
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 4px 9px;
   border-radius: var(--imb-radius-pill);
   border: 1px solid var(--imb-private-border-hairline);
-  background: var(--imb-surface-sunken);
+  background: var(--imb-surface);
   color: var(--imb-text);
   font-size: var(--imb-text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--imb-motion-fast) var(--imb-ease-standard);
+  transition: all var(--imb-motion-fast) ease;
 }
 
-.imb-card-action-btn:hover {
+.imb-widget-btn:hover {
   background: var(--imb-surface-hover);
   border-color: var(--imb-accent);
   color: var(--imb-accent);
   transform: translateY(-1px);
 }
 
-.imb-card-action-summon {
+.imb-widget-btn-summon {
   background: color-mix(in srgb, var(--imb-accent) 8%, var(--imb-surface));
   color: var(--imb-accent);
   border-color: color-mix(in srgb, var(--imb-accent) 20%, transparent);
 }
-
-.imb-card-action-summon:hover {
+.imb-widget-btn-summon:hover {
   background: color-mix(in srgb, var(--imb-accent) 15%, var(--imb-surface));
 }
 
-.imb-card-action-danger {
+.imb-widget-btn-danger {
   color: var(--imb-danger);
   border-color: color-mix(in srgb, var(--imb-danger) 20%, transparent);
 }
-
-.imb-card-action-danger:hover {
+.imb-widget-btn-danger:hover {
   background: color-mix(in srgb, var(--imb-danger) 12%, var(--imb-surface));
   border-color: var(--imb-danger);
-  color: var(--imb-danger);
 }
 
-.imb-card-action-label {
-  font-size: var(--imb-text-xs);
-}
-
-/* ==========================================================================
-   Hero Identity (Avatar, Name, Role, Tenure)
-   ========================================================================== */
-
-.imb-card-hero {
+/* Widget Hero Layout */
+.imb-widget-hero {
   display: flex;
   align-items: center;
-  gap: var(--imb-space-5);
-  margin-bottom: var(--imb-space-5);
+  gap: var(--imb-space-4);
+  margin-bottom: var(--imb-space-3);
 }
 
-.imb-card-avatar-wrap {
+.imb-widget-avatar-wrap {
   position: relative;
-  width: 74px;
-  height: 74px;
+  width: 62px;
+  height: 62px;
   border-radius: var(--imb-radius-pill);
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   border: 2px solid var(--imb-surface);
 }
 
-.imb-card-avatar-wrap:focus-visible {
-  box-shadow: var(--imb-focus-ring);
-}
-
-.imb-card-avatar-img {
+.imb-widget-avatar-img {
   width: 100%;
   height: 100%;
   border-radius: var(--imb-radius-pill);
@@ -329,7 +269,7 @@
   display: block;
 }
 
-.imb-card-avatar-placeholder {
+.imb-widget-avatar-placeholder {
   width: 100%;
   height: 100%;
   border-radius: var(--imb-radius-pill);
@@ -338,109 +278,84 @@
   background: color-mix(in oklch, var(--imb-accent) 15%, var(--imb-surface));
   color: var(--imb-accent);
   font-weight: 700;
-  font-size: 28px;
+  font-size: 24px;
 }
 
-.imb-card-avatar-overlay {
+.imb-widget-avatar-overlay {
   position: absolute;
   inset: 0;
   border-radius: var(--imb-radius-pill);
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.38);
   display: grid;
   place-items: center;
   opacity: 0;
-  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
+  transition: opacity var(--imb-motion-fast) ease;
   pointer-events: none;
 }
-
-.imb-card-avatar-wrap:hover .imb-card-avatar-overlay,
-.imb-card-avatar-wrap:focus-visible .imb-card-avatar-overlay {
+.imb-widget-avatar-wrap:hover .imb-widget-avatar-overlay {
   opacity: 1;
 }
-
-.imb-card-avatar-overlay svg {
-  width: 22px;
-  height: 22px;
+.imb-widget-avatar-overlay svg {
+  width: 20px;
+  height: 20px;
   color: #fff;
 }
 
-.imb-card-status-dot {
+.imb-widget-status-dot {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 13px;
-  height: 13px;
+  bottom: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: 2px solid var(--imb-surface);
 }
-
-.imb-card-status-dot.is-active {
+.imb-widget-status-dot.is-active {
   background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
 }
-
-.imb-card-status-dot.is-disabled {
+.imb-widget-status-dot.is-disabled {
   background: var(--imb-danger);
 }
 
-.imb-card-hero-meta {
+.imb-widget-hero-meta {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--imb-space-1);
+  gap: 2px;
 }
 
-.imb-card-title-row {
+.imb-widget-name-row {
   display: flex;
   align-items: center;
   gap: var(--imb-space-3);
   min-width: 0;
 }
-
-.imb-card-title-row h2 {
+.imb-widget-name-row h2 {
   font-family: var(--imb-font-display);
   font-size: var(--imb-fs-h2);
   font-weight: 700;
   margin: 0;
-  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.imb-card-status-pill .imb-pill {
+.imb-widget-status-pill .imb-pill {
   font-size: 11px;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: var(--imb-radius-pill);
 }
 
-.imb-pill-success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.22);
-}
-
-.imb-pill-accent {
-  background: color-mix(in srgb, var(--imb-accent) 12%, transparent);
-  color: var(--imb-accent);
-  border: 1px solid color-mix(in srgb, var(--imb-accent) 24%, transparent);
-}
-
-.imb-pill-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.22);
-}
-
-.imb-card-role-row .imb-sub {
+.imb-widget-role-row .imb-sub {
   color: var(--imb-muted);
   font-size: var(--imb-text-sm);
   margin: 0;
 }
 
-.imb-card-tenure-strip {
+.imb-widget-tenure-strip {
   display: flex;
   align-items: center;
   gap: var(--imb-space-2);
@@ -449,150 +364,60 @@
   color: var(--imb-muted);
 }
 
-.imb-tenure-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.imb-tenure-icon {
-  width: 12px;
-  height: 12px;
-}
-
-.imb-tenure-sep {
-  opacity: 0.4;
-}
-
-/* In-place edit pencil */
-.imb-employee-edit-line {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--imb-space-1);
-  min-width: 0;
-  max-width: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.imb-employee-edit-line:focus-visible {
-  outline: none;
-  box-shadow: var(--imb-focus-ring);
-}
-
-.imb-employee-edit-text {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.imb-employee-edit-line .imb-employee-edit-icon {
-  box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  padding: 4px;
-  margin: -4px;
-  flex: none;
-  color: var(--imb-muted);
-  opacity: 0;
-  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-employee-edit-line:hover .imb-employee-edit-icon,
-.imb-employee-edit-line:focus-visible .imb-employee-edit-icon {
-  opacity: 1;
-}
-
-.imb-employee-name-input {
-  font-family: var(--imb-font-display);
-  font-size: var(--imb-fs-h2);
-  font-weight: 700;
-}
-
-.imb-employee-role-input {
-  font-size: var(--imb-text-sm);
-}
-
-.imb-employee-avatar-error {
-  margin-bottom: var(--imb-space-3);
-}
-
-/* ==========================================================================
-   Performance HUD Bar (4 Pure Accomplishment Metrics)
-   ========================================================================== */
-
-.imb-employee-hud-bar {
+.imb-widget-hud-bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   align-items: center;
   gap: var(--imb-space-2);
-  padding: 11px 16px;
-  margin-bottom: var(--imb-space-5);
+  padding: 8px 14px;
   border-radius: var(--imb-radius-md);
   background: color-mix(in srgb, var(--imb-surface-sunken) 50%, transparent);
   border: 1px solid var(--imb-private-border-hairline);
 }
 
-.imb-hud-stat {
+/* ==========================================================================
+   NATURAL VERTICAL FLOW SECTIONS
+   ========================================================================== */
+
+.imb-employee-flow-sections {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: var(--imb-space-4);
 }
 
-.imb-hud-label {
-  font-size: 11px;
-  font-weight: 500;
+.imb-flow-section {
+  position: relative;
+  background: var(--imb-surface);
+  border: 1px solid var(--imb-private-border-hairline);
+  border-radius: var(--imb-radius-lg, 12px);
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
+}
+
+.imb-flow-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--imb-space-2);
+}
+
+.imb-flow-title {
+  font-size: var(--imb-text-xs);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--imb-muted);
 }
 
-.imb-hud-val {
-  font-size: var(--imb-fs-body);
-  font-weight: 600;
-  color: var(--imb-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.imb-hud-unit {
+.imb-flow-sub {
   font-size: var(--imb-text-xs);
-  font-weight: normal;
   color: var(--imb-muted);
-  margin-left: 3px;
-}
-
-.imb-hud-val-accent {
-  font-size: var(--imb-text-xs);
-  font-weight: 600;
-  color: var(--imb-accent);
-}
-
-.imb-hud-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--imb-private-border-hairline);
-  margin: 0 auto;
 }
 
 /* ==========================================================================
-   UNIFIED COMPUTE & INTELLIGENCE SPECS BENTO
+   COMPUTE BENTO & ADAPTIVE THINKING SLIDER
    ========================================================================== */
-
-.imb-compute-bento {
-  padding: 16px;
-  border-radius: var(--imb-radius-md);
-  background: color-mix(in srgb, var(--imb-surface-sunken) 40%, transparent);
-  border: 1px solid var(--imb-private-border-hairline);
-}
 
 .imb-compute-grid {
   display: grid;
@@ -619,50 +444,104 @@
   justify-content: space-between;
 }
 
-.imb-thinking-gauge-tag {
+.imb-thinking-level-badge {
   font-size: 11px;
   font-weight: 600;
   color: var(--imb-accent);
   background: color-mix(in srgb, var(--imb-accent) 10%, transparent);
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: var(--imb-radius-pill);
 }
 
-/* 5-Step Visual LED Thinking Gauge */
-.imb-thinking-meter {
+/* Thinking Adaptive Range Slider */
+.imb-thinking-slider-wrap {
   display: flex;
-  gap: 4px;
-  margin-top: 6px;
-  height: 4px;
-  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 4px;
 }
 
-.imb-meter-step {
-  flex: 1;
-  border-radius: 2px;
+.imb-thinking-range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
   background: var(--imb-surface-sunken);
   border: 1px solid var(--imb-private-border-hairline);
+  outline: none;
+  cursor: pointer;
+}
+
+.imb-thinking-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--imb-accent);
+  border: 2px solid var(--imb-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform var(--imb-motion-fast) ease;
+}
+
+.imb-thinking-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.imb-thinking-ticks-track {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.imb-thinking-tick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.imb-tick-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--imb-muted);
+  opacity: 0.35;
   transition: all var(--imb-motion-fast) ease;
 }
 
-.imb-meter-step.is-active {
+.imb-tick-label {
+  font-size: 10px;
+  color: var(--imb-muted);
+  transition: color var(--imb-motion-fast) ease;
+}
+
+.imb-thinking-tick-btn.is-active .imb-tick-dot {
   background: var(--imb-accent);
-  border-color: var(--imb-accent);
-  box-shadow: 0 0 5px color-mix(in srgb, var(--imb-accent) 45%, transparent);
+  opacity: 1;
+  box-shadow: 0 0 4px var(--imb-accent);
+  transform: scale(1.2);
+}
+
+.imb-thinking-tick-btn.is-active .imb-tick-label {
+  color: var(--imb-accent);
+  font-weight: 600;
 }
 
 /* ==========================================================================
-   DIRECTLY LISTED EQUIPPED SKILLS & MCP TOOLS SHELF
+   EQUIPPED SKILLS & MCP SHELF
    ========================================================================== */
 
-.imb-equipped-shelf {
-  padding: 16px;
-  border-radius: var(--imb-radius-md);
-  background: color-mix(in srgb, var(--imb-surface-sunken) 40%, transparent);
-  border: 1px solid var(--imb-private-border-hairline);
-}
-
-.imb-shelf-header {
+.imb-shelf-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -677,14 +556,14 @@
   color: var(--imb-accent);
 }
 
-.imb-shelf-toggle-btn {
+.imb-shelf-manage-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
   border-radius: var(--imb-radius-pill);
   border: 1px solid var(--imb-private-border-hairline);
-  background: var(--imb-surface);
+  background: var(--imb-surface-sunken);
   color: var(--imb-accent);
   font-size: 11px;
   font-weight: 500;
@@ -692,272 +571,212 @@
   transition: all var(--imb-motion-fast) ease;
 }
 
-.imb-shelf-toggle-btn:hover {
+.imb-shelf-manage-btn:hover {
   background: color-mix(in srgb, var(--imb-accent) 10%, var(--imb-surface));
   border-color: var(--imb-accent);
 }
 
-.imb-shelf-pills-wrap {
+.imb-shelf-pills-list {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  min-height: 30px;
+  min-height: 28px;
   align-items: center;
 }
 
-.imb-shelf-empty {
+.imb-shelf-empty-hint {
   font-size: var(--imb-text-xs);
   color: var(--imb-muted);
 }
 
-.imb-skill-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: var(--imb-radius-pill);
-  background: color-mix(in srgb, var(--imb-accent) 9%, var(--imb-surface));
-  border: 1px solid color-mix(in srgb, var(--imb-accent) 22%, transparent);
-  color: var(--imb-text);
-  font-size: var(--imb-text-xs);
-  font-weight: 500;
-  transition: all var(--imb-motion-fast) ease;
-}
-
-.imb-skill-pill:hover {
-  border-color: var(--imb-accent);
-  transform: translateY(-1px);
-}
-
-.imb-mcp-pill {
-  background: color-mix(in srgb, #8b5cf6 9%, var(--imb-surface));
-  border-color: color-mix(in srgb, #8b5cf6 22%, transparent);
-}
-
-.imb-skill-pill-text {
-  font-family: var(--imb-font-mono);
-  font-size: 11px;
-}
-
-.imb-skill-pill-remove {
-  display: inline-grid;
-  place-items: center;
-  width: 15px;
-  height: 15px;
-  padding: 0;
-  margin-right: -3px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--imb-muted);
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-  transition: all var(--imb-motion-fast) ease;
-}
-
-.imb-skill-pill-remove:hover {
-  background: rgba(239, 68, 68, 0.16);
-  color: var(--imb-danger);
-}
-
-.imb-shelf-picker {
+.imb-shelf-dropdown-wrap {
   margin-top: var(--imb-space-3);
   padding-top: var(--imb-space-3);
   border-top: 1px dashed var(--imb-private-border-hairline);
 }
 
 /* ==========================================================================
-   Body Fields & Sections
+   COLLAPSIBLE TASK HISTORY DRAWER
    ========================================================================== */
 
-.imb-card-body-fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--imb-space-4);
+.imb-history-drawer {
+  padding: 0;
+  overflow: hidden;
 }
 
-.imb-card-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--imb-space-2);
-}
-
-.imb-card-section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.imb-section-title {
-  font-size: var(--imb-text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--imb-muted);
-}
-
-.imb-section-sub {
-  font-size: var(--imb-text-xs);
-  color: var(--imb-muted);
-}
-
-/* ==========================================================================
-   BACK FACE (Task History Timeline)
-   ========================================================================== */
-
-.imb-employee-card-back {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.imb-timeline-summary-banner {
+.imb-history-drawer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--imb-space-4);
-  padding: 12px 16px;
-  margin-bottom: var(--imb-space-4);
-  border-radius: var(--imb-radius-md);
-  background: color-mix(in srgb, var(--imb-accent) 6%, var(--imb-surface));
-  border: 1px solid color-mix(in srgb, var(--imb-accent) 18%, transparent);
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: background var(--imb-motion-fast) ease;
 }
 
-.imb-timeline-summary-text {
-  font-size: var(--imb-text-sm);
-  color: var(--imb-text);
-  line-height: 1.5;
+.imb-history-drawer-head:hover,
+.imb-history-drawer-head:focus-visible {
+  background: color-mix(in srgb, var(--imb-accent) 4%, var(--imb-surface));
 }
 
-.imb-timeline-scroll-pane {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 280px;
-  max-height: 520px;
-  padding-right: var(--imb-space-2);
-}
-
-.imb-timeline-loading {
-  padding: var(--imb-space-8);
-  text-align: center;
-  color: var(--imb-muted);
-  font-size: var(--imb-text-sm);
-}
-
-.imb-timeline-empty {
+.imb-history-head-left {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 48px var(--imb-space-4);
   gap: var(--imb-space-3);
 }
 
-.imb-empty-icon-wrap {
-  width: 44px;
-  height: 44px;
+.imb-history-count-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--imb-accent);
+  background: color-mix(in srgb, var(--imb-accent) 10%, transparent);
+  padding: 2px 7px;
+  border-radius: var(--imb-radius-pill);
+}
+
+.imb-history-head-right {
+  display: flex;
+  align-items: center;
+  gap: var(--imb-space-3);
+}
+
+.imb-history-summary-quiet {
+  font-size: var(--imb-text-xs);
+  color: var(--imb-muted);
+}
+
+.imb-drawer-chevron {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--imb-muted);
+  transition: transform 0.25s ease;
+}
+
+.imb-drawer-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.imb-history-drawer-body {
+  padding: 0 20px 20px;
+  border-top: 1px solid var(--imb-private-border-hairline);
+}
+
+.imb-history-search-bar {
+  margin: var(--imb-space-3) 0 var(--imb-space-4);
+}
+
+.imb-history-loading {
+  padding: var(--imb-space-6);
+  text-align: center;
+  color: var(--imb-muted);
+  font-size: var(--imb-text-sm);
+}
+
+.imb-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px var(--imb-space-4);
+  gap: var(--imb-space-2);
+}
+
+.imb-history-empty-icon {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--imb-surface-sunken);
   display: grid;
   place-items: center;
   color: var(--imb-muted);
+  margin-bottom: 4px;
 }
 
-.imb-empty-icon-wrap svg {
-  width: 22px;
-  height: 22px;
-}
-
-.imb-empty-title {
-  font-size: var(--imb-fs-body);
-  font-weight: 600;
-  color: var(--imb-text);
-}
-
-.imb-empty-desc {
+.imb-history-empty-text {
   font-size: var(--imb-text-sm);
   color: var(--imb-muted);
-  max-width: 380px;
   margin-bottom: var(--imb-space-2);
 }
 
-.imb-timeline-list {
+.imb-history-timeline {
   display: flex;
   flex-direction: column;
   position: relative;
   padding-left: var(--imb-space-2);
+  margin-top: var(--imb-space-3);
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: var(--imb-space-2);
 }
 
-.imb-timeline-node {
+.imb-history-item {
   display: flex;
   gap: var(--imb-space-4);
   position: relative;
-  padding-bottom: var(--imb-space-4);
+  padding-bottom: var(--imb-space-3);
 }
 
-.imb-timeline-rail {
+.imb-history-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 16px;
+  width: 14px;
   flex-shrink: 0;
 }
 
-.imb-timeline-dot {
-  width: 9px;
-  height: 9px;
+.imb-history-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--imb-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--imb-accent) 20%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--imb-accent) 20%, transparent);
   margin-top: 6px;
   flex-shrink: 0;
 }
 
-.imb-timeline-line {
+.imb-history-line {
   width: 2px;
   flex: 1;
   background: var(--imb-private-border-hairline);
   margin-top: 4px;
 }
 
-.imb-timeline-node:last-child .imb-timeline-line {
+.imb-history-item:last-child .imb-history-line {
   display: none;
 }
 
-.imb-timeline-card {
+.imb-history-card {
   flex: 1;
   min-width: 0;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: var(--imb-radius-md);
   background: var(--imb-surface-sunken);
   border: 1px solid var(--imb-private-border-hairline);
   cursor: pointer;
-  transition: all var(--imb-motion-fast) var(--imb-ease-standard);
+  transition: all var(--imb-motion-fast) ease;
   outline: none;
 }
 
-.imb-timeline-card:hover,
-.imb-timeline-card:focus-visible {
+.imb-history-card:hover,
+.imb-history-card:focus-visible {
   background: var(--imb-surface-hover);
   border-color: var(--imb-accent);
   transform: translateX(3px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
-.imb-timeline-card-head {
+.imb-history-card-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--imb-space-2);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
-.imb-timeline-chat-title {
+.imb-history-chat-title {
   font-weight: 600;
   font-size: var(--imb-text-sm);
   color: var(--imb-text);
@@ -966,20 +785,20 @@
   text-overflow: ellipsis;
 }
 
-.imb-timeline-date {
+.imb-history-date {
   font-size: var(--imb-text-xs);
   color: var(--imb-muted);
   flex-shrink: 0;
 }
 
-.imb-timeline-card-foot {
+.imb-history-card-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: var(--imb-text-xs);
 }
 
-.imb-timeline-msg-badge {
+.imb-history-msg-badge {
   padding: 1px 6px;
   border-radius: var(--imb-radius-pill);
   background: color-mix(in srgb, var(--imb-surface) 80%, transparent);
@@ -987,17 +806,16 @@
   font-size: 11px;
 }
 
-.imb-timeline-link-hint {
+.imb-history-jump-hint {
   color: var(--imb-accent);
   font-weight: 500;
-  opacity: 0.85;
 }
 
 /* ==========================================================================
-   Tearing & Shredding Physical Card Animation
+   Tearing & Shredding Widget Animation
    ========================================================================== */
 
-.imb-employee-card-flipper.is-tearing {
+.imb-employee-widget.is-tearing {
   pointer-events: none;
 }
 
