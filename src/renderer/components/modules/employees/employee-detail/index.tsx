@@ -1,4 +1,7 @@
-import { isThinkingLevel, type ThinkingLevel } from "@shared/constants/thinking";
+import {
+  THINKING_LEVEL_LABEL_KEYS,
+  type ThinkingLevel,
+} from "@shared/constants/thinking";
 import { t } from "@shared/l10n";
 import type {
   Employee,
@@ -8,17 +11,12 @@ import type {
 } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { appStore } from "../../../../app-store";
-import {
-  defaultModelSelectNote,
-  defaultThinkingSelectNote,
-  modelRef,
-  thinkingLevelsFor,
-  thinkingSelectOptions,
-} from "../../../../thinking-options";
+import { modelRef, thinkingLevelsFor } from "../../../../thinking-options";
 import { Button } from "../../../button";
 import { employeeAvatarSrc } from "../../../employee-avatar/avatar-src";
 import {
   IconCamera,
+  IconChevronDown,
   IconClock,
   IconEdit,
   IconMcp,
@@ -29,6 +27,7 @@ import {
 import { Input } from "../../../input";
 import { Modal } from "../../../modal";
 import { MultiSelect, type MultiSelectOption } from "../../../multi-select";
+import { SearchInput } from "../../../search-input";
 import { Select } from "../../../select";
 import { Textarea } from "../../../textarea";
 import { Tooltip } from "../../../tooltip";
@@ -54,31 +53,11 @@ const SAVE_DEBOUNCE_MS = 400;
 
 export type MaterialTier = "paper" | "pvc" | "titanium" | "platinum";
 
-function IconFlip(): React.JSX.Element {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-      <path d="M16 21h5v-5" />
-    </svg>
-  );
-}
-
 function IconSendRocket(): React.JSX.Element {
   return (
     <svg
-      width="14"
-      height="14"
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -112,15 +91,6 @@ function formatDateTimeStr(timestamp: number | null): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${day} ${hh}:${mm}`;
-}
-
-function getThinkingLevelStep(level: ThinkingLevel | null | undefined): number {
-  if (!level || level === "off") return 0;
-  if (level === "low") return 1;
-  if (level === "medium") return 2;
-  if (level === "high") return 3;
-  if (level === "max") return 4;
-  return 0;
 }
 
 export function EmployeeDetail({
@@ -179,9 +149,12 @@ export function EmployeeDetail({
   // Extra profile metrics and task history
   const [extra, setExtra] = useState<EmployeeProfileExtra | null>(null);
   const [extraLoading, setExtraLoading] = useState(false);
-  const [isFlipped, setIsFlipped] = useState(false);
   const [isTearing, setIsTearing] = useState(false);
   const [summoning, setSummoning] = useState(false);
+
+  // Task history collapsible drawer state & filter
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState("");
 
   // Skill and MCP picker expansion states
   const [addSkillOpen, setAddSkillOpen] = useState(false);
@@ -286,18 +259,13 @@ export function EmployeeDetail({
     }
   };
 
-  // Holographic sheen mouse tracking with angle calculation
-  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>): void => {
+  // Subtle silky spotlight sheen mouse tracking
+  const handleWidgetMouseMove = (e: React.MouseEvent<HTMLDivElement>): void => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    const dx = e.clientX - (rect.left + rect.width / 2);
-    const dy = e.clientY - (rect.top + rect.height / 2);
-    const angle = Math.round((Math.atan2(dy, dx) * 180) / Math.PI + 90);
-
     e.currentTarget.style.setProperty("--sheen-x", `${x.toFixed(1)}%`);
     e.currentTarget.style.setProperty("--sheen-y", `${y.toFixed(1)}%`);
-    e.currentTarget.style.setProperty("--sheen-angle", `${angle}deg`);
   };
 
   // Dispatch / Start new task with this employee
@@ -411,185 +379,148 @@ export function EmployeeDetail({
     }
   }, [materialTier]);
 
-  const thinkingStep = useMemo(() => {
-    return getThinkingLevelStep(form.thinkingLevel);
-  }, [form.thinkingLevel]);
+  // Thinking level adaptive slider steps for currently selected model
+  const availableThinkingLevels = useMemo(() => {
+    return thinkingLevelsFor(models, form.modelId ?? "", defaultModel);
+  }, [models, form.modelId, defaultModel]);
+
+  const thinkingSliderSteps = useMemo(() => {
+    return [
+      { level: null as ThinkingLevel | null, label: t("Default") },
+      ...availableThinkingLevels.map((lvl) => ({
+        level: lvl,
+        label: t(THINKING_LEVEL_LABEL_KEYS[lvl]),
+      })),
+    ];
+  }, [availableThinkingLevels]);
+
+  const currentSliderIdx = useMemo(() => {
+    if (form.thinkingLevel === null) return 0;
+    const idx = thinkingSliderSteps.findIndex(
+      (s) => s.level === form.thinkingLevel,
+    );
+    return idx >= 0 ? idx : 0;
+  }, [form.thinkingLevel, thinkingSliderSteps]);
+
+  const handleSliderChange = (newIdx: number): void => {
+    const target = thinkingSliderSteps[newIdx];
+    if (target) {
+      scheduleSave({ ...form, thinkingLevel: target.level });
+    }
+  };
+
+  // Filtered tasks in history drawer
+  const filteredTasks = useMemo(() => {
+    if (!extra?.tasks) return [];
+    const q = historyQuery.trim().toLowerCase();
+    if (!q) return extra.tasks;
+    return extra.tasks.filter((task) =>
+      task.title.toLowerCase().includes(q),
+    );
+  }, [extra?.tasks, historyQuery]);
 
   return (
-    <div className="imb-employee-card-viewport">
+    <div className="imb-employee-detail-viewport">
+      {/* ====================================================================
+          TOP EXECUTIVE WIDGET: Compact ID Badge Card
+          ==================================================================== */}
       <div
-        className={`imb-employee-card-flipper ${isFlipped ? "is-flipped" : ""} ${isTearing ? "is-tearing" : ""}`}
-        onMouseMove={handleCardMouseMove}
+        className={`imb-employee-widget imb-tier-${materialTier} ${isTearing ? "is-tearing" : ""}`}
+        onMouseMove={handleWidgetMouseMove}
       >
-        {/* FRONT OF BADGE CARD */}
-        <div
-          className={`imb-employee-card-face imb-employee-card-front imb-tier-${materialTier}`}
-        >
-          {/* Real Prismatic Holographic Diffraction Layer */}
-          <div className="imb-card-sheen" />
+        <div className="imb-widget-sheen" />
 
-          {/* Lanyard punch slot */}
-          <div className="imb-card-lanyard-slot" />
+        {/* Lanyard slot */}
+        <div className="imb-widget-lanyard-slot" />
 
-          {/* Badge Top Header */}
-          <div className="imb-card-top-bar">
-            <div className="imb-card-id-chip-group">
-              <div className="imb-card-id-chip">
-                <span className="imb-card-chip-graphic" />
-                <span className="imb-card-id-code">
-                  {isAssistant
-                    ? "EXEC-CDO #000"
-                    : `ID-BADGE #${String(employee.id).padStart(3, "0")}`}
-                </span>
-              </div>
-              {/* Dynamic Material Tier Badge */}
-              <div className={`imb-card-tier-chip ${materialTierMeta.badgeStyle}`} title={materialTierMeta.tierName}>
-                {materialTierMeta.label}
-              </div>
-            </div>
-
-            <div className="imb-card-top-actions">
-              <Tooltip content={t("Dispatch Task")}>
-                <button
-                  type="button"
-                  className="imb-card-action-btn imb-card-action-summon"
-                  onClick={() => void handleDispatchTask()}
-                  disabled={summoning}
-                  aria-label={t("Dispatch Task")}
-                >
-                  <IconSendRocket />
-                  <span className="imb-card-action-label">{t("Dispatch")}</span>
-                </button>
-              </Tooltip>
-
-              <Tooltip content={t("Flip to Task History")}>
-                <button
-                  type="button"
-                  className="imb-card-action-btn imb-card-action-flip"
-                  onClick={() => setIsFlipped(true)}
-                  aria-label={t("Task History")}
-                >
-                  <IconFlip />
-                  <span className="imb-card-action-label">{t("History")}</span>
-                </button>
-              </Tooltip>
-
-              {!isAssistant && (
-                <Tooltip content={t("Retire/Shred Card")}>
-                  <button
-                    type="button"
-                    className="imb-card-action-btn imb-card-action-danger"
-                    onClick={() => setRemoveOpen(true)}
-                    aria-label={t("Delete")}
-                  >
-                    <IconTrash />
-                  </button>
-                </Tooltip>
-              )}
-            </div>
+        {/* Top bar inside widget */}
+        <div className="imb-widget-top-bar">
+          <div className="imb-widget-chip-group">
+            <span className="imb-widget-chip-graphic" />
+            <span className="imb-widget-id-code">
+              {isAssistant
+                ? "EXEC-CDO #000"
+                : `ID-BADGE #${String(employee.id).padStart(3, "0")}`}
+            </span>
+            <span className={`imb-widget-tier-badge ${materialTierMeta.badgeStyle}`}>
+              {materialTierMeta.label}
+            </span>
           </div>
 
-          {/* Identity & Status Hero */}
-          <div className="imb-card-hero">
-            <div
-              className="imb-card-avatar-wrap"
-              role="button"
-              tabIndex={0}
-              aria-label={t("Change avatar")}
-              onClick={triggerPicker}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  triggerPicker();
-                }
-              }}
-            >
-              {displayAvatarUrl ? (
-                <img
-                  className="imb-card-avatar-img"
-                  src={displayAvatarUrl}
-                  alt={displayName}
-                />
-              ) : (
-                <div className="imb-card-avatar-placeholder">
-                  {displayName.slice(0, 1).toUpperCase() || "?"}
-                </div>
-              )}
-              <div className="imb-card-avatar-overlay">
-                <IconCamera />
-              </div>
-              <div
-                className={`imb-card-status-dot ${employee.disabled ? "is-disabled" : "is-active"}`}
-                title={employee.disabled ? t("Disabled") : t("Active")}
+          <div className="imb-widget-actions">
+            <Tooltip content={t("Dispatch Task")}>
+              <button
+                type="button"
+                className="imb-widget-btn imb-widget-btn-summon"
+                onClick={() => void handleDispatchTask()}
+                disabled={summoning}
+                aria-label={t("Dispatch Task")}
+              >
+                <IconSendRocket />
+                <span>{t("Dispatch")}</span>
+              </button>
+            </Tooltip>
+
+            {!isAssistant && (
+              <Tooltip content={t("Retire/Shred Card")}>
+                <button
+                  type="button"
+                  className="imb-widget-btn imb-widget-btn-danger"
+                  onClick={() => setRemoveOpen(true)}
+                  aria-label={t("Delete")}
+                >
+                  <IconTrash />
+                </button>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+
+        {/* Hero Identity: Avatar, Name, Role, Tenure */}
+        <div className="imb-widget-hero">
+          <div
+            className="imb-widget-avatar-wrap"
+            role="button"
+            tabIndex={0}
+            aria-label={t("Change avatar")}
+            onClick={triggerPicker}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                triggerPicker();
+              }
+            }}
+          >
+            {displayAvatarUrl ? (
+              <img
+                className="imb-widget-avatar-img"
+                src={displayAvatarUrl}
+                alt={displayName}
               />
-            </div>
-
-            <div className="imb-card-hero-meta">
-              <div className="imb-card-title-row">
-                <h2>
-                  {editingField === "name" ? (
-                    <Input
-                      className="imb-employee-name-input"
-                      value={fieldDraft}
-                      autoFocus
-                      aria-label={t("Name")}
-                      placeholder={t("Unnamed")}
-                      onChange={(e) => setFieldDraft(e.target.value)}
-                      onFocus={(e) => e.currentTarget.select()}
-                      onBlur={commitEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          commitEdit();
-                        } else if (e.key === "Escape") {
-                          e.preventDefault();
-                          cancelEdit();
-                        }
-                      }}
-                    />
-                  ) : (
-                    <Tooltip placement="bottom" content={t("Edit")}>
-                      <button
-                        type="button"
-                        className="imb-employee-edit-line"
-                        onClick={() => beginEdit("name")}
-                      >
-                        <span className="imb-employee-edit-text">
-                          {displayName}
-                        </span>
-                        <IconEdit className="imb-employee-edit-icon" />
-                      </button>
-                    </Tooltip>
-                  )}
-                </h2>
-
-                <div className="imb-card-status-pill">
-                  {employee.disabled ? (
-                    <span className="imb-pill imb-pill-danger">
-                      {t("Retired")}
-                    </span>
-                  ) : isAssistant ? (
-                    <span className="imb-pill imb-pill-accent">
-                      {t("Permanent")}
-                    </span>
-                  ) : (
-                    <span className="imb-pill imb-pill-success">
-                      {t("Active")}
-                    </span>
-                  )}
-                </div>
+            ) : (
+              <div className="imb-widget-avatar-placeholder">
+                {displayName.slice(0, 1).toUpperCase() || "?"}
               </div>
+            )}
+            <div className="imb-widget-avatar-overlay">
+              <IconCamera />
+            </div>
+            <div
+              className={`imb-widget-status-dot ${employee.disabled ? "is-disabled" : "is-active"}`}
+              title={employee.disabled ? t("Disabled") : t("Active")}
+            />
+          </div>
 
-              <div className="imb-card-role-row">
-                {isAssistant ? (
-                  <div className="imb-sub">{displayRole || "—"}</div>
-                ) : editingField === "role" ? (
+          <div className="imb-widget-hero-meta">
+            <div className="imb-widget-name-row">
+              <h2>
+                {editingField === "name" ? (
                   <Input
-                    className="imb-employee-role-input"
+                    className="imb-employee-name-input"
                     value={fieldDraft}
                     autoFocus
-                    aria-label={t("Role")}
-                    placeholder={t("e.g. Researcher")}
+                    aria-label={t("Name")}
+                    placeholder={t("Unnamed")}
                     onChange={(e) => setFieldDraft(e.target.value)}
                     onFocus={(e) => e.currentTarget.select()}
                     onBlur={commitEdit}
@@ -607,438 +538,135 @@ export function EmployeeDetail({
                   <Tooltip placement="bottom" content={t("Edit")}>
                     <button
                       type="button"
-                      className="imb-sub imb-employee-edit-line"
-                      onClick={() => beginEdit("role")}
+                      className="imb-employee-edit-line"
+                      onClick={() => beginEdit("name")}
                     >
                       <span className="imb-employee-edit-text">
-                        {displayRole || "—"}
+                        {displayName}
                       </span>
                       <IconEdit className="imb-employee-edit-icon" />
                     </button>
                   </Tooltip>
                 )}
-              </div>
+              </h2>
 
-              {/* Recruitment & Tenure Strip */}
-              <div className="imb-card-tenure-strip">
-                <span className="imb-tenure-item">
-                  <IconClock className="imb-tenure-icon" />
-                  {t("Joined")}: {onboardDateStr}
-                </span>
-                <span className="imb-tenure-sep">·</span>
-                <span className="imb-tenure-item">
-                  {t("Tenure")}: {tenureStr}
-                </span>
-              </div>
-            </div>
-
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              hidden
-              disabled={avatarAv}
-              onChange={(e) => void onAvatarPicked(e.target.files?.[0])}
-            />
-          </div>
-
-          {avatarError !== null && (
-            <p className="imb-error-text imb-employee-avatar-error">
-              {avatarError}
-            </p>
-          )}
-
-          {/* Performance HUD Strip (Unified Pure Accomplishment Metrics) */}
-          <div className="imb-employee-hud-bar">
-            <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Tasks Completed")}</span>
-              <span className="imb-hud-val">
-                {extra?.taskCount ?? 0}
-                <span className="imb-hud-unit">{t("sessions")}</span>
-              </span>
-            </div>
-            <div className="imb-hud-divider" />
-            <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Messages Sent")}</span>
-              <span className="imb-hud-val">
-                {extra?.messageCount ?? 0}
-                <span className="imb-hud-unit">{t("replies")}</span>
-              </span>
-            </div>
-            <div className="imb-hud-divider" />
-            <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Equipped Skills")}</span>
-              <span className="imb-hud-val">
-                {form.skills?.length ?? 0}
-                <span className="imb-hud-unit">{t("skills")}</span>
-              </span>
-            </div>
-            <div className="imb-hud-divider" />
-            <div className="imb-hud-stat">
-              <span className="imb-hud-label">{t("Total Tenure")}</span>
-              <span className="imb-hud-val imb-hud-val-accent">
-                {tenureStr}
-              </span>
-            </div>
-          </div>
-
-          {/* Body Fields Section */}
-          <div className="imb-card-body-fields">
-            {/* System Prompt Section */}
-            <div className="imb-card-section">
-              <div className="imb-card-section-head">
-                <span className="imb-section-title">
-                  {t("Persona & Directives")}
-                </span>
-                {isAssistant && (
-                  <span className="imb-section-sub">
-                    {t("Appends to built-in system prompt")}
+              <div className="imb-widget-status-pill">
+                {employee.disabled ? (
+                  <span className="imb-pill imb-pill-danger">
+                    {t("Retired")}
+                  </span>
+                ) : isAssistant ? (
+                  <span className="imb-pill imb-pill-accent">
+                    {t("Permanent")}
+                  </span>
+                ) : (
+                  <span className="imb-pill imb-pill-success">
+                    {t("Active")}
                   </span>
                 )}
               </div>
-              <Textarea
-                id={`emp-prompt-${employee.id}`}
-                value={form.systemPrompt ?? ""}
-                placeholder={t(
-                  "Define this employee's responsibilities, skills, and output standards…",
-                )}
-                minHeight={140}
-                onChange={(e) =>
-                  setForm({ ...form, systemPrompt: e.target.value })
-                }
-                onValueCommit={(systemPrompt) =>
-                  scheduleSave({ ...form, systemPrompt })
-                }
-              />
             </div>
 
-            {/* UNIFIED COMPUTE & INTELLIGENCE SPECS BENTO */}
-            <div className="imb-card-section imb-compute-bento">
-              <div className="imb-card-section-head">
-                <span className="imb-section-title">
-                  🧠 {t("Compute & Intelligence Specifications")}
-                </span>
-              </div>
-              <div className="imb-compute-grid">
-                <div className="imb-compute-col">
-                  <label
-                    htmlFor={`emp-model-${employee.id}`}
-                    className="imb-compute-label"
+            <div className="imb-widget-role-row">
+              {isAssistant ? (
+                <div className="imb-sub">{displayRole || "—"}</div>
+              ) : editingField === "role" ? (
+                <Input
+                  className="imb-employee-role-input"
+                  value={fieldDraft}
+                  autoFocus
+                  aria-label={t("Role")}
+                  placeholder={t("e.g. Researcher")}
+                  onChange={(e) => setFieldDraft(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitEdit();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelEdit();
+                    }
+                  }}
+                />
+              ) : (
+                <Tooltip placement="bottom" content={t("Edit")}>
+                  <button
+                    type="button"
+                    className="imb-sub imb-employee-edit-line"
+                    onClick={() => beginEdit("role")}
                   >
-                    {t("Model")}
-                  </label>
-                  <Select
-                    id={`emp-model-${employee.id}`}
-                    value={form.modelId ?? ""}
-                    options={[
-                      { value: "", label: t("Default") },
-                      ...models.map((model) => ({
-                        value: modelRef(model),
-                        label: modelRef(model),
-                      })),
-                    ]}
-                    placeholder={t("Default")}
-                    onChange={(modelId) =>
-                      scheduleSave({ ...form, modelId: modelId || null })
-                    }
-                  />
-                </div>
-
-                <div className="imb-compute-col">
-                  <div className="imb-compute-label-row">
-                    <label
-                      htmlFor={`emp-thinking-${employee.id}`}
-                      className="imb-compute-label"
-                    >
-                      {t("Thinking Level")}
-                    </label>
-                    <span className="imb-thinking-gauge-tag">
-                      {form.thinkingLevel || t("Default")}
+                    <span className="imb-employee-edit-text">
+                      {displayRole || "—"}
                     </span>
-                  </div>
-                  <Select
-                    id={`emp-thinking-${employee.id}`}
-                    value={form.thinkingLevel ?? ""}
-                    options={[
-                      { value: "", label: t("Default") },
-                      ...thinkingSelectOptions(
-                        thinkingLevelsFor(
-                          models,
-                          form.modelId ?? "",
-                          defaultModel,
-                        ),
-                        form.thinkingLevel ?? "",
-                      ),
-                    ]}
-                    onChange={(level) =>
-                      scheduleSave({
-                        ...form,
-                        thinkingLevel: isThinkingLevel(level) ? level : null,
-                      })
-                    }
-                  />
-                  {/* 5-Step Visual Thinking Gauge */}
-                  <div className="imb-thinking-meter" title={`Level: ${thinkingStep}/4`}>
-                    {[0, 1, 2, 3, 4].map((step) => (
-                      <div
-                        key={step}
-                        className={`imb-meter-step ${thinkingStep >= step ? "is-active" : ""}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* DIRECTLY LISTED EQUIPPED SKILLS SHELF */}
-            <div className="imb-card-section imb-equipped-shelf">
-              <div className="imb-shelf-header">
-                <span className="imb-section-title">
-                  <IconSkills className="imb-shelf-icon" />
-                  {t("Equipped Skills")} ({form.skills?.length ?? 0})
-                </span>
-                <button
-                  type="button"
-                  className="imb-shelf-toggle-btn"
-                  onClick={() => setAddSkillOpen((v) => !v)}
-                >
-                  <IconPlus className="imb-sm" />
-                  {addSkillOpen ? t("Close") : t("Manage Skills")}
-                </button>
-              </div>
-
-              <div className="imb-shelf-pills-wrap">
-                {!form.skills || form.skills.length === 0 ? (
-                  <div className="imb-shelf-empty">
-                    {t("No skills equipped. Click Manage Skills to add.")}
-                  </div>
-                ) : (
-                  form.skills.map((skill) => (
-                    <span key={skill} className="imb-skill-pill">
-                      <span className="imb-skill-pill-text">{skill}</span>
-                      <button
-                        type="button"
-                        className="imb-skill-pill-remove"
-                        aria-label={`Remove ${skill}`}
-                        title={t("Unequip")}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeSkill(skill);
-                        }}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))
-                )}
-              </div>
-
-              {addSkillOpen && (
-                <div className="imb-shelf-picker">
-                  <MultiSelect
-                    value={form.skills ?? []}
-                    options={skillOptions}
-                    placeholder={t("Select skills")}
-                    emptyHint={t("No skills installed")}
-                    onChange={(skills) => scheduleSave({ ...form, skills })}
-                  />
-                </div>
+                    <IconEdit className="imb-employee-edit-icon" />
+                  </button>
+                </Tooltip>
               )}
             </div>
 
-            {/* DIRECTLY LISTED LINKED MCP TOOLS SHELF */}
-            {!isAssistant && (
-              <div className="imb-card-section imb-equipped-shelf">
-                <div className="imb-shelf-header">
-                  <span className="imb-section-title">
-                    <IconMcp className="imb-shelf-icon" />
-                    {t("Linked MCP Tools")} ({form.mcp?.length ?? 0})
-                  </span>
-                  <button
-                    type="button"
-                    className="imb-shelf-toggle-btn"
-                    onClick={() => setAddMcpOpen((v) => !v)}
-                  >
-                    <IconPlus className="imb-sm" />
-                    {addMcpOpen ? t("Close") : t("Manage MCP")}
-                  </button>
-                </div>
+            <div className="imb-widget-tenure-strip">
+              <span className="imb-tenure-item">
+                <IconClock className="imb-tenure-icon" />
+                {t("Joined")}: {onboardDateStr}
+              </span>
+              <span className="imb-tenure-sep">·</span>
+              <span className="imb-tenure-item">
+                {t("Tenure")}: {tenureStr}
+              </span>
+            </div>
+          </div>
 
-                <div className="imb-shelf-pills-wrap">
-                  {!form.mcp || form.mcp.length === 0 ? (
-                    <div className="imb-shelf-empty">
-                      {t("No MCP tools connected. Click Manage MCP to link.")}
-                    </div>
-                  ) : (
-                    form.mcp.map((mcp) => (
-                      <span key={mcp} className="imb-skill-pill imb-mcp-pill">
-                        <span className="imb-skill-pill-text">{mcp}</span>
-                        <button
-                          type="button"
-                          className="imb-skill-pill-remove"
-                          aria-label={`Remove ${mcp}`}
-                          title={t("Unlink")}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeMcp(mcp);
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))
-                  )}
-                </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            disabled={avatarAv}
+            onChange={(e) => void onAvatarPicked(e.target.files?.[0])}
+          />
+        </div>
 
-                {addMcpOpen && (
-                  <div className="imb-shelf-picker">
-                    <MultiSelect
-                      value={form.mcp ?? []}
-                      options={mcpOptions}
-                      placeholder={t("Select MCP")}
-                      emptyHint={t("No MCP configured")}
-                      onChange={(mcp) => scheduleSave({ ...form, mcp })}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+        {avatarError !== null && (
+          <p className="imb-error-text imb-employee-avatar-error">
+            {avatarError}
+          </p>
+        )}
+
+        {/* 4 Pure Accomplishment Performance Metrics */}
+        <div className="imb-widget-hud-bar">
+          <div className="imb-hud-stat">
+            <span className="imb-hud-label">{t("Tasks Completed")}</span>
+            <span className="imb-hud-val">
+              {extra?.taskCount ?? 0}
+              <span className="imb-hud-unit">{t("sessions")}</span>
+            </span>
+          </div>
+          <div className="imb-hud-divider" />
+          <div className="imb-hud-stat">
+            <span className="imb-hud-label">{t("Messages Sent")}</span>
+            <span className="imb-hud-val">
+              {extra?.messageCount ?? 0}
+              <span className="imb-hud-unit">{t("replies")}</span>
+            </span>
+          </div>
+          <div className="imb-hud-divider" />
+          <div className="imb-hud-stat">
+            <span className="imb-hud-label">{t("Equipped Skills")}</span>
+            <span className="imb-hud-val">
+              {form.skills?.length ?? 0}
+              <span className="imb-hud-unit">{t("skills")}</span>
+            </span>
+          </div>
+          <div className="imb-hud-divider" />
+          <div className="imb-hud-stat">
+            <span className="imb-hud-label">{t("Total Tenure")}</span>
+            <span className="imb-hud-val imb-hud-val-accent">{tenureStr}</span>
           </div>
         </div>
 
-        {/* BACK OF BADGE CARD (Task History Timeline) */}
-        <div
-          className={`imb-employee-card-face imb-employee-card-back imb-tier-${materialTier}`}
-        >
-          {/* Real Prismatic Holographic Diffraction Layer */}
-          <div className="imb-card-sheen" />
-
-          {/* Lanyard punch slot */}
-          <div className="imb-card-lanyard-slot" />
-
-          {/* Back Top Header */}
-          <div className="imb-card-top-bar">
-            <div className="imb-card-id-chip-group">
-              <div className="imb-card-id-chip">
-                <span className="imb-card-chip-graphic" />
-                <span className="imb-card-id-code">
-                  {t("CAREER LOGS & TASKS")} · #{String(employee.id).padStart(3, "0")}
-                </span>
-              </div>
-              <div className={`imb-card-tier-chip ${materialTierMeta.badgeStyle}`}>
-                {materialTierMeta.label}
-              </div>
-            </div>
-
-            <div className="imb-card-top-actions">
-              <button
-                type="button"
-                className="imb-card-action-btn imb-card-action-flip"
-                onClick={() => setIsFlipped(false)}
-                aria-label={t("Flip to Front")}
-              >
-                <IconFlip />
-                <span className="imb-card-action-label">
-                  {t("Front Badge")}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Timeline Summary Banner */}
-          <div className="imb-timeline-summary-banner">
-            <div className="imb-timeline-summary-text">
-              {t("Joined on")} <strong>{onboardDateStr}</strong> ·{" "}
-              {t("Participated in")}{" "}
-              <strong>{extra?.taskCount ?? 0} {t("tasks")}</strong> ·{" "}
-              {t("Contributed")}{" "}
-              <strong>{extra?.messageCount ?? 0} {t("messages")}</strong>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => void handleDispatchTask()}
-              disabled={summoning}
-            >
-              <IconPlus /> {t("New Task")}
-            </Button>
-          </div>
-
-          {/* Timeline Scroll Area */}
-          <div className="imb-timeline-scroll-pane">
-            {extraLoading ? (
-              <div className="imb-timeline-loading">{t("Loading history…")}</div>
-            ) : !extra || extra.tasks.length === 0 ? (
-              <div className="imb-timeline-empty">
-                <div className="imb-empty-icon-wrap">
-                  <IconClock />
-                </div>
-                <div className="imb-empty-title">
-                  {t("No task records yet")}
-                </div>
-                <div className="imb-empty-desc">
-                  {t(
-                    "This employee hasn't joined any conversation yet. Click below to start the first task!",
-                  )}
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => void handleDispatchTask()}
-                  disabled={summoning}
-                >
-                  <IconSendRocket /> {t("Dispatch First Task")}
-                </Button>
-              </div>
-            ) : (
-              <div className="imb-timeline-list">
-                {extra.tasks.map((task) => (
-                  <div key={task.chatId} className="imb-timeline-node">
-                    <div className="imb-timeline-rail">
-                      <div className="imb-timeline-dot" />
-                      <div className="imb-timeline-line" />
-                    </div>
-
-                    <div
-                      className="imb-timeline-card"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => void appStore.focusChat(task.chatId)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          void appStore.focusChat(task.chatId);
-                        }
-                      }}
-                    >
-                      <div className="imb-timeline-card-head">
-                        <span className="imb-timeline-chat-title">
-                          {task.title}
-                        </span>
-                        <span className="imb-timeline-date">
-                          {formatDateTimeStr(task.lastMessageAt)}
-                        </span>
-                      </div>
-
-                      <div className="imb-timeline-card-foot">
-                        <span className="imb-timeline-msg-badge">
-                          {task.messageCount > 0
-                            ? `${task.messageCount} ${t("replies")}`
-                            : t("Participant")}
-                        </span>
-                        <span className="imb-timeline-link-hint">
-                          {t("Open Chat")} →
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* TEARING / SHREDDING SPLIT OVERLAYS */}
+        {/* Tearing Overlay for Shred Effect */}
         {isTearing && (
           <div className="imb-tear-overlay">
             <div className="imb-tear-half imb-tear-left" />
@@ -1046,6 +674,349 @@ export function EmployeeDetail({
             <div className="imb-tear-line" />
           </div>
         )}
+      </div>
+
+      {/* ====================================================================
+          NATURAL DETAIL FLOW SECTIONS (Below Widget)
+          ==================================================================== */}
+      <div className="imb-employee-flow-sections">
+        {/* 1. Persona & Directives Section */}
+        <div className="imb-flow-section">
+          <div className="imb-flow-section-head">
+            <span className="imb-flow-title">{t("Persona & Directives")}</span>
+            {isAssistant && (
+              <span className="imb-flow-sub">
+                {t("Appends to built-in system prompt")}
+              </span>
+            )}
+          </div>
+          <Textarea
+            id={`emp-prompt-${employee.id}`}
+            value={form.systemPrompt ?? ""}
+            placeholder={t(
+              "Define this employee's responsibilities, skills, and output standards…",
+            )}
+            minHeight={140}
+            onChange={(e) =>
+              setForm({ ...form, systemPrompt: e.target.value })
+            }
+            onValueCommit={(systemPrompt) =>
+              scheduleSave({ ...form, systemPrompt })
+            }
+          />
+        </div>
+
+        {/* 2. Unified Compute & Thinking Level Slider Bento */}
+        <div className="imb-flow-section imb-compute-card">
+          <div className="imb-flow-section-head">
+            <span className="imb-flow-title">
+              🧠 {t("Compute & Intelligence Specifications")}
+            </span>
+          </div>
+
+          <div className="imb-compute-grid">
+            {/* Model Select */}
+            <div className="imb-compute-col">
+              <label
+                htmlFor={`emp-model-${employee.id}`}
+                className="imb-compute-label"
+              >
+                {t("Model")}
+              </label>
+              <Select
+                id={`emp-model-${employee.id}`}
+                value={form.modelId ?? ""}
+                options={[
+                  { value: "", label: t("Default") },
+                  ...models.map((model) => ({
+                    value: modelRef(model),
+                    label: modelRef(model),
+                  })),
+                ]}
+                placeholder={t("Default")}
+                onChange={(modelId) =>
+                  scheduleSave({ ...form, modelId: modelId || null })
+                }
+              />
+            </div>
+
+            {/* Thinking Level Adaptive Slider */}
+            <div className="imb-compute-col">
+              <div className="imb-compute-label-row">
+                <span className="imb-compute-label">
+                  {t("Thinking Level")}
+                </span>
+                <span className="imb-thinking-level-badge">
+                  {thinkingSliderSteps[currentSliderIdx]?.label ?? t("Default")}
+                </span>
+              </div>
+
+              {/* Slider Track with Notch Markers */}
+              <div className="imb-thinking-slider-wrap">
+                <input
+                  type="range"
+                  className="imb-thinking-range-input"
+                  min="0"
+                  max={Math.max(0, thinkingSliderSteps.length - 1)}
+                  step="1"
+                  value={currentSliderIdx}
+                  onChange={(e) => handleSliderChange(Number(e.target.value))}
+                  aria-label={t("Thinking Level")}
+                />
+
+                <div className="imb-thinking-ticks-track">
+                  {thinkingSliderSteps.map((step, idx) => (
+                    <button
+                      key={step.label}
+                      type="button"
+                      className={`imb-thinking-tick-btn ${idx === currentSliderIdx ? "is-active" : ""}`}
+                      onClick={() => handleSliderChange(idx)}
+                      title={step.label}
+                    >
+                      <span className="imb-tick-dot" />
+                      <span className="imb-tick-label">{step.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Directly Listed Equipped Skills Shelf */}
+        <div className="imb-flow-section imb-skills-shelf">
+          <div className="imb-shelf-head">
+            <span className="imb-flow-title">
+              <IconSkills className="imb-shelf-icon" />
+              {t("Equipped Skills")} ({form.skills?.length ?? 0})
+            </span>
+            <button
+              type="button"
+              className="imb-shelf-manage-btn"
+              onClick={() => setAddSkillOpen((v) => !v)}
+            >
+              <IconPlus className="imb-sm" />
+              {addSkillOpen ? t("Close") : t("Manage Skills")}
+            </button>
+          </div>
+
+          <div className="imb-shelf-pills-list">
+            {!form.skills || form.skills.length === 0 ? (
+              <span className="imb-shelf-empty-hint">
+                {t("No skills equipped. Click Manage Skills to add.")}
+              </span>
+            ) : (
+              form.skills.map((skill) => (
+                <span key={skill} className="imb-skill-pill">
+                  <span className="imb-skill-pill-text">{skill}</span>
+                  <button
+                    type="button"
+                    className="imb-skill-pill-remove"
+                    aria-label={`Remove ${skill}`}
+                    title={t("Unequip")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSkill(skill);
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+
+          {addSkillOpen && (
+            <div className="imb-shelf-dropdown-wrap">
+              <MultiSelect
+                value={form.skills ?? []}
+                options={skillOptions}
+                placeholder={t("Select skills")}
+                emptyHint={t("No skills installed")}
+                onChange={(skills) => scheduleSave({ ...form, skills })}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 4. Directly Listed Linked MCP Tools Shelf */}
+        {!isAssistant && (
+          <div className="imb-flow-section imb-skills-shelf">
+            <div className="imb-shelf-head">
+              <span className="imb-flow-title">
+                <IconMcp className="imb-shelf-icon" />
+                {t("Linked MCP Tools")} ({form.mcp?.length ?? 0})
+              </span>
+              <button
+                type="button"
+                className="imb-shelf-manage-btn"
+                onClick={() => setAddMcpOpen((v) => !v)}
+              >
+                <IconPlus className="imb-sm" />
+                {addMcpOpen ? t("Close") : t("Manage MCP")}
+              </button>
+            </div>
+
+            <div className="imb-shelf-pills-list">
+              {!form.mcp || form.mcp.length === 0 ? (
+                <span className="imb-shelf-empty-hint">
+                  {t("No MCP tools connected. Click Manage MCP to link.")}
+                </span>
+              ) : (
+                form.mcp.map((mcp) => (
+                  <span key={mcp} className="imb-skill-pill imb-mcp-pill">
+                    <span className="imb-skill-pill-text">{mcp}</span>
+                    <button
+                      type="button"
+                      className="imb-skill-pill-remove"
+                      aria-label={`Remove ${mcp}`}
+                      title={t("Unlink")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeMcp(mcp);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            {addMcpOpen && (
+              <div className="imb-shelf-dropdown-wrap">
+                <MultiSelect
+                  value={form.mcp ?? []}
+                  options={mcpOptions}
+                  placeholder={t("Select MCP")}
+                  emptyHint={t("No MCP configured")}
+                  onChange={(mcp) => scheduleSave({ ...form, mcp })}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 5. Collapsible Task History Drawer */}
+        <div className="imb-flow-section imb-history-drawer">
+          <div
+            className="imb-history-drawer-head"
+            role="button"
+            tabIndex={0}
+            onClick={() => setHistoryOpen((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setHistoryOpen((v) => !v);
+              }
+            }}
+          >
+            <div className="imb-history-head-left">
+              <span className="imb-flow-title">
+                📜 {t("Career Task History")}
+              </span>
+              <span className="imb-history-count-badge">
+                {extra?.taskCount ?? 0} {t("tasks")}
+              </span>
+            </div>
+
+            <div className="imb-history-head-right">
+              <span className="imb-history-summary-quiet">
+                {t("Contributed")} {extra?.messageCount ?? 0} {t("messages")}
+              </span>
+              <span
+                className={`imb-drawer-chevron ${historyOpen ? "is-open" : ""}`}
+              >
+                <IconChevronDown />
+              </span>
+            </div>
+          </div>
+
+          {/* Collapsible Drawer Content */}
+          {historyOpen && (
+            <div className="imb-history-drawer-body">
+              {/* Filter Search Input */}
+              {extra && extra.tasks.length > 5 && (
+                <div className="imb-history-search-bar">
+                  <SearchInput
+                    value={historyQuery}
+                    onValueChange={setHistoryQuery}
+                    placeholder={t("Filter task titles…")}
+                  />
+                </div>
+              )}
+
+              {extraLoading ? (
+                <div className="imb-history-loading">{t("Loading history…")}</div>
+              ) : filteredTasks.length === 0 ? (
+                <div className="imb-history-empty">
+                  <div className="imb-history-empty-icon">
+                    <IconClock />
+                  </div>
+                  <div className="imb-history-empty-text">
+                    {historyQuery
+                      ? t("No tasks matched your filter.")
+                      : t("No task records found for this employee yet.")}
+                  </div>
+                  {!historyQuery && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void handleDispatchTask()}
+                      disabled={summoning}
+                    >
+                      <IconSendRocket /> {t("Dispatch First Task")}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="imb-history-timeline">
+                  {filteredTasks.map((task) => (
+                    <div key={task.chatId} className="imb-history-item">
+                      <div className="imb-history-rail">
+                        <div className="imb-history-dot" />
+                        <div className="imb-history-line" />
+                      </div>
+
+                      <div
+                        className="imb-history-card"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => void appStore.focusChat(task.chatId)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            void appStore.focusChat(task.chatId);
+                          }
+                        }}
+                      >
+                        <div className="imb-history-card-head">
+                          <span className="imb-history-chat-title">
+                            {task.title}
+                          </span>
+                          <span className="imb-history-date">
+                            {formatDateTimeStr(task.lastMessageAt)}
+                          </span>
+                        </div>
+
+                        <div className="imb-history-card-foot">
+                          <span className="imb-history-msg-badge">
+                            {task.messageCount > 0
+                              ? `${task.messageCount} ${t("replies")}`
+                              : t("Participant")}
+                          </span>
+                          <span className="imb-history-jump-hint">
+                            {t("Open Chat")} →
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
