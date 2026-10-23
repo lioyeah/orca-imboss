@@ -8,4 +8,3 @@ AGENTS.md
 .pi
 .npmrc
 tsconfig.node.tsbuildinfo
-/scripts/design-probe/

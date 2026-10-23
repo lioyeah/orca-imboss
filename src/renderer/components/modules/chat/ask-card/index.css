@@ -175,3 +175,40 @@
   font-size: var(--imb-text-sm);
   color: var(--imb-danger);
 }
+
+/*
+ * Answer attachments: the chip row of files the boss attaches to this answer,
+ * plus the read-only block of what the persisted answer carries.
+ *
+ * The card is `position: relative` (the hover time tag needs it), so the drop
+ * hint overlays the whole card exactly like the composer's does.
+ */
+.imb-ask-card.imb-drop-active {
+  border-color: var(--imb-accent);
+}
+
+.imb-ask-attach {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--imb-space-2);
+  margin-top: var(--imb-space-3);
+}
+
+/* The picker is driven by the attach button; the input itself never shows. */
+.imb-ask-file-input {
+  display: none;
+}
+
+.imb-ask-attach-notice {
+  flex-basis: 100%;
+  font-size: var(--imb-text-xs);
+  color: var(--imb-danger);
+}
+
+/* Files carried by the persisted answer, under the questions they answered:
+   the question's own attachments sit at the top of the card, so the two groups
+   never read as one. */
+.imb-ask-answer-attachments {
+  margin-top: var(--imb-space-3);
+}

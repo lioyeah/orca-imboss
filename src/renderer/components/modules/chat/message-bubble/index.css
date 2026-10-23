@@ -47,17 +47,11 @@
   white-space: pre-wrap;
 }
 
-.imb-bubble-attachments {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.imb-msg.imb-self .imb-bubble-attachments {
-  align-items: flex-end;
-}
+/*
+ * Attachment block styles live in `../message-attachments/index.css` — shared
+ * with the structured cards, which render their own layout. Only the bubble
+ * chrome interaction stays here.
+ */
 
 /*
  * Image-only messages drop the bubble chrome: the green (self) / surface
@@ -81,86 +75,4 @@
 
 .imb-bubble-media .imb-bubble-attachments {
   margin-bottom: 0;
-}
-
-.imb-bubble-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.imb-bubble-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 6px;
-  background: rgba(255, 255, 255, 0.5);
-  border: none;
-  border-radius: var(--imb-radius-sm);
-  font: inherit;
-  font-size: var(--imb-text-xs);
-  color: inherit;
-  max-width: 260px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.imb-bubble-chip-static {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.imb-bubble-chip-more {
-  cursor: default;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.imb-bubble-attachment-error {
-  margin-bottom: 6px;
-  font-size: var(--imb-text-xs);
-  color: var(--imb-danger);
-}
-
-.imb-msg.imb-self .imb-bubble-chip {
-  background: rgba(255, 255, 255, 0.45);
-}
-
-.imb-bubble-chip .imb-icon {
-  width: 12px;
-  height: 12px;
-  flex: none;
-}
-
-.imb-bubble-chip-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.imb-bubble-chip-size {
-  opacity: 0.7;
-  flex: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  .imb-bubble-chip {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
-    background: rgba(255, 255, 255, 0.5);
-  }
-
-  .imb-msg.imb-self .imb-bubble-chip {
-    background: rgba(64, 64, 64, 0.25);
-  }
-
-  .imb-msg.imb-self .imb-bubble-chip:hover:not(.imb-bubble-chip-static) {
-    background: rgba(64, 64, 64, 0.4);
-  }
 }

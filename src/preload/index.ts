@@ -379,12 +379,24 @@ const api = {
         senderEmployeeId,
         content,
       ) as Promise<Message>,
-    answer: (chatId: number, askMessageId: number, answers: object) =>
+    /**
+     * Answer an ask card. `attachments` are files the boss attaches to this
+     * answer; they are stored on the `answer` message itself (the same
+     * `messages.attachments` column every other kind uses), not inside the
+     * answers JSON. Omitted/empty = today's attachment-less answer.
+     */
+    answer: (
+      chatId: number,
+      askMessageId: number,
+      answers: object,
+      attachments?: MessageAttachment[],
+    ) =>
       ipcRenderer.invoke(
         "messages:answer",
         chatId,
         askMessageId,
         answers,
+        attachments,
       ) as Promise<Message>,
     /** Reveal an attachment's file in the OS file manager (main resolves the path). */
     revealAttachment: (messageId: number, index: number) =>

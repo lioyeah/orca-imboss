@@ -4,6 +4,7 @@ import { existsSync } from "fs";
 import { isAbsolute } from "path";
 import { wakeAgent } from "../agent/session-queue";
 import * as dbMessages from "../db/messages";
+import { agentPrompt, validateAttachmentsPayload } from "./attachment-prompt";
 import { assertInteger, assertObject, assertString } from "./helpers";
 
 export function registerMessageHandlers(): void {
@@ -33,11 +34,24 @@ export function registerMessageHandlers(): void {
 
   // Human (or any renderer) answers an ask message: append a kind=`answer`
   // system message and wake the ask's sender agent so it can react.
+  //
+  // `attachments` are the files the boss attached to this answer. They live on
+  // the message row (like every other kind's attachments) and never inside the
+  // answers JSON: the JSON is parsed by the card, the preview and the search
+  // index, and duplicating binary metadata there would only create a second
+  // source of truth. Field-level validation stays in the messages service.
   ipcMain.handle(
     "messages:answer",
-    (_event, chatId: unknown, askMessageId: unknown, answers: unknown) => {
+    (
+      _event,
+      chatId: unknown,
+      askMessageId: unknown,
+      answers: unknown,
+      attachments: unknown,
+    ) => {
       const safeChatId = assertInteger(chatId, "chat id");
       const safeAskId = assertInteger(askMessageId, "ask message id");
+      const safeAttachments = validateAttachmentsPayload(attachments);
       const ask = dbMessages.getMessageById(safeAskId);
       if (!ask || ask.chatId !== safeChatId || ask.kind !== "ask") {
         throw new Error("Ask message does not exist.");
@@ -53,15 +67,26 @@ export function registerMessageHandlers(): void {
         safeChatId,
         null,
         JSON.stringify(payload),
-        { kind: "answer" },
+        {
+          kind: "answer",
+          ...(safeAttachments && safeAttachments.length > 0
+            ? { attachments: safeAttachments }
+            : {}),
+        },
       );
       if (ask.senderEmployeeId != null) {
         // `wakeAgent` redirects the assistant (id 0) from a task group chat to
         // its root-chat session. The boss's answer is human-triggered: steer a
         // mid-run session instead of queueing (idle sessions queue as before).
-        void wakeAgent(ask.senderEmployeeId, safeChatId, READ_CHAT_PROMPT, {
-          mode: "steer",
-        });
+        // The attachment list rides along so the model opens the files instead
+        // of replying "got it" without reading them (`imb_read_chat` would also
+        // carry them, this just makes it impossible to miss).
+        void wakeAgent(
+          ask.senderEmployeeId,
+          safeChatId,
+          agentPrompt(READ_CHAT_PROMPT, safeAttachments),
+          { mode: "steer" },
+        );
       }
       return message;
     },

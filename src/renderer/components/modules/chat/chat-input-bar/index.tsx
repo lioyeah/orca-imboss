@@ -1,7 +1,4 @@
-import {
-  MAX_ATTACHMENT_BYTES,
-  MAX_USER_ATTACHMENTS,
-} from "@shared/constants/attachments";
+import { MAX_USER_ATTACHMENTS } from "@shared/constants/attachments";
 import { t } from "@shared/l10n";
 import type {
   ChatSummary,
@@ -9,32 +6,35 @@ import type {
   MessageAttachment,
 } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { cls } from "reactutils";
 import { appStore, useAppSync } from "../../../../app-store";
+import {
+  acceptWithinCap,
+  chooseFolderAttachments,
+  dropEntries,
+  fileAttachment,
+  filesFromClipboard,
+  hasDroppedFiles,
+  isOversizedFile,
+  pendingFromEntries,
+  persistPastedFile,
+  toPendingAttachment,
+  type FileEntry,
+} from "../../../../attachment-pick";
 import {
   EMPTY_DRAFT,
   nextAttachmentId,
   toPlainAttachment,
   type PendingAttachment,
 } from "../../../../chat-draft";
-import { useClickOutside } from "../../../../hooks/use-click-outside";
-import { useDropdownPosition } from "../../../../hooks/use-dropdown-position";
-import { useEscapeKey } from "../../../../hooks/use-escape-key";
 import { Avatar } from "../../../avatar";
-import {
-  IconAttach,
-  IconChat,
-  IconFile,
-  IconFolder,
-  IconSend,
-} from "../../../icons";
+import { IconChat, IconFolder, IconSend } from "../../../icons";
 import { useMentionResolver } from "../../../markdown/use-mention";
 import { Modal } from "../../../modal";
 import { SearchInput } from "../../../search-input";
 import { Textarea } from "../../../textarea";
-import { Tooltip } from "../../../tooltip";
-import { ImageLightbox } from "../image-lightbox";
+import { DraftAttachmentChips } from "../attachment-draft";
+import { AttachMenuButton } from "../attachment-draft/attach-menu";
 import { formatChatPreview } from "../preview-text";
 import { displayTitle } from "../relative-time";
 import "./index.css";
@@ -56,61 +56,6 @@ export interface ChatInputBarProps {
    * pick). Lets the chat module refresh its tag candidates and paged list.
    */
   onTagsApplied?: (chatId: number) => void;
-}
-
-const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|svg|avif|ico|heic|heif)$/i;
-
-/**
- * Best-effort image detection: prefer the MIME type the picker/drag source
- * supplies, falling back to the extension because some drag sources report an
- * empty type.
- */
-function isImageFile(file: File): boolean {
-  return file.type.startsWith("image/") || IMAGE_EXTENSIONS.test(file.name);
-}
-
-/** True when a drag payload carries OS files (ignores text/link drags). */
-function hasDroppedFiles(dataTransfer: DataTransfer): boolean {
-  return dataTransfer.types.includes("Files");
-}
-
-/**
- * Collect clipboard files synchronously. `DataTransferItem`s are only valid
- * during the paste event, so this must not be deferred behind an await. Falls
- * back to `clipboardData.files` for sources without `items`.
- */
-function filesFromClipboard(data: DataTransfer): File[] {
-  const files: File[] = [];
-  for (const item of Array.from(data.items)) {
-    if (item.kind !== "file") continue;
-    const file = item.getAsFile();
-    if (file) files.push(file);
-  }
-  if (files.length === 0 && data.files.length > 0) {
-    files.push(...Array.from(data.files));
-  }
-  return files;
-}
-
-/** Safe extension for a pasted file: its name first, then its MIME subtype. */
-function extensionFor(file: File): string {
-  const match = /\.([a-z0-9]{1,8})$/i.exec(file.name);
-  if (match) return match[1].toLowerCase();
-  const slash = file.type.indexOf("/");
-  if (slash < 0) return "";
-  const subtype = file.type.slice(slash + 1).toLowerCase();
-  if (subtype === "jpeg") return "jpg";
-  return /^[a-z0-9]{1,8}$/.test(subtype) ? subtype : "";
-}
-
-/** `pasted-YYYYMMDD-HHmmss.<ext>` name for a clipboard-synthesized file. */
-function pastedName(file: File): string {
-  const now = new Date();
-  const pad = (value: number): string => String(value).padStart(2, "0");
-  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const ext = extensionFor(file);
-  return `pasted-${date}-${time}${ext.length > 0 ? `.${ext}` : ""}`;
 }
 
 export function ChatInputBar({
@@ -145,28 +90,6 @@ export function ChatInputBar({
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionCaret, setMentionCaret] = useState({ start: 0, end: 0 });
 
-  // Full-screen viewer for the image chips: index within `previewables` (the
-  // draft's image attachments), plus the chip rect the viewer grows out of.
-  const [lightbox, setLightbox] = useState<number | null>(null);
-  const [lightboxOrigin, setLightboxOrigin] = useState<DOMRect | null>(null);
-  /** Chips whose thumbnail failed to decode — they fall back to the file icon. */
-  const [failedPreviews, setFailedPreviews] = useState<ReadonlySet<number>>(
-    () => new Set(),
-  );
-
-  /**
-   * Image chips in draft order. A chip shows a thumbnail (and so can be opened
-   * full screen) exactly when `buildPending` minted a `previewUrl` for it:
-   * folders and conversation references never have one, and neither do plain
-   * files. The viewer's index is a position in *this* list, not an attachment
-   * index, so lookups below always go through the chip's stable `id`.
-   */
-  const previewables = attachments.flatMap((item) =>
-    item.previewUrl && !failedPreviews.has(item.id)
-      ? [{ id: item.id, name: item.attachment.name, src: item.previewUrl }]
-      : [],
-  );
-
   const allEmployees = snap.data.employees.items;
   const filteredEmployees = useMemo(() => {
     if (!mentionOpen) return [];
@@ -182,11 +105,8 @@ export function ChatInputBar({
   // Same plain-text previews as the chat list: `@<id>` mentions resolve to
   // employee names (non-interactive, exactly like the list rows).
   const { resolveMention } = useMentionResolver(chatId, false);
-  const popupRef = useRef<HTMLDivElement>(null);
-  const popupMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { panelStyle, positionPanel } = useDropdownPosition(popupRef, 200, 300);
 
   // A new chat resets the composer (draft/attachments) and lands the caret in
   // the input. `focusToken` starts at `0`, so mounting with an existing chat
@@ -197,8 +117,6 @@ export function ChatInputBar({
     setNotice(null);
     setPopupOpen(false);
     setDropActive(false);
-    setLightbox(null);
-    setLightboxOrigin(null);
     if (textareaRef.current) textareaRef.current.value = "";
     textareaRef.current?.focus();
   }, [focusToken, chatId]);
@@ -209,24 +127,12 @@ export function ChatInputBar({
     setNotice(null);
     setPopupOpen(false);
     setDropActive(false);
-    setLightbox(null);
-    setLightboxOrigin(null);
     // Uncontrolled textarea: manually sync the DOM value to this chat's draft
     // (React never rewrites it, so IME composition is never interrupted).
     if (textareaRef.current) {
       textareaRef.current.value = appStore.chatDrafts[chatId]?.text ?? "";
     }
   }, [chatId]);
-
-  // The draft's image chips can shrink under an open viewer (a sent draft has
-  // its object URLs revoked), so drop a viewer whose position no longer exists
-  // rather than leaving it pointing at a dead `blob:` URL.
-  const previewCount = previewables.length;
-  useEffect(() => {
-    setLightbox((value) =>
-      value === null || value < previewCount ? value : null,
-    );
-  }, [previewCount]);
 
   // A file dropped anywhere outside the input bar would otherwise make Chromium
   // navigate the window to it. Neutralize that default globally; the input bar
@@ -244,12 +150,6 @@ export function ChatInputBar({
       window.removeEventListener("drop", preventFileNavigation);
     };
   }, []);
-
-  // The menu is portaled to `document.body`, so it lives outside `popupRef`;
-  // both count as "inside" for click-outside purposes.
-  const popupOutsideRefs = useMemo(() => [popupRef, popupMenuRef], []);
-  useClickOutside(popupOutsideRefs, () => setPopupOpen(false), popupOpen);
-  useEscapeKey(() => setPopupOpen(false), popupOpen);
 
   // Load the configured common projects whenever the attach menu opens, so a
   // Settings edit is picked up without remounting the composer. No projects →
@@ -269,18 +169,6 @@ export function ChatInputBar({
       alive = false;
     };
   }, [popupOpen]);
-
-  // Reposition the portaled menu if the viewport scrolls/resizes while open.
-  useEffect(() => {
-    if (!popupOpen) return;
-    const reposition = (): void => positionPanel();
-    window.addEventListener("resize", reposition);
-    document.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      document.removeEventListener("scroll", reposition, true);
-    };
-  }, [popupOpen, positionPanel]);
 
   // Load the attachable conversations whenever the picker opens, so a chat
   // created since the last open is selectable without remounting the composer.
@@ -346,38 +234,15 @@ export function ChatInputBar({
     return remaining;
   };
 
-  /** Build a chip for a file, minting a thumbnail URL for images. */
-  const buildPending = (
-    file: File,
-    attachment: MessageAttachment,
-  ): PendingAttachment => {
-    const previewUrl = isImageFile(file)
-      ? URL.createObjectURL(file)
-      : undefined;
-    return {
-      id: nextAttachmentId(),
-      attachment,
-      ...(previewUrl ? { previewUrl } : {}),
-    };
-  };
-
   /**
    * Append chips, re-checking the cap against the live draft so an async add
-   * cannot overshoot a concurrent one. Preview URLs for dropped chips are
-   * revoked so they never leak.
+   * cannot overshoot a concurrent one. Overflow chips are revoked (and their
+   * pasted files deleted) by the shared helper.
    */
   const commitPending = (items: PendingAttachment[]): void => {
     if (items.length === 0) return;
     const liveCount = appStore.chatDrafts[chatId]?.attachments.length ?? 0;
-    const room = Math.max(MAX_USER_ATTACHMENTS - liveCount, 0);
-    for (const item of items.slice(room)) {
-      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      // A persisted pasted file whose chip did not fit is now unreferenced.
-      if (item.attachment.path) {
-        void imb.files.deletePastedFile(item.attachment.path);
-      }
-    }
-    const accepted = items.slice(0, room);
+    const accepted = acceptWithinCap(items, liveCount, MAX_USER_ATTACHMENTS);
     if (accepted.length > 0) {
       appStore.addChatDraftAttachments(chatId, accepted);
     }
@@ -466,46 +331,13 @@ export function ChatInputBar({
     );
   };
 
-  const addEntries = (
-    entries: readonly { file: File; kind: "file" | "folder" }[],
-  ): void => {
+  const addEntries = (entries: readonly FileEntry[]): void => {
     if (entries.length === 0) return;
     setNotice(null);
-    const next: PendingAttachment[] = [];
-    let failedFolders = 0;
-    for (const { file, kind } of entries.slice(0, capCount(entries.length))) {
-      // `webUtils.getPathForFile` (preload) yields "" for JS-constructed files;
-      // only persist a real on-disk path so the chip is revealable.
-      const path = imb.files.getPath(file);
-      if (kind === "folder") {
-        // A folder is only useful through its absolute path: the model reads
-        // the directory in place and the chip has no bytes to preview. A
-        // folder without a resolvable path is rejected rather than attached.
-        if (!path) {
-          failedFolders += 1;
-          continue;
-        }
-        next.push({
-          id: nextAttachmentId(),
-          attachment: {
-            name: file.name || path,
-            size: 0,
-            type: "folder",
-            path,
-            kind: "folder",
-          },
-        });
-        continue;
-      }
-      next.push(
-        buildPending(file, {
-          name: file.name || pastedName(file),
-          size: file.size,
-          type: file.type,
-          ...(path ? { path } : {}),
-        }),
-      );
-    }
+    const { items, failedFolders } = pendingFromEntries(
+      entries,
+      capCount(entries.length),
+    );
     if (failedFolders > 0) {
       setNotice(
         failedFolders === 1
@@ -515,42 +347,26 @@ export function ChatInputBar({
             }),
       );
     }
-    commitPending(next);
+    commitPending(items);
     setPopupOpen(false);
   };
 
   /**
-   * Attach folders chosen through the native directory dialog. The absolute
-   * path originates in main, so it is authoritative; a folder counts as one
-   * attachment toward the cap but has no bytes to preview.
+   * Attach folders chosen through the native directory dialog. Main owns the
+   * absolute path, so it is authoritative; a folder counts as one attachment
+   * toward the cap but has no bytes to preview.
    */
   const chooseFolders = async (): Promise<void> => {
     setNotice(null);
-    let directories: { name: string; path: string }[] | null;
+    let items: PendingAttachment[];
     try {
-      directories = await imb.files.chooseDirectories();
+      items = await chooseFolderAttachments();
     } catch {
       setNotice(t("Could not attach the folder."));
       return;
     }
-    if (!directories || directories.length === 0) return;
-    const next: PendingAttachment[] = [];
-    for (const directory of directories.slice(
-      0,
-      capCount(directories.length),
-    )) {
-      next.push({
-        id: nextAttachmentId(),
-        attachment: {
-          name: directory.name,
-          size: 0,
-          type: "folder",
-          path: directory.path,
-          kind: "folder",
-        },
-      });
-    }
-    commitPending(next);
+    if (items.length === 0) return;
+    commitPending(items.slice(0, capCount(items.length)));
     setPopupOpen(false);
   };
 
@@ -565,32 +381,21 @@ export function ChatInputBar({
     const next: PendingAttachment[] = [];
     let failed = 0;
     for (const file of selected.slice(0, capCount(selected.length))) {
-      const path = imb.files.getPath(file);
-      if (path) {
-        next.push(
-          buildPending(file, {
-            name: file.name || pastedName(file),
-            size: file.size,
-            type: file.type,
-            path,
-          }),
-        );
+      // A file that already lives on disk keeps its own path; a clipboard-only
+      // one is persisted first (the shared helper owns that rule).
+      if (imb.files.getPath(file)) {
+        next.push(toPendingAttachment(file, fileAttachment(file)));
         continue;
       }
-      // Reject oversized images before reading their bytes into memory.
-      if (file.size > MAX_ATTACHMENT_BYTES) {
+      // Reject oversized payloads before reading their bytes into memory.
+      if (isOversizedFile(file)) {
         failed += 1;
         continue;
       }
       try {
-        const data = new Uint8Array(await file.arrayBuffer());
-        const saved = await imb.files.savePastedFile(
-          chatId,
-          pastedName(file),
-          file.type,
-          data,
+        next.push(
+          toPendingAttachment(file, await persistPastedFile(chatId, file)),
         );
-        next.push(buildPending(file, saved));
       } catch {
         failed += 1;
       }
@@ -618,31 +423,10 @@ export function ChatInputBar({
     void addPastedFiles(files);
   };
 
-  // Folders dropped from the OS are attached by path (kind = "folder"); a
-  // `File` alone cannot be told apart from an empty file, so Chromium's entry
-  // API distinguishes them synchronously (no IPC).
+  // Folders dropped from the OS are attached by path (kind = "folder"); the
+  // shared helper tells them apart from files via Chromium's entry API.
   const addDropped = (dataTransfer: DataTransfer): void => {
-    const entries: { file: File; kind: "file" | "folder" }[] = [];
-    for (const item of Array.from(dataTransfer.items)) {
-      if (item.kind !== "file") continue;
-      const file = item.getAsFile();
-      if (!file) continue;
-      let isDirectory = false;
-      try {
-        isDirectory = item.webkitGetAsEntry()?.isDirectory === true;
-      } catch {
-        // Some sources throw; treat the entry as a regular file.
-        isDirectory = false;
-      }
-      entries.push({ file, kind: isDirectory ? "folder" : "file" });
-    }
-    // Sources without `items` (or with only string items) fall back to `files`.
-    if (entries.length === 0) {
-      for (const file of Array.from(dataTransfer.files)) {
-        entries.push({ file, kind: "file" });
-      }
-    }
-    addEntries(entries);
+    addEntries(dropEntries(dataTransfer));
   };
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
@@ -777,88 +561,17 @@ export function ChatInputBar({
         </div>
       )}
       <div className="imb-chat-input-card">
-        {attachments.length > 0 && (
-          <div className="imb-attached-files">
-            {attachments.map((item, index) => {
-              // Show the on-disk location so identical-looking chips (and
-              // nameless thumbnails) can be told apart. Fall back to the name
-              // when no path is available (e.g. a JS-constructed file).
-              const location =
-                item.attachment.path && item.attachment.path.length > 0
-                  ? item.attachment.path
-                  : item.attachment.name;
-              return (
-                <Tooltip
-                  key={item.id}
-                  placement="top"
-                  content={
-                    <span className="imb-attach-tooltip-path">{location}</span>
-                  }
-                >
-                  <div className="imb-attached-file-thumb">
-                    {item.previewUrl && !failedPreviews.has(item.id) ? (
-                      // The thumbnail is the viewer's affordance: press it to
-                      // open the picture full screen. The remove button stays a
-                      // sibling (absolutely positioned over the corner), so a
-                      // remove never reaches this click handler.
-                      <button
-                        type="button"
-                        className="imb-attached-file-open"
-                        aria-label={t("Enlarge image")}
-                        title={t("Enlarge image")}
-                        onClick={(event) => {
-                          // The viewer indexes `previewables`, which excludes
-                          // non-image chips — map through the stable chip id.
-                          const at = previewables.findIndex(
-                            (preview) => preview.id === item.id,
-                          );
-                          if (at < 0) return;
-                          setLightboxOrigin(
-                            event.currentTarget.getBoundingClientRect(),
-                          );
-                          setLightbox(at);
-                        }}
-                      >
-                        <img
-                          src={item.previewUrl}
-                          alt={item.attachment.name}
-                          draggable={false}
-                          onError={() =>
-                            setFailedPreviews((prev) => {
-                              const next = new Set(prev);
-                              next.add(item.id);
-                              return next;
-                            })
-                          }
-                        />
-                      </button>
-                    ) : (
-                      <div className="imb-file-icon-placeholder">
-                        {item.attachment.kind === "chat" ? (
-                          <IconChat />
-                        ) : item.attachment.kind === "folder" ? (
-                          <IconFolder />
-                        ) : (
-                          <IconFile />
-                        )}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="imb-attached-file-remove"
-                      aria-label={`${t("Remove")} ${item.attachment.name}`}
-                      onClick={() =>
-                        appStore.removeChatDraftAttachment(chatId, index)
-                      }
-                    >
-                      ×
-                    </button>
-                  </div>
-                </Tooltip>
-              );
-            })}
-          </div>
-        )}
+        <DraftAttachmentChips
+          items={attachments}
+          onRemove={(_item, index) =>
+            appStore.removeChatDraftAttachment(chatId, index)
+          }
+          onViewerClose={() => {
+            // Hand the caret back to the composer: closing the viewer returns
+            // the boss to typing, not to a dead close button.
+            textareaRef.current?.focus();
+          }}
+        />
         {notice !== null && <div className="imb-attach-notice">{notice}</div>}
         <MentionPopup
           open={mentionOpen}
@@ -886,113 +599,57 @@ export function ChatInputBar({
           onKeyDown={onKeyDown}
         />
         <div className="imb-chat-input-actions">
-          <div className="imb-attach-anchor" ref={popupRef}>
+          <AttachMenuButton
+            open={popupOpen}
+            onOpenChange={setPopupOpen}
+            onPickFiles={() => fileInputRef.current?.click()}
+            onPickFolder={() => void chooseFolders()}
+          >
             <button
               type="button"
-              className="imb-attach-btn"
-              aria-label={t("Attach")}
-              title={t("Attach")}
+              role="menuitem"
+              className="imb-attach-popup-item imb-menu-row"
               onClick={() => {
-                if (popupOpen) {
-                  setPopupOpen(false);
-                  return;
-                }
-                positionPanel();
-                setPopupOpen(true);
+                setPopupOpen(false);
+                setChatQuery("");
+                setChatPickerError(null);
+                setChatPickerOpen(true);
               }}
             >
-              <IconAttach />
+              <IconChat />
+              <span>{t("Conversation")}</span>
             </button>
-            {popupOpen &&
-              panelStyle &&
-              createPortal(
+            {/* Common projects: rows behind the separator, below the icon row.
+                Nothing (not even the separator) renders when none is
+                configured. */}
+            {projects.length > 0 && (
+              <>
                 <div
-                  ref={popupMenuRef}
-                  className="imb-attach-popup imb-menu-surface imb-open"
-                  role="menu"
-                  style={{
-                    position: "fixed",
-                    top: panelStyle.top,
-                    bottom: panelStyle.bottom,
-                    left: panelStyle.left,
-                    width: panelStyle.width,
-                    maxHeight: panelStyle.maxHeight,
-                    right: "auto",
-                    zIndex: 50,
-                  }}
-                >
+                  className="imb-attach-popup-sep imb-menu-sep"
+                  role="separator"
+                />
+                {projects.map((project) => (
                   <button
+                    key={project.id}
                     type="button"
                     role="menuitem"
                     className="imb-attach-popup-item imb-menu-row"
-                    onClick={() => {
-                      setPopupOpen(false);
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    <IconFile />
-                    <span>{t("File")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="imb-attach-popup-item imb-menu-row"
-                    onClick={() => {
-                      setPopupOpen(false);
-                      void chooseFolders();
-                    }}
+                    onClick={() => void applyProject(project)}
                   >
                     <IconFolder />
-                    <span>{t("Folder")}</span>
+                    <span className="imb-attach-project-name">
+                      {project.name}
+                    </span>
+                    {project.tags.length > 0 && (
+                      <span className="imb-attach-project-tags">
+                        {project.tags.map((tag) => `#${tag}`).join(" ")}
+                      </span>
+                    )}
                   </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="imb-attach-popup-item imb-menu-row"
-                    onClick={() => {
-                      setPopupOpen(false);
-                      setChatQuery("");
-                      setChatPickerError(null);
-                      setChatPickerOpen(true);
-                    }}
-                  >
-                    <IconChat />
-                    <span>{t("Conversation")}</span>
-                  </button>
-                  {/* Common projects: rows behind the separator, below the
-                      icon row. Nothing (not even the separator) renders when
-                      none is configured. */}
-                  {projects.length > 0 && (
-                    <>
-                      <div
-                        className="imb-attach-popup-sep imb-menu-sep"
-                        role="separator"
-                      />
-                      {projects.map((project) => (
-                        <button
-                          key={project.id}
-                          type="button"
-                          role="menuitem"
-                          className="imb-attach-popup-item imb-menu-row"
-                          onClick={() => void applyProject(project)}
-                        >
-                          <IconFolder />
-                          <span className="imb-attach-project-name">
-                            {project.name}
-                          </span>
-                          {project.tags.length > 0 && (
-                            <span className="imb-attach-project-tags">
-                              {project.tags.map((tag) => `#${tag}`).join(" ")}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>,
-                document.body,
-              )}
-          </div>
+                ))}
+              </>
+            )}
+          </AttachMenuButton>
           <button
             type="button"
             className="imb-send-btn-circle"
@@ -1059,21 +716,6 @@ export function ChatInputBar({
           )}
         </div>
       </Modal>
-      {lightbox !== null && (
-        <ImageLightbox
-          images={previewables.map(({ name, src }) => ({ name, src }))}
-          index={lightbox}
-          origin={lightboxOrigin}
-          onIndexChange={setLightbox}
-          onClose={() => {
-            setLightbox(null);
-            setLightboxOrigin(null);
-            // Hand the caret back to the composer: closing the viewer returns
-            // the boss to typing, not to a dead close button.
-            textareaRef.current?.focus();
-          }}
-        />
-      )}
     </div>
   );
 }

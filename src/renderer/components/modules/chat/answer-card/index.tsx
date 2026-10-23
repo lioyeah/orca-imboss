@@ -3,6 +3,10 @@ import type { Message } from "@shared/types";
 import { cls } from "reactutils";
 import { EmployeeAvatar } from "../../../employee-avatar";
 import { parseAnswer } from "../ask-answer";
+import {
+  MessageAttachments,
+  useMessageAttachments,
+} from "../message-attachments";
 import { MessageBubble } from "../message-bubble";
 import { MessageTime } from "../message-time";
 import "./index.css";
@@ -27,6 +31,15 @@ export function AnswerCard({
 }: AnswerCardProps): React.JSX.Element {
   const self = message.senderEmployeeId === null;
   const payload = parseAnswer(message.content);
+  // Today's `messages:answer` IPC writes no attachments, so this renders
+  // nothing. It is here for the same reason the ask card has it: a row that
+  // renders its own layout must never be the reason an attachment is invisible
+  // (legacy rows, a future answer-with-files, an older/newer app version).
+  const attachmentView = useMessageAttachments({
+    messageId: message.id,
+    attachments: message.attachments,
+    attachmentsTotal: message.attachmentsTotal,
+  });
 
   if (!payload) {
     return (
@@ -56,6 +69,7 @@ export function AnswerCard({
       />
       <div className="imb-answer-card">
         <div className="imb-answer-card-title">{t("Answer")}</div>
+        <MessageAttachments view={attachmentView} self={self} />
         {payload.answers.map((a) => (
           <div className="imb-answer-item" key={a.questionId}>
             <div className="imb-answer-qid">{a.questionId}</div>

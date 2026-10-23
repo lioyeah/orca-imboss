@@ -12,7 +12,18 @@
  * Keyed by the ask **message** id (globally unique row id, stable across
  * reloads); `chatId` rides along so a deleted conversation can drop its drafts
  * (chat deletion cascades over messages).
+ *
+ * The draft also carries the files the boss attached to this answer. Their
+ * on-disk copies (a pasted screenshot has no file of its own) are owned by the
+ * draft until it is consumed, so every path that drops a draft has to decide
+ * whether the files are now referenced by a message (submit) or garbage
+ * (removal / eviction / deleted conversation) — see `clearAskDraft`.
  */
+import {
+  discardPendingAttachments,
+  revokePendingAttachment,
+} from "./attachment-pick";
+import type { PendingAttachment } from "./chat-draft";
 
 /** Retained input of one ask card that has not been submitted yet. */
 export interface AskDraft {
@@ -22,6 +33,8 @@ export interface AskDraft {
   selected: Record<string, string[]>;
   /** Free-form text per question id (a `free` question or a "Other" field). */
   text: Record<string, string>;
+  /** Files the boss attached to this answer, in the order they were added. */
+  attachments: PendingAttachment[];
   /** Epoch ms of the last edit; oldest entries are evicted first. */
   updatedAt: number;
 }
@@ -59,18 +72,78 @@ export function readAskDraft(messageId: number): AskDraft | undefined {
   return drafts.get(messageId);
 }
 
-/** Drop one draft (submitted answer, deleted chat, stale payload). */
-export function clearAskDraft(messageId: number): void {
+/**
+ * Drop one draft.
+ *
+ * `keepFiles: true` is for the submit path: the answer message now references
+ * those attachments, so only the thumbnail URLs are released. Everywhere else
+ * (the boss removed the card's contents, the chat is gone, the entry was
+ * evicted) the files are unreferenced and get deleted along with the URLs.
+ */
+export function clearAskDraft(
+  messageId: number,
+  options: { keepFiles?: boolean } = {},
+): void {
   if (!isId(messageId)) return;
+  const draft = drafts.get(messageId);
   drafts.delete(messageId);
+  if (!draft) return;
+  if (options.keepFiles === true) {
+    for (const item of draft.attachments) revokePendingAttachment(item);
+    return;
+  }
+  discardPendingAttachments(draft.attachments);
 }
 
 /** Drop every draft of one conversation (conversation deleted). */
 export function clearAskDraftsForChat(chatId: number): void {
   if (!isId(chatId)) return;
   for (const [messageId, draft] of [...drafts]) {
-    if (draft.chatId === chatId) drafts.delete(messageId);
+    if (draft.chatId === chatId) {
+      drafts.delete(messageId);
+      discardPendingAttachments(draft.attachments);
+    }
   }
+}
+
+/**
+ * Replace this draft's attachment list.
+ *
+ * The card owns the cap (it needs to show a warning), so this stays a plain
+ * assignment — but any chip that falls out of the list is discarded here, so a
+ * caller can never leak a thumbnail URL or orphan a pasted file by forgetting.
+ */
+export function setAskDraftAttachments(
+  messageId: number,
+  chatId: number,
+  attachments: readonly PendingAttachment[],
+): void {
+  const draft = ensureDraft(messageId, chatId);
+  if (!draft) return;
+  const kept = new Set(attachments.map((item) => item.id));
+  const dropped = draft.attachments.filter((item) => !kept.has(item.id));
+  draft.attachments = [...attachments];
+  discardPendingAttachments(dropped);
+  commit(messageId, draft);
+}
+
+/**
+ * Remove one chip (by its stable id, not its index: a concurrent add cannot
+ * shift the target) and discard what it owned.
+ */
+export function removeAskDraftAttachment(
+  messageId: number,
+  chatId: number,
+  id: number,
+): void {
+  const draft = drafts.get(messageId);
+  if (!draft || draft.chatId !== chatId) return;
+  const index = draft.attachments.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const [removed] = draft.attachments.splice(index, 1);
+  // The chip is no longer referenced: drop its thumbnail URL and its pasted file.
+  if (removed) discardPendingAttachments([removed]);
+  commit(messageId, draft);
 }
 
 /** Record the chosen options of one question (an empty list clears it). */
@@ -147,7 +220,13 @@ function ensureDraft(messageId: number, chatId: number): AskDraft | undefined {
   if (!isId(messageId) || !isId(chatId)) return undefined;
   let draft = drafts.get(messageId);
   if (!draft) {
-    draft = { chatId, selected: {}, text: {}, updatedAt: Date.now() };
+    draft = {
+      chatId,
+      selected: {},
+      text: {},
+      attachments: [],
+      updatedAt: Date.now(),
+    };
     drafts.set(messageId, draft);
   }
   return draft;
@@ -169,7 +248,8 @@ function commit(messageId: number, draft: AskDraft): void {
 function isEmpty(draft: AskDraft): boolean {
   return (
     Object.keys(draft.selected).length === 0 &&
-    Object.keys(draft.text).length === 0
+    Object.keys(draft.text).length === 0 &&
+    draft.attachments.length === 0
   );
 }
 
@@ -179,7 +259,9 @@ function evictOverflow(): void {
   const ordered = [...drafts].sort(
     ([, left], [, right]) => left.updatedAt - right.updatedAt,
   );
-  for (const [messageId] of ordered.slice(0, drafts.size - MAX_DRAFTS)) {
+  for (const [messageId, draft] of ordered.slice(0, drafts.size - MAX_DRAFTS)) {
     drafts.delete(messageId);
+    // An evicted draft's pasted files are unreferenced: delete them.
+    discardPendingAttachments(draft.attachments);
   }
 }
