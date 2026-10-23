@@ -54,6 +54,8 @@ import {
   type MyMessageEntry,
 } from "../my-message-jump";
 import { formatChatPreview } from "../preview-text";
+import { ProgressGroup } from "../progress-group";
+import { groupProgressRuns, type ProgressRun } from "../progress-runs";
 import {
   displayTitle,
   formatChatTime,
@@ -105,6 +107,20 @@ interface ChatRunStatus {
   running: boolean;
   /** Context compaction is in progress (the only status text shown). */
   compacting: boolean;
+}
+
+/**
+ * Every text a progress card shows, lower-cased, in one string: the title plus
+ * each step's employee name and task. Used to decide whether a find query
+ * matches a card that is currently hidden inside a history layer.
+ */
+function progressCardText(message: Message): string {
+  const parts = [message.content];
+  for (const step of message.steps ?? []) {
+    if (step === null || typeof step !== "object") continue;
+    parts.push(step.name, step.task);
+  }
+  return parts.join(" ").toLowerCase();
 }
 
 /**
@@ -714,6 +730,58 @@ export function ChatModule(): React.JSX.Element {
     [messages, pairing],
   );
 
+  // Every rendered message by id (progress runs are stored as ids only, so the
+  // thread can resolve a run's cards without re-walking the list per group).
+  const messageById = useMemo(() => {
+    const map = new Map<number, Message>();
+    for (const message of messages) map.set(message.id, message);
+    return map;
+  }, [messages]);
+
+  // Consecutive progress cards of one task group fold into a single run (see
+  // `../progress-runs`): the assistant re-posts the whole step list on every
+  // update, so a run is N snapshots of the same work.
+  const progressRuns = useMemo(
+    () => groupProgressRuns(visibleMessages),
+    [visibleMessages],
+  );
+
+  // Which card of a run the boss paged to, keyed by the run's anchor id. The
+  // stored run signature invalidates the choice as soon as the run receives a
+  // new card (a fresh snapshot is what matters, so the group returns to the
+  // newest), and the map is dropped when the conversation changes.
+  const [shownCards, setShownCards] = useState<
+    Map<number, { signature: string; messageId: number }>
+  >(() => new Map());
+  // A card a jump asked to reveal (it is flashed once it is the shown one).
+  const [revealTarget, setRevealTarget] = useState<{
+    anchorId: number;
+    messageId: number;
+  } | null>(null);
+
+  const pageRun = useCallback((run: ProgressRun, messageId: number): void => {
+    setShownCards((prev) => {
+      const next = new Map(prev);
+      next.set(run.anchorId, { signature: run.signature, messageId });
+      return next;
+    });
+    setRevealTarget((current) =>
+      current !== null && current.anchorId === run.anchorId ? null : current,
+    );
+  }, []);
+
+  const handleRevealed = useCallback((run: ProgressRun): void => {
+    setRevealTarget((current) =>
+      current !== null && current.anchorId === run.anchorId ? null : current,
+    );
+  }, []);
+
+  // A different conversation starts on the newest card of every run.
+  useEffect(() => {
+    setShownCards(new Map());
+    setRevealTarget(null);
+  }, [selectedId]);
+
   // Messages the boss herself wrote, **oldest first** (the order they were said
   // in — the list reads top-down like the transcript): a plain text bubble with
   // no sender (the composer and IM integrations both store it that way).
@@ -783,12 +851,12 @@ export function ChatModule(): React.JSX.Element {
   }, []);
 
   /**
-   * Scroll the thread to one of the boss's messages. One rect read for the
-   * clicked row (no measuring while hovering / scrolling) and the landing row
-   * flashes once the smooth scroll settles; the scroll itself (and the "my
-   * messages" jump) share `../thread-scroll` with the other thread views.
+   * Scroll the thread to one message row. One rect read for the row (no
+   * measuring while hovering / scrolling) and the landing row flashes once the
+   * smooth scroll settles; the scroll itself (and the "my messages" jump) share
+   * `../thread-scroll` with the other thread views.
    */
-  const jumpToMessage = useCallback((messageId: number): void => {
+  const scrollToMessageRow = useCallback((messageId: number): void => {
     const el = threadRef.current;
     if (!el) return;
     const row = el.querySelector<HTMLElement>(
@@ -811,6 +879,33 @@ export function ChatModule(): React.JSX.Element {
         }
       },
       flash: row,
+    });
+  }, []);
+
+  /**
+   * Scroll to a folded progress run's row. Its `data-message-id` changes with
+   * the card on screen, so the run anchor is what a jump can address before the
+   * run has paged to the target card.
+   */
+  const scrollToRunRow = useCallback((anchorId: number): void => {
+    const el = threadRef.current;
+    if (!el) return;
+    const row = el.querySelector<HTMLElement>(
+      `[data-progress-run="${anchorId}"]`,
+    );
+    if (!row) return;
+    scrollThreadToRow(el, row, {
+      topGap: MY_JUMP_TOP_GAP,
+      beforeScroll: (target) => {
+        pinnedRef.current = false;
+        if (selectedIdRef.current !== null) {
+          chatScrollStore.set(selectedIdRef.current, {
+            scrollTop: target,
+            pinned: false,
+          });
+        }
+      },
+      // The group flashes the revealed card itself once it is mounted.
     });
   }, []);
 
@@ -864,6 +959,69 @@ export function ChatModule(): React.JSX.Element {
     hotkeysEnabled: !deleteOpen,
     onBeforeJump: handleFindJump,
   });
+
+  // A run renders one card, so a find query can only match the card that is
+  // shown. A query that matches an older snapshot of a run therefore pages that
+  // run to the matching card — the match then exists, is highlighted, and the
+  // jump lands on it. Dropped when the bar closes, which puts every run back on
+  // its own card (the newest, unless the boss paged).
+  const findQuery = threadFind.open
+    ? threadFind.query.trim().toLowerCase()
+    : "";
+  const findShownCards = useMemo(() => {
+    const cards = new Map<number, number>();
+    if (findQuery.length === 0) return cards;
+    for (const run of progressRuns.runs) {
+      if (run.ids.length < 2) continue;
+      const hidden = run.ids.slice(0, -1);
+      for (const id of hidden) {
+        const card = messageById.get(id);
+        if (card !== undefined && progressCardText(card).includes(findQuery)) {
+          cards.set(run.anchorId, id);
+          break;
+        }
+      }
+    }
+    return cards;
+  }, [findQuery, progressRuns, messageById]);
+
+  // The card each run shows: a pending reveal wins (the jump is already
+  // scrolling there), then a find match, then the boss's own choice, then the
+  // newest snapshot.
+  const shownCardId = (run: ProgressRun): number => {
+    if (revealTarget !== null && revealTarget.anchorId === run.anchorId) {
+      return revealTarget.messageId;
+    }
+    const found = findShownCards.get(run.anchorId);
+    if (found !== undefined) return found;
+    const paged = shownCards.get(run.anchorId);
+    if (paged !== undefined && paged.signature === run.signature) {
+      return paged.messageId;
+    }
+    return run.latestId;
+  };
+
+  const progressRunsRef = useRef(progressRuns);
+  progressRunsRef.current = progressRuns;
+
+  /**
+   * Jump to one message. An older card of a run is not in the DOM while another
+   * card of that run is shown, so the jump pages the run to it (and the group
+   * flashes it once it is on screen) and scrolls the thread to the run's row.
+   */
+  const jumpToMessage = useCallback(
+    (messageId: number): void => {
+      const run = progressRunsRef.current.runByMessageId.get(messageId);
+      if (run === undefined) {
+        scrollToMessageRow(messageId);
+        return;
+      }
+      pageRun(run, messageId);
+      setRevealTarget({ anchorId: run.anchorId, messageId });
+      scrollToRunRow(run.anchorId);
+    },
+    [pageRun, scrollToMessageRow, scrollToRunRow],
+  );
 
   const handleSend = useCallback(
     async (text: string, attachments: MessageAttachment[]): Promise<void> => {
@@ -1258,18 +1416,43 @@ export function ChatModule(): React.JSX.Element {
           tabIndex={-1}
           onScroll={handleThreadScroll}
         >
-          {visibleMessages.map((message, index) => (
-            <Fragment key={`${message.chatId}-${message.id}`}>
-              {shouldShowTimeSeparator(visibleMessages[index - 1], message) && (
-                <TimeSeparator secs={message.createdAt} />
-              )}
-              <MessageItem
-                message={message}
-                onAnswered={handleAnswered}
-                askAnswer={pairing.answerByAskId.get(message.id)}
-              />
-            </Fragment>
-          ))}
+          {visibleMessages.map((message, index) => {
+            const run = progressRuns.runByMessageId.get(message.id);
+            // A run renders once, at its anchor (oldest card): it shows the
+            // newest card and keeps the others in its history layer.
+            if (run !== undefined && run.anchorId !== message.id) return null;
+            return (
+              <Fragment key={`${message.chatId}-${message.id}`}>
+                {shouldShowTimeSeparator(
+                  visibleMessages[index - 1],
+                  message,
+                ) && <TimeSeparator secs={message.createdAt} />}
+                {run === undefined ? (
+                  <MessageItem
+                    message={message}
+                    onAnswered={handleAnswered}
+                    askAnswer={pairing.answerByAskId.get(message.id)}
+                  />
+                ) : (
+                  <ProgressGroup
+                    run={run}
+                    cards={run.ids
+                      .map((id) => messageById.get(id))
+                      .filter((card): card is Message => card !== undefined)}
+                    shownId={shownCardId(run)}
+                    revealId={
+                      revealTarget !== null &&
+                      revealTarget.anchorId === run.anchorId
+                        ? revealTarget.messageId
+                        : null
+                    }
+                    onPage={pageRun}
+                    onRevealed={handleRevealed}
+                  />
+                )}
+              </Fragment>
+            );
+          })}
           {selectedRunStatus !== undefined && (
             // Reserved, fixed-height slot: it is present for the whole run, so
             // toggling the compaction text never shifts the messages above it.

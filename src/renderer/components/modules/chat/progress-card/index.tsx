@@ -1,6 +1,6 @@
 import { t } from "@shared/l10n";
 import type { MessageStep, StepStatus } from "@shared/types";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { cls } from "reactutils";
 import { appStore, useApp } from "../../../../app-store";
 import { EmployeeAvatar } from "../../../employee-avatar";
@@ -27,6 +27,26 @@ export interface ProgressCardProps {
   groupChatId: number | null;
   /** Exact send time, revealed on hover at the card's bottom-right corner. */
   timeLabel?: string | null;
+  /**
+   * Render the card's own Halt button. Defaults to `true`; a card rendered
+   * inside a folded progress run passes `false` because that run owns the one
+   * Halt button (outside the card, so the run keeps a single interrupt entry).
+   */
+  showHalt?: boolean;
+  /**
+   * Card-level controls shown in the card's **top-right corner, inside the
+   * card** (the folded run's pager). The title row reserves their width, so they
+   * can never overlap the title — and they are in-card content, not an overlay
+   * hanging off the card (that slot belongs to the Halt button).
+   */
+  actions?: ReactNode;
+  /**
+   * Render the hover time tag. Defaults to `true`. A card inside a paged run
+   * passes `false`: that run clips its stage horizontally, and the tag straddles
+   * the card's bottom edge, so the run renders it one level higher (outside the
+   * clipping box) to keep the label whole.
+   */
+  showTime?: boolean;
 }
 
 export function ProgressCard({
@@ -34,6 +54,9 @@ export function ProgressCard({
   steps,
   groupChatId,
   timeLabel,
+  showHalt = true,
+  actions,
+  showTime = true,
 }: ProgressCardProps): React.JSX.Element {
   // Summary resolution (shared cache + delete invalidation) is the same as the
   // `chat` card's: `undefined` loading, `null` missing/deleted.
@@ -64,20 +87,29 @@ export function ProgressCard({
   return (
     <>
       <div className="imb-progress-card">
-        {/* The title itself is the open-group link (the old corner arrow is
-            gone): a plain `div` when there is no conversation to open, so a
-            legacy or deleted-group card has no click target at all. */}
-        {summary !== undefined && summary !== null ? (
-          <button
-            type="button"
-            className="imb-progress-card-title"
-            onClick={() => appStore.openChat(summary)}
-          >
-            {title}
-          </button>
-        ) : (
-          <div className="imb-progress-card-title">{title}</div>
-        )}
+        {/* Title row: the title (which is also the open-group link) and, when
+            the caller passes them, the card's own corner controls. Both are
+            in-flow, so a long title wraps and the controls keep their corner
+            instead of overlapping anything. */}
+        <div className="imb-progress-card-head">
+          {/* The title itself is the open-group link (the old corner arrow is
+              gone): a plain `div` when there is no conversation to open, so a
+              legacy or deleted-group card has no click target at all. */}
+          {summary !== undefined && summary !== null ? (
+            <button
+              type="button"
+              className="imb-progress-card-title"
+              onClick={() => appStore.openChat(summary)}
+            >
+              {title}
+            </button>
+          ) : (
+            <div className="imb-progress-card-title">{title}</div>
+          )}
+          {actions !== undefined && (
+            <div className="imb-progress-card-actions">{actions}</div>
+          )}
+        </div>
         {steps.map((step, index) => {
           const employeeId = step.employeeId;
           const currentName =
@@ -118,11 +150,11 @@ export function ProgressCard({
             </div>
           );
         })}
-        <MessageTime label={timeLabel} />
+        {showTime && <MessageTime label={timeLabel} />}
       </div>
       {/* Row sibling of the bubble, gated on the link id so it is present from
           the first render (no width jump while the summary loads). */}
-      {groupChatId !== null && <HaltButton chatId={groupChatId} />}
+      {showHalt && groupChatId !== null && <HaltButton chatId={groupChatId} />}
     </>
   );
 }

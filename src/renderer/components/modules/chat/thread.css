@@ -174,8 +174,16 @@
   animation: imb-quote-flash 700ms var(--imb-ease-standard);
 }
 
+/* A progress card has no `.imb-bubble`: flash the card surface the jump landed
+   on, so a match in a progress card (or in a run's shown snapshot) reads the
+   same as a match in a bubble. */
+.imb-msg[data-quote-target] .imb-progress-card {
+  animation: imb-quote-flash 700ms var(--imb-ease-standard);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .imb-msg[data-quote-target] .imb-bubble {
+  .imb-msg[data-quote-target] .imb-bubble,
+  .imb-msg[data-quote-target] .imb-progress-card {
     animation: none;
   }
 }

@@ -29,6 +29,7 @@ import type {
   McpServerInput,
   Message,
   MessageAttachment,
+  MessageChangedPayload,
   MessageSearchResult,
   MiniApp,
   ModelOption,
@@ -405,22 +406,8 @@ const api = {
         messageId,
         index,
       ) as Promise<void>,
-    onChanged: (
-      cb: (payload: {
-        chatId: number;
-        senderEmployeeId: number | null;
-        silent?: boolean;
-        root: boolean;
-        muted: boolean;
-      }) => void,
-    ) =>
-      on<{
-        chatId: number;
-        senderEmployeeId: number | null;
-        silent?: boolean;
-        root: boolean;
-        muted: boolean;
-      }>("messages:changed", cb),
+    onChanged: (cb: (payload: MessageChangedPayload) => void) =>
+      on<MessageChangedPayload>("messages:changed", cb),
   },
 
   chat: {

@@ -235,6 +235,23 @@ export function IconChevronUp(props: IconProps): React.JSX.Element {
   );
 }
 
+/** Horizontal chevrons: the "previous / next card" pager of a progress run. */
+export function IconChevronLeft(props: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(props)} strokeWidth={1.8}>
+      <path d="M15 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(props: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(props)} strokeWidth={1.8}>
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 /** Bulleted list (used by the root-chat "my messages" jump). */
 export function IconList(props: IconProps): React.JSX.Element {
   return (
@@ -245,6 +262,19 @@ export function IconList(props: IconProps): React.JSX.Element {
       <path d="M4.5 6h.01" />
       <path d="M4.5 12h.01" />
       <path d="M4.5 18h.01" />
+    </svg>
+  );
+}
+
+/**
+ * Stacked cards: a folded *run* of progress cards (several snapshots shown as
+ * one row). Two sheets behind a front sheet, no fan — decoration only.
+ */
+export function IconStack(props: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(props)} strokeWidth={1.7}>
+      <rect x="3" y="7" width="13" height="13" rx="3" />
+      <path d="M7.5 4.5h9A3.5 3.5 0 0 1 20 8v9" />
     </svg>
   );
 }

@@ -1,0 +1,190 @@
+/*
+ * A run of consecutive progress cards of one task group (see `progress-runs.ts`
+ * / `index.tsx`). Only one card is on screen; this CSS owns three things:
+ *
+ *   .imb-progress-group-deck   the two deck edges behind the front card
+ *   .imb-progress-pager        the in-card `‹ 2 / 3 ›` control
+ *   .imb-progress-group-clip   the animated height wrapper (no thread jump)
+ */
+
+.imb-progress-group-deck {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  /* Room for the deck edges. Constant on purpose: adding a card changes how
+     many edges show, never where the card itself sits. */
+  padding-left: 8px;
+}
+
+/*
+ * Deck edges: only the left strip shows, because both are right-aligned with
+ * the card painting over them. They follow the card's height (inset a little
+ * vertically) and fade with depth — no rotation, no fan.
+ */
+.imb-progress-group-deck::before,
+.imb-progress-group-deck::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 0;
+  border-radius: var(--imb-radius-card);
+  background: var(--imb-surface);
+  border: 1px solid var(--imb-border);
+  box-shadow: var(--imb-shadow-1);
+  pointer-events: none;
+}
+
+/* Deepest / faintest edge. */
+.imb-progress-group-deck::before {
+  left: 0;
+  opacity: 0.6;
+}
+
+.imb-progress-group-deck::after {
+  left: 4px;
+  opacity: 0.9;
+}
+
+/* One card behind the newest one: only the nearer edge is drawn. */
+.imb-progress-group[data-edges="1"] .imb-progress-group-deck::before {
+  display: none;
+}
+
+/* The wrapper that animates between two cards' heights. It clips the slide
+   horizontally; the card's own hover time tag is rendered outside it (see
+   `index.tsx`) so this clipping can never crop the label. */
+.imb-progress-group-clip {
+  position: relative;
+  overflow: clip;
+  transition: height var(--imb-motion-base) var(--imb-ease-standard);
+}
+
+/* The hover time tag is rendered beside the clipping stage (so paging can never
+   crop it) — but the stage owns `z-index: 1`, so the tag needs a higher one to
+   paint above the card instead of behind it. */
+.imb-msg.imb-progress-group > .imb-msg-time {
+  z-index: 2;
+}
+
+/* The front card paints above both edges: `::after` is the deck's last child,
+   so without an explicit z-index the front edge would wash over the card. */
+.imb-progress-group-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.imb-progress-group-stage .imb-progress-card {
+  flex: 1;
+  box-shadow:
+    var(--imb-elev-raised),
+    /* Short left-side shadow: separates the front card from the deck edges. */ -3px
+      1px 6px -3px rgba(0, 0, 0, 0.16);
+}
+
+/* Page turn: the incoming card slides in from the side the button points at,
+   with a fade. Re-mounted per card id, so one animation per switch. */
+.imb-progress-group-stage[data-direction="1"] {
+  animation: imb-progress-page-from-right var(--imb-motion-base)
+    var(--imb-ease-standard);
+}
+
+.imb-progress-group-stage[data-direction="-1"] {
+  animation: imb-progress-page-from-left var(--imb-motion-base)
+    var(--imb-ease-standard);
+}
+
+@keyframes imb-progress-page-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes imb-progress-page-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * Pager (inside the card's top-right corner, in the title row's action slot).
+ * Compact and quiet: two 20px buttons around a `--imb-text-xs` counter. The
+ * buttons keep their box when disabled, so paging never shifts the counter.
+ */
+.imb-progress-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+}
+
+.imb-progress-pager-btn {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--imb-radius-sm);
+  background: none;
+  color: var(--imb-muted);
+  cursor: pointer;
+  transition:
+    background var(--imb-motion-fast) var(--imb-ease-standard),
+    color var(--imb-motion-fast) var(--imb-ease-standard);
+}
+
+.imb-progress-pager-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.imb-progress-pager-btn:hover {
+  background: var(--imb-fg-soft);
+  color: var(--imb-fg);
+}
+
+.imb-progress-pager-btn:active {
+  background: color-mix(in oklch, var(--imb-fg) 12%, transparent);
+}
+
+.imb-progress-pager-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--imb-focus-ring);
+}
+
+.imb-progress-pager-count {
+  min-width: 30px;
+  padding: 0 2px;
+  font-size: var(--imb-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--imb-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imb-progress-group-clip,
+  .imb-progress-pager-btn {
+    transition: none;
+  }
+
+  .imb-progress-group-stage[data-direction="1"],
+  .imb-progress-group-stage[data-direction="-1"] {
+    animation: none;
+  }
+}

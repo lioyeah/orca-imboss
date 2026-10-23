@@ -9,6 +9,7 @@ import type {
   ImageGenStatus,
   Message,
   MessageAttachment,
+  MessageChangedPayload,
   MessageKind,
   MessageSearchResult,
   MessageStep,
@@ -308,13 +309,15 @@ export function appendMessage(
     createdAt,
     chatId,
   );
-  sendToRenderer("messages:changed", {
+  const changed: MessageChangedPayload = {
     chatId,
     senderEmployeeId,
+    kind,
     silent: options.silent === true,
     root: chatRow.fromChatId === null,
     muted: (chatRow.muted ?? 0) === 1,
-  });
+  };
+  sendToRenderer("messages:changed", changed);
 
   const message = toMessage({
     id: Number(result.lastInsertRowid),
@@ -385,12 +388,15 @@ export function updateImageGeneration(
   const updated = getMessageById(messageId);
   if (updated !== null) {
     const chat = getChat(updated.chatId);
-    sendToRenderer("messages:changed", {
+    const changed: MessageChangedPayload = {
       chatId: updated.chatId,
       senderEmployeeId: updated.senderEmployeeId,
+      kind: updated.kind,
       silent: true,
       root: chat === null || chat.fromChatId === null,
-    });
+      muted: chat?.muted === true,
+    };
+    sendToRenderer("messages:changed", changed);
   }
   return updated;
 }

@@ -101,6 +101,28 @@ export interface Message {
   createdAt: number;
 }
 
+/**
+ * Payload of the `messages:changed` broadcast (`src/main/db/messages.ts`): one
+ * message was appended, or an image message was updated. It carries just enough
+ * for the renderer to refresh that chat's summary and gate the notification
+ * beep without another IPC read.
+ */
+export interface MessageChangedPayload {
+  chatId: number;
+  senderEmployeeId: number | null;
+  /**
+   * Kind of the message. Optional so a payload written before it was added
+   * still type-checks; `progress` is the one the beep rule treats specially.
+   */
+  kind?: MessageKind;
+  /** App-generated (no beep, no unread bump — unread is main-side anyway). */
+  silent?: boolean;
+  /** Root chat (a task group chat never beeps). */
+  root: boolean;
+  /** The chat is muted: unread is kept, notifications are dropped. */
+  muted: boolean;
+}
+
 /** One hit from `messages:search` (FTS index or LIKE fallback). */
 export interface MessageSearchResult {
   chatId: number;

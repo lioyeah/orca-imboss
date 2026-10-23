@@ -1202,13 +1202,24 @@ export async function initAppStore(): Promise<void> {
   // lastAt, unread) and re-sorts the cached list. A lightweight unread-only
   // event (imb_notify) updates items[].unread directly.
   imb.messages.onChanged(
-    ({ chatId, senderEmployeeId, silent, root, muted }) => {
+    ({ chatId, senderEmployeeId, silent, root, muted, kind }) => {
       void appStore.refreshChatSummary(chatId);
       // Beep for any non-silent employee/assistant message in a root chat,
       // regardless of the active module or the selected chat (group chats, muted
       // chats and silent acks stay quiet). Throttled inside
       // playNotificationSound().
-      if (root && senderEmployeeId !== null && !silent && !muted) {
+      //
+      // Progress cards are the exception: they post in bursts (one card per step
+      // update) and the thread folds a run of them into one card the boss pages
+      // through, so they keep bumping the unread badge (done in main) but never
+      // ring.
+      if (
+        root &&
+        senderEmployeeId !== null &&
+        !silent &&
+        !muted &&
+        kind !== "progress"
+      ) {
         playNotificationSound();
       }
     },

@@ -9,6 +9,31 @@
   flex: 1;
 }
 
+/* Title row: the title (an open-group link when the group is live) plus the
+   card's own corner controls. The title takes the free space and wraps, so the
+   controls keep the top-right corner at any title length — nothing overlaps. */
+.imb-progress-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--imb-space-2);
+  min-width: 0;
+}
+
+.imb-progress-card-head .imb-progress-card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.imb-progress-card-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--imb-space-1);
+  /* Pull the controls up to the card's optical corner (the card's own vertical
+     padding would otherwise leave them sitting low). */
+  margin-top: -1px;
+}
+
 .imb-progress-card-title {
   font-size: var(--imb-text-sm);
   color: var(--imb-muted);
