@@ -49,8 +49,23 @@ const OPEN_MS = 280;
  */
 const CRISP_DELAY_MS = 80;
 
-/** Cross-fade duration between the fitted copy and the full-resolution one. */
-const FADE_MS = 180;
+/**
+ * How long a picture is shown before its original pixels may be handed over:
+ * the open animation plus a small margin. Deliberately a fixed beat rather than
+ * "the FLIP has finished", so the hand-over keeps its own beat even when the
+ * open animation could not run at all (the picture was still decoding when the
+ * viewer mounted) — that case used to hand over *inside* the entrance fade,
+ * which read as the picture flashing twice.
+ */
+const HAND_OVER_DELAY_MS = OPEN_MS + CRISP_DELAY_MS;
+
+/**
+ * Fade-in duration of the full-resolution copy. Must stay equal to the CSS
+ * `--imb-motion-fast` that `.imb-lightbox-image-full` transitions on: the fitted
+ * copy is dropped right after it, and dropping it early would expose the
+ * backdrop for a frame.
+ */
+const FADE_MS = 100;
 
 /** Fitted (neutral) state: the picture at `1×`, fully visible and centred. */
 interface ZoomState {
@@ -159,6 +174,18 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
 /**
+ * The viewer's motion is token-driven (`--imb-dur-*` collapse to `1ms` under
+ * `prefers-reduced-motion`), but the open animation's transform transition and
+ * the hand-over beat are JS timers. This is the one place the JS side asks the
+ * same question, so a reduced-motion user gets a single, instant reveal instead
+ * of "instant picture, then a swap 360ms later".
+ */
+const prefersReducedMotion = (): boolean =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
  * True at the neutral framing: `1×` and centred (so a *shrunk* picture is not
  * fitted — Esc steps it back up to `1×` instead of closing).
  */
@@ -174,9 +201,11 @@ const isFitted = (zoom: ZoomState): boolean =>
  * Resolution: the picture is painted twice. A fitted-size copy appears first
  * (cheap decode, and the element the open animation grows out of the
  * thumbnail); once that has loaded, the fitted box is measured and a second copy
- * laid out at the picture's natural size cross-fades in. Zooming therefore
- * magnifies the original pixels, not a resized preview. A picture over
- * `MAX_CRISP_PIXELS` skips the second copy (memory) and says it is downsampled.
+ * laid out at the picture's natural size fades in *on top of* it (the fitted copy
+ * never fades out — see `HAND_OVER_DELAY_MS`), after which the fitted one is
+ * dropped. Zooming therefore magnifies the original pixels, not a resized
+ * preview. A picture over `MAX_CRISP_PIXELS` skips the second copy (memory) and
+ * says it is downsampled.
  *
  * Gestures: the wheel zooms about the pointer (a trackpad pinch arrives as the
  * same wheel path) within `0.5×` of the fitted size up to 400% of the original
@@ -227,11 +256,14 @@ export function ImageLightbox({
   /** The full-resolution copy has finished loading. */
   const [hiLoaded, setHiLoaded] = useState<{ index: number } | null>(null);
   /**
-   * The open animation has finished. Until then the full-resolution copy waits,
-   * so a re-decode never plays against the FLIP.
+   * The shown picture has had its own beat (open animation, entrance fade)
+   * before the original pixels may fade in over it. Handing over earlier would
+   * fade a half-transparent copy over a half-transparent copy, which composites
+   * to a *dimmer* picture for the length of the fade — the "blink" this viewer
+   * used to show when it opened. Reduced motion has nothing to wait for.
    */
-  const [flipDone, setFlipDone] = useState(true);
-  /** The fitted copy can be dropped once the cross-fade is over. */
+  const [handOverReady, setHandOverReady] = useState(prefersReducedMotion);
+  /** The fitted copy can be dropped once the original pixels are fully up. */
   const [fittedGone, setFittedGone] = useState<{ index: number } | null>(null);
 
   /** A reveal request is in flight (the button is disabled meanwhile). */
@@ -243,7 +275,7 @@ export function ImageLightbox({
 
   const fitScale = fit?.scale ?? 1;
   const degraded = fit?.overBudget ?? false;
-  const crisp = fit !== null && hiLoaded?.index === index && flipDone;
+  const crisp = fit !== null && hiLoaded?.index === index && handOverReady;
   // The fitted copy is dropped once the original pixels are up — but it is also
   // what the fitted box is measured from, so it comes back whenever the shown
   // picture has no measurement of its own (e.g. flipping back to a picture whose
@@ -437,6 +469,25 @@ export function ImageLightbox({
     }
   });
 
+  // The hand-over gate. A plain timer (not a side effect of the FLIP) so the
+  // beat is the same whether or not the open animation ran, and it restarts per
+  // shown picture: flipping to another image replays that picture's entrance
+  // fade, and its original pixels must not fade in on top of a half-faded copy
+  // either. Reduced motion collapses the beat to nothing — the reveal is then a
+  // single step, which is what that setting asks for.
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setHandOverReady(true);
+      return;
+    }
+    setHandOverReady(false);
+    const timer = window.setTimeout(
+      () => setHandOverReady(true),
+      HAND_OVER_DELAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [index]);
+
   // Drop the fitted copy once the full-resolution one has faded in: two
   // decoded bitmaps of the same picture is pure memory.
   useEffect(() => {
@@ -505,10 +556,15 @@ export function ImageLightbox({
   // FLIP the fitted copy out of the thumbnail: place it at the thumbnail's box
   // for the first paint, then release it to its natural size on the next frame
   // so the transform transitions. Zoom/pan live on the wrapper, so they never
-  // fight this animation; the full-resolution copy waits for it to finish.
+  // fight this animation; the full-resolution copy waits for it to finish
+  // (`HAND_OVER_DELAY_MS`).
   useLayoutEffect(() => {
     const image = fittedRef.current;
     if (!image || !origin) return;
+    // Reduced motion: the picture simply appears where it ends up. Growing it out
+    // of the thumbnail is exactly the movement that setting is about, and the
+    // hand-over is already immediate in that mode.
+    if (prefersReducedMotion()) return;
     if (!image.complete || image.naturalWidth === 0) return;
     const target = image.getBoundingClientRect();
     if (target.width === 0 || target.height === 0) return;
@@ -519,7 +575,6 @@ export function ImageLightbox({
       origin.top + origin.height / 2 - (target.top + target.height / 2);
     image.style.transition = "none";
     image.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-    setFlipDone(false);
     const frame = requestAnimationFrame(() => {
       image.style.transition = `transform ${OPEN_MS}ms var(--imb-ease-standard)`;
       image.style.transform = "translate(0, 0) scale(1)";
@@ -529,8 +584,7 @@ export function ImageLightbox({
       // outlive the animation and shadow any later styling.
       image.style.transition = "";
       image.style.transform = "";
-      setFlipDone(true);
-    }, OPEN_MS + CRISP_DELAY_MS);
+    }, HAND_OVER_DELAY_MS);
     return () => {
       cancelAnimationFrame(frame);
       window.clearTimeout(timer);
@@ -747,16 +801,14 @@ export function ImageLightbox({
           onDoubleClick={onZoomDoubleClick}
         >
           {/* The fitted-size copy: what the viewer opens with, and the element
-              the thumbnail grows into. Dropped once the real pixels are up. */}
+              the thumbnail grows into. It stays fully opaque underneath while
+              the real pixels fade in over it, then it is dropped — never faded
+              out (that would dim the picture mid-fade). */}
           {showFitted && (
             <img
               key={`fitted-${index}`}
               ref={fittedRef}
-              className={cls(
-                "imb-lightbox-image",
-                "imb-lightbox-image-fitted",
-                crisp && "imb-lightbox-image-out",
-              )}
+              className={cls("imb-lightbox-image", "imb-lightbox-image-fitted")}
               src={current.src}
               alt={crisp ? "" : current.name}
               draggable={false}

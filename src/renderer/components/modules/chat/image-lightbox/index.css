@@ -48,24 +48,27 @@
 
 /*
  * The fitted-size copy: what the viewer opens with. It is also the element the
- * open animation drives (its inline transform), and it cross-fades when
- * stepping between images (keyed by index, so it remounts and replays this).
+ * open animation drives (its inline transform), and it fades in when stepping
+ * between images (keyed by index, so it remounts and replays this).
+ *
+ * It is never faded *out*: the full-resolution copy fades in on top of it and
+ * this one is unmounted once that has finished. Cross-fading the two copies (one
+ * to 0 while the other goes to 1) composites two half-transparent pictures, so
+ * the 86% black backdrop shows ~25% through mid-fade and the picture visibly
+ * dims for the length of the fade — the "blink" the viewer used to show when it
+ * opened.
  */
 .imb-lightbox-image-fitted {
   animation: imb-lightbox-image-fade var(--imb-motion-fast)
     var(--imb-ease-standard);
-  transition: opacity var(--imb-motion-fast) var(--imb-ease-standard);
-}
-
-.imb-lightbox-image-out {
-  opacity: 0;
 }
 
 /*
  * The original pixels. Laid out at the picture's natural size and scaled down
  * into the fitted box (`--imb-lightbox-fit`), which is what makes the decode —
  * and therefore the zoomed-in detail — the real image instead of a preview.
- * Fades in over the fitted copy once it has loaded.
+ * Fades in *over* the fitted copy once it has loaded; the fitted copy is dropped
+ * only after that fade, so the backdrop never shows through the pair.
  */
 .imb-lightbox-image-full {
   position: absolute;

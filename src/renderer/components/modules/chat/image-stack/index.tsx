@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import { cls } from "reactutils";
-import { useWheelStep } from "../../../../hooks/use-wheel-step";
 import { IconOpen } from "../../../icons";
 import { ImageLightbox } from "../image-lightbox";
 import "./index.css";
@@ -99,13 +98,18 @@ interface DragState {
 /**
  * In-bubble preview for one or more image attachments. A single image is a
  * plain thumbnail; several images become a card stack — drag the front card
- * past the threshold (or scroll the wheel while hovering) to send it to the
- * back, click any card to bring it to the front, or click the front card to
- * open the full-screen viewer.
+ * past the threshold to send it to the back, click any card to bring it to the
+ * front, or click the front card to open the full-screen viewer.
  *
  * Clicking (rather than only handling pointer gestures) keeps the cards usable
  * from the keyboard and assistive tech; a swipe swallows the click it would
  * otherwise also fire.
+ *
+ * The deck deliberately leaves the wheel alone: a listener over the cards would
+ * have to swallow the gesture to own it, which stops the thread from scrolling
+ * while the pointer happens to rest on a picture. Browsing the deck therefore
+ * has exactly three entries — swipe, click a card behind, click the front card
+ * to open the viewer (which holds every image and pages with ←/→).
  */
 export function ImageStack({
   images,
@@ -130,7 +134,6 @@ export function ImageStack({
   const [origin, setOrigin] = useState<DOMRect | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const suppressClick = useRef(false);
-  const stackRef = useRef<HTMLDivElement>(null);
 
   // An image can be dropped from the deck at runtime (its `<img>` failed to
   // load), shrinking `count` under a stale `front`/`lightbox` position.
@@ -138,14 +141,6 @@ export function ImageStack({
     setFront((value) => (count > 0 ? Math.min(value, count - 1) : 0));
     setLightbox((value) => (value === null || value < count ? value : null));
   }, [count]);
-
-  // Wheel over the deck flips it; a lone image (or a deck with a card being
-  // produced) has nothing to flip, so it never intercepts the wheel.
-  useWheelStep(
-    stackRef,
-    (direction) => setFront((value) => (value + direction + count) % count),
-    rotatable,
-  );
 
   const onPointerDown = (event: PointerEvent<HTMLButtonElement>): void => {
     if (!rotatable || event.button !== 0) return;
@@ -204,7 +199,6 @@ export function ImageStack({
 
   return (
     <div
-      ref={stackRef}
       className={cls("imb-image-stack", single && "imb-image-stack-single")}
       style={{ "--imb-stack-size": `${size}px` } as CSSProperties}
     >
@@ -245,7 +239,7 @@ export function ImageStack({
             aria-label={t("Enlarge image")}
             title={
               isFront && !single
-                ? t("Click to enlarge, drag or scroll to switch")
+                ? t("Click to enlarge, drag to switch")
                 : t("Enlarge image")
             }
             onPointerDown={isFront ? onPointerDown : undefined}

@@ -87,7 +87,7 @@
   "Clear discovered accounts": "清除已发现的账号",
   "Clear filters": "清除筛选",
   "Clear": "清除",
-  "Click to enlarge, drag or scroll to switch": "点击放大，拖动或滚轮切换",
+  "Click to enlarge, drag to switch": "点击放大，拖动切换",
   "Click to view and update to v${version}.": "点击查看并更新到 v${version}。",
   "Close all": "关闭全部",
   "Close others": "关闭其它",
