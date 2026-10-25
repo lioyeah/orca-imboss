@@ -218,6 +218,14 @@ export function IconCheck(props: IconProps): React.JSX.Element {
   );
 }
 
+export function IconCollapse(props: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(props)}>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
+}
+
 export function IconChevronDown(props: IconProps): React.JSX.Element {
   return (
     <svg {...base(props)} strokeWidth={1.8}>

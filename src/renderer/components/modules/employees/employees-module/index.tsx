@@ -412,7 +412,24 @@ export function EmployeesModule(): React.JSX.Element {
             type="button"
             className="imb-icon-btn imb-pane-action-btn"
             aria-label={t("Recruit")}
-            onClick={() => setRecruitOpen(true)}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              setCtxMenu({
+                anchor: { rect, placement: "bottom", align: "start" },
+                items: [
+                  {
+                    key: "recruit-new",
+                    label: t("New employee…"),
+                    onSelect: () => setRecruitOpen(true),
+                  },
+                  {
+                    key: "recruit-import",
+                    label: t("Import from file…"),
+                    onSelect: () => void startImport(),
+                  },
+                ],
+              });
+            }}
           >
             <IconPlus className="imb-icon imb-sm" />
           </button>

@@ -135,9 +135,6 @@ export function EmployeeDetail({
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportNotice, setExportNotice] = useState<string | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<"name" | "role" | null>(
     null,
   );
@@ -254,8 +251,6 @@ export function EmployeeDetail({
       scheduleSave({ ...form, name: next });
     } else if (draft !== (form.role ?? "")) {
       scheduleSave({ ...form, role: draft });
-    }
-  };
     }
   };
 
@@ -1057,14 +1052,4 @@ export function EmployeeDetail({
   );
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = bytes / 1024;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
-}
+

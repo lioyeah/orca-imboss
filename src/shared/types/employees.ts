@@ -107,7 +107,7 @@ export interface BuildEmployeeSystemPromptArgs {
    */
   toolsGuidelines: readonly string[];
   /** Current date in `yyyy-MM-dd`. */
-  today: string;
+  today?: string;
 }
 
 /** One historical task/conversation this employee participated in. */
